@@ -32,4 +32,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   83-test suite at ≥85% enforced coverage on a 3.10–3.13 × Ubuntu/Windows
   CI matrix.
 
-[0.1.0]: https://github.com/mohammedessam/khatt/releases/tag/v0.1.0
+[0.1.0]: https://github.com/DrEssam97/khatt/releases/tag/v0.1.0

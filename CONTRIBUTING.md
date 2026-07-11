@@ -6,7 +6,7 @@ it that way.
 ## Setup
 
 ```bash
-git clone <this-repo> && cd khatt
+git clone https://github.com/DrEssam97/khatt.git && cd khatt
 uv sync --all-extras       # runtime + dev + gradio
 uv run pre-commit install
 ```

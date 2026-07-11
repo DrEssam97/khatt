@@ -66,7 +66,7 @@ pip install khatt        # or: uv add khatt
 From source:
 
 ```bash
-git clone <this-repo> && cd khatt
+git clone https://github.com/DrEssam97/khatt.git && cd khatt
 uv sync
 ```
 
