@@ -42,7 +42,10 @@ dependencies = [
 khatt = "khatt.cli:app"
 
 [project.urls]
-Homepage = "https://github.com/mohammedessam/khatt"
+Homepage = "https://github.com/DrEssam97/khatt"
+Repository = "https://github.com/DrEssam97/khatt"
+Issues = "https://github.com/DrEssam97/khatt/issues"
+Changelog = "https://github.com/DrEssam97/khatt/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 app = [
