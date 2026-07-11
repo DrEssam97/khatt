@@ -1,0 +1,9 @@
+# Normalize all text files to LF in the repo and working tree.
+# Golden test snapshots must be byte-identical across platforms.
+* text=auto eol=lf
+
+# Binary assets
+*.ttf binary
+*.otf binary
+*.png binary
+*.gif binary
