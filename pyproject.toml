@@ -34,8 +34,12 @@ dependencies = [
     "freetype-py>=2.5.1",
     "pillow>=12.3.0",
     "python-bidi>=0.6.11",
+    "typer>=0.26.8",
     "uharfbuzz>=0.55.0",
 ]
+
+[project.scripts]
+khatt = "khatt.cli:app"
 
 [project.urls]
 Homepage = "https://github.com/mohammedessam/khatt"
@@ -75,6 +79,10 @@ select = [
 # Arabic text appears throughout this codebase by design; the "ambiguous
 # unicode character" rules would flag every Arabic string literal.
 ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.flake8-bugbear]
+# typer declares CLI parameters via calls in argument defaults.
+extend-immutable-calls = ["typer.Argument", "typer.Option"]
 
 [tool.mypy]
 python_version = "3.10"
