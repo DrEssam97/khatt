@@ -31,6 +31,8 @@ classifiers = [
     "Topic :: Text Processing :: Fonts",
 ]
 dependencies = [
+    "freetype-py>=2.5.1",
+    "pillow>=12.3.0",
     "python-bidi>=0.6.11",
     "uharfbuzz>=0.55.0",
 ]
