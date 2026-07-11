@@ -3,7 +3,9 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
+        exclude: ^khatt/fonts/LICENSES/
       - id: end-of-file-fixer
+        exclude: ^khatt/fonts/LICENSES/
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.21

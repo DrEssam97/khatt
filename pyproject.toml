@@ -30,7 +30,10 @@ classifiers = [
     "Topic :: Artistic Software",
     "Topic :: Text Processing :: Fonts",
 ]
-dependencies = []
+dependencies = [
+    "python-bidi>=0.6.11",
+    "uharfbuzz>=0.55.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/mohammedessam/khatt"
@@ -67,6 +70,9 @@ select = [
     "SIM", # flake8-simplify
     "RUF", # ruff-specific
 ]
+# Arabic text appears throughout this codebase by design; the "ambiguous
+# unicode character" rules would flag every Arabic string literal.
+ignore = ["RUF001", "RUF002", "RUF003"]
 
 [tool.mypy]
 python_version = "3.10"
