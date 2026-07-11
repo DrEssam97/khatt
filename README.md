@@ -1,29 +1,133 @@
 # خَطّ — Khatt
 
-Render Arabic text as ASCII/Unicode-block art — the Arabic FIGlet that FIGlet can't be.
+**Render Arabic text as ASCII/Unicode-block art — the Arabic FIGlet that FIGlet can't be.**
 
-> **Status:** under construction (v0.1.0 in progress). See [PLAN.md](PLAN.md) and
-> [ROADMAP.md](ROADMAP.md).
+```text
+         ▓▓
+         ██▓
+         ██▒
+         ▓█
+         ▒█░
+         ░█▒                       ▓██▓
+          █▓                       ▓██▒
+          █▓
+          ██      ░░▒▒
+          ▓▓   ▒▓██████▒   ▒█████▓▒░
+          ▓▒░███▓▒▒▓████  ▓█▓▓▓███████▓▓▒░░░░ ░░
+          ██▓░      ░██▒          ▒████████████▒
+        ▒█▓░ ░░▒▒▓████░       ░▒▓▓███▓▓▒░░░░░▒░
+▒███████████████████████████████▓▒░
+  ▓███████████▓▓▒▒▒▓▓███████▓▒░
+```
 
-FIGlet's per-character glyph model cannot handle Arabic: contextual shaping
-(isolated/initial/medial/final positional forms), mandatory ligatures like لا, cursive
-joining, and right-to-left layout all break it. Khatt uses a **rasterize-then-map**
-pipeline instead: shape the text with HarfBuzz, render it with a real Arabic font, then
-map pixel density onto character ramps (`blocks`, `ascii`, `braille`).
+*(that's «خط» — "khatt", meaning line/script/calligraphy — in the `blocks` style)*
 
-A full README with demo output, install instructions, and quickstarts lands with the
-v0.1.0 release.
+```text
+⠀⠀⢰⣦⠀⠀⠀⣠⠀⠀⠀⠀⠀⠀⠀⠀⣠⠀⠀⢠⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡄
+⠀⠀⠀⣇⠀⠀⠀⢸⡄⠀⠀⠀⠀⠀⠀⠀⢸⡃⠀⢸⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⣇
+⠀⠀⠀⢻⠀⠀⠀⢸⡇⠀⠀⠀⠀⠀⠀⠀⢸⡇⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿
+⠀⠀⠀⢸⠀⠀⠀⠀⡇⠀⠀⠀⣀⣀⠀⠀⠀⡇⠀⠀⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⠀⠀⠀⠀⠀⠀⣀⣤⣀⡀
+⠀⢀⣴⣎⡀⠀⠀⠀⣇⠀⠰⠿⣿⣿⡿⠀⠀⡿⠀⠀⣿⠀⠀⠸⡇⠀⠀⠀⠀⠀⠀⢸⠀⠀⠀⠀⡀⠈⠉⠉⠛⣻⣿⣶⣶⣶⡦⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣾⣿⣷
+⢀⣼⣿⠿⢿⠂⠀⠀⠻⣶⣶⠾⠋⠙⠷⣶⡶⠃⠀⠀⠹⣷⣶⡾⠁⠀⠀⠀⠀⠀⠀⠘⢷⣶⣶⠟⢿⣶⣶⠾⠛⠉⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⣶⠿⠟⠋⠁
+⣎⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⠁⠀⠀⣠⠟⠉
+⢿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠿⠇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠿⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣧⡀⢀⡴⠋
+⢸⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⠛⠛⠁
+⠘⠇
+```
 
-## Gradio app
+*(«مرحبا بالعالم» — "Hello, world" — in the `braille` style)*
 
-Run the web UI locally:
+## Why FIGlet can't do this
+
+FIGlet fonts map **one character to one fixed glyph**. Arabic doesn't work that way:
+
+- Every letter has up to four **positional forms** (isolated / initial / medial / final).
+- Some letter pairs form **mandatory ligatures** — ل + ا must become لا.
+- The script is **cursive**: letters connect, and the connections carry the word's shape.
+- Text runs **right-to-left**, and real text mixes RTL words with LTR numbers and names.
+
+Khatt sidesteps glyph tables entirely with a **rasterize-then-map** pipeline:
+
+```
+text ──► HarfBuzz shaping ──► FreeType rasterization ──► density mapping ──► art
+         (positional forms,    (real Arabic fonts,        (blocks / ascii /
+          ligatures, bidi)      hi-res grayscale)          braille ramps)
+```
+
+The result is genuine calligraphic letterforms — from real fonts — approximated in
+terminal characters.
+
+## Install
+
+```bash
+pip install khatt        # or: uv add khatt
+```
+
+From source:
+
+```bash
+git clone <this-repo> && cd khatt
+uv sync
+```
+
+## Quickstart
+
+### Python API
+
+```python
+import khatt
+
+print(khatt.render("مرحبا"))                          # blocks style, 80 columns
+print(khatt.render("خط", style="braille", width=60))  # high effective resolution
+print(khatt.render("القاهرة", font="cairo", style="ascii", threshold=0.4))
+
+khatt.list_fonts()   # ['amiri', 'cairo', 'noto-naskh', 'rubik']
+khatt.list_styles()  # ['ascii', 'blocks', 'braille']
+```
+
+### CLI
+
+```bash
+khatt "مرحبا"                          # render to the terminal
+khatt "خط" --style braille --width 60
+khatt "القاهرة" -f cairo -s ascii -t 0.4
+echo "سلام" | khatt                    # stdin
+khatt "خط" --output art.txt            # save the art
+khatt "خط" --output khatt.png          # save the rendered text as an image
+khatt --list-fonts
+khatt --list-styles
+```
+
+Arabic diacritics (tashkeel) are stripped by default — they're illegible at
+character-grid resolution. Pass `--keep-tashkeel` (API: `keep_tashkeel=True`) to
+render them.
+
+### Gradio app
 
 ```bash
 uv sync --extra app
 uv run python app.py
 ```
 
-### Deploy to a Hugging Face Space
+## Bundled fonts and styles
+
+| Font | Family | Character |
+|---|---|---|
+| `amiri` (default) | Amiri | Classical naskh, rich calligraphic detail |
+| `cairo` | Cairo | Geometric, modern, bold strokes |
+| `noto-naskh` | Noto Naskh Arabic | Clean, highly legible naskh |
+| `rubik` | Rubik | Strong Latin + Arabic pairing for mixed text |
+
+All fonts are licensed under the SIL Open Font License 1.1, preserved verbatim in
+[`khatt/fonts/LICENSES/`](khatt/fonts/LICENSES/).
+
+| Style | Ramp | Notes |
+|---|---|---|
+| `blocks` | `░ ▒ ▓ █` | Default; reads well at any size |
+| `ascii` | `. : - = + * # % @` | Pure ASCII, maximum compatibility |
+| `braille` | `⠁ … ⣿` | 2×4 dots per cell — 8× the effective resolution |
+
+## Deploy the app to a Hugging Face Space
 
 `app.py` follows the Spaces convention (single file at the repo root), so the whole
 repository deploys unchanged with one command:
@@ -35,10 +139,31 @@ uv run --extra app gradio deploy
 This prompts for a Space name on first run (it uses your `huggingface-cli login`
 credentials) and pushes the repo as a Gradio-SDK Space. Alternatively, create a Gradio
 Space on huggingface.co and `git push` this repository to it — `app.py` is picked up
-automatically; Spaces installs the package from `pyproject.toml` via
-`requirements.txt` containing a single line: `.[app]`.
+automatically and dependencies install via `requirements.txt` (which just points at
+`pyproject.toml`).
+
+## Development
+
+```bash
+uv sync --all-extras
+uv run pre-commit install
+```
+
+The gate that must be green before every merge:
+
+```bash
+uv run ruff check . && uv run ruff format --check . && uv run mypy khatt && uv run pytest
+```
+
+Rendering changed intentionally? Regenerate the golden snapshots and commit the diff:
+
+```bash
+uv run pytest --update-golden
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md), [PLAN.md](PLAN.md) and [ROADMAP.md](ROADMAP.md).
 
 ## License
 
-MIT for the code. Bundled fonts are under the SIL Open Font License 1.1 — see
-`khatt/fonts/LICENSES/`.
+MIT for the code — see [LICENSE](LICENSE). Bundled fonts are under the SIL Open Font
+License 1.1 — see [`khatt/fonts/LICENSES/`](khatt/fonts/LICENSES/).
