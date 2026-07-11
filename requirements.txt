@@ -1,0 +1,3 @@
+# Hugging Face Spaces installs from this file; everything real lives in
+# pyproject.toml. Local development uses uv, not this file.
+.[app]
