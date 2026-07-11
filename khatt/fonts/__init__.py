@@ -11,8 +11,13 @@ from pathlib import Path
 
 _FONT_DIR = Path(__file__).resolve().parent
 
+# Cairo, Noto Naskh Arabic and Rubik are variable-font builds used at their
+# default (Regular) instances; Amiri is a static build.
 _REGISTRY: dict[str, str] = {
     "amiri": "Amiri-Regular.ttf",
+    "cairo": "Cairo-Regular.ttf",
+    "noto-naskh": "NotoNaskhArabic-Regular.ttf",
+    "rubik": "Rubik-Regular.ttf",
 }
 
 
