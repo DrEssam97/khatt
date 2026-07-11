@@ -15,6 +15,9 @@ build/
 .coverage
 htmlcov/
 
+# Local tooling
+.claude/
+
 # Editors / OS
 .idea/
 .vscode/

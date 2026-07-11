@@ -14,6 +14,30 @@ map pixel density onto character ramps (`blocks`, `ascii`, `braille`).
 A full README with demo output, install instructions, and quickstarts lands with the
 v0.1.0 release.
 
+## Gradio app
+
+Run the web UI locally:
+
+```bash
+uv sync --extra app
+uv run python app.py
+```
+
+### Deploy to a Hugging Face Space
+
+`app.py` follows the Spaces convention (single file at the repo root), so the whole
+repository deploys unchanged with one command:
+
+```bash
+uv run --extra app gradio deploy
+```
+
+This prompts for a Space name on first run (it uses your `huggingface-cli login`
+credentials) and pushes the repo as a Gradio-SDK Space. Alternatively, create a Gradio
+Space on huggingface.co and `git push` this repository to it — `app.py` is picked up
+automatically; Spaces installs the package from `pyproject.toml` via
+`requirements.txt` containing a single line: `.[app]`.
+
 ## License
 
 MIT for the code. Bundled fonts are under the SIL Open Font License 1.1 — see
