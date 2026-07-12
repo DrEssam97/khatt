@@ -1,0 +1,11 @@
+# Render blueprint: deploy the Gradio demo with one click.
+# https://render.com → New → Blueprint → select this repo.
+# Free plan: the instance sleeps after ~15 min idle and cold-starts in ~1 min.
+
+services:
+  - type: web
+    name: khatt
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    autoDeploy: true
