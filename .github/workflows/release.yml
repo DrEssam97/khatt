@@ -1,17 +1,16 @@
-# PyPI release via trusted publishing.
+# PyPI release via trusted publishing (OIDC — no API tokens).
 #
-# DISABLED by design: rename this file to release.yml to enable it, after
-# 1) configuring a "trusted publisher" for the khatt project on pypi.org
-#    (Settings → Publishing → GitHub Actions, workflow name: release.yml), and
-# 2) agreeing to enable automated publishing for this repository.
-#
-# Once enabled, pushing a tag like v0.1.0 builds and publishes to PyPI.
+# Fires when a v* tag is pushed, or on a manual dispatch from the Actions tab.
+# Requires a trusted publisher to be configured for the khatt project on PyPI
+# (Account → Publishing): owner DrEssam97, repo khatt, workflow release.yml,
+# environment pypi.
 
 name: Release
 
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 jobs:
   publish:
