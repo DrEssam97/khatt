@@ -143,35 +143,3 @@ repository deploys unchanged with one command:
 ```bash
 uv run --extra app gradio deploy
 ```
-
-This prompts for a Space name on first run (it uses your `huggingface-cli login`
-credentials) and pushes the repo as a Gradio-SDK Space. Alternatively, create a Gradio
-Space on huggingface.co and `git push` this repository to it — `app.py` is picked up
-automatically and dependencies install via `requirements.txt` (which just points at
-`pyproject.toml`).
-
-## Development
-
-```bash
-uv sync --all-extras
-uv run pre-commit install
-```
-
-The gate that must be green before every merge:
-
-```bash
-uv run ruff check . && uv run ruff format --check . && uv run mypy khatt && uv run pytest
-```
-
-Rendering changed intentionally? Regenerate the golden snapshots and commit the diff:
-
-```bash
-uv run pytest --update-golden
-```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md), [PLAN.md](PLAN.md) and [ROADMAP.md](ROADMAP.md).
-
-## License
-
-MIT for the code — see [LICENSE](LICENSE). Bundled fonts are under the SIL Open Font
-License 1.1 — see [`khatt/fonts/LICENSES/`](khatt/fonts/LICENSES/).
