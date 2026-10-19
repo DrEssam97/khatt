@@ -13,6 +13,7 @@ from PIL import ImageColor, ImageOps
 
 import khatt
 from khatt.art_image import paint
+from khatt.doctor import format_report
 from khatt.fonts import available_fonts
 
 app = typer.Typer(add_completion=False)
@@ -80,7 +81,12 @@ def main(
         help="Text to render. Omit (or pass '-') to read from stdin.",
         show_default=False,
     ),
-    font: str = typer.Option("amiri", "--font", "-f", help="Bundled font name."),
+    font: str = typer.Option(
+        "amiri",
+        "--font",
+        "-f",
+        help="Bundled font name (see --list-fonts) or the path to a .ttf/.otf file.",
+    ),
     style: str = typer.Option("blocks", "--style", "-s", help="Output style."),
     width: int | None = typer.Option(
         None,
@@ -133,10 +139,23 @@ def main(
     ),
     list_fonts: bool = typer.Option(False, "--list-fonts", help="List bundled fonts and exit."),
     list_styles: bool = typer.Option(False, "--list-styles", help="List styles and exit."),
+    doctor: bool = typer.Option(
+        False,
+        "--doctor",
+        help="Check which Arabic shaping engines are installed (and double-shaping risks), "
+        "then exit.",
+    ),
 ) -> None:
     """Render Arabic text as ASCII/Unicode-block art."""
     _configure_utf8_output()
 
+    if doctor:
+        for line in format_report(khatt.doctor()):
+            if line.startswith("warning:"):
+                typer.secho(line, fg=typer.colors.YELLOW)
+            else:
+                typer.echo(line)
+        raise typer.Exit()
     if list_fonts:
         for name in available_fonts():
             typer.echo(name)
@@ -164,7 +183,7 @@ def main(
                 size=None if fit else size,
                 keep_tashkeel=bool(keep_tashkeel),
             )
-        except KeyError as exc:
+        except (KeyError, ValueError) as exc:  # unknown font, unusable font file
             typer.secho(f"error: {exc.args[0]}", err=True, fg=typer.colors.RED)
             raise typer.Exit(code=2) from exc
     for warning in caught:

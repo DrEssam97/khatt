@@ -1,9 +1,18 @@
-"""Tests for the bundled-font registry."""
+"""Tests for the bundled-font registry and user font files."""
 
 from __future__ import annotations
 
-import pytest
+import shutil
+import struct
+from pathlib import Path
 
+import pytest
+from PIL import Image
+from typer.testing import CliRunner
+
+import khatt
+from khatt import fonts
+from khatt.cli import app
 from khatt.fonts import available_fonts, font_path
 
 
@@ -29,3 +38,112 @@ def test_every_font_family_has_a_license() -> None:
     licenses_dir = font_path("amiri").parent / "LICENSES"
     assert licenses_dir.is_dir()
     assert any(licenses_dir.iterdir())
+
+
+def to_woff(sfnt: bytes) -> bytes:
+    """Wrap a TrueType font as an (uncompressed) WOFF 1.0 web font."""
+    flavor, count = struct.unpack(">IH", sfnt[:6])
+    records = [struct.unpack(">4sIII", sfnt[12 + 16 * i : 28 + 16 * i]) for i in range(count)]
+    offset = 44 + 20 * count
+    directory, data = b"", b""
+    for tag, checksum, start, length in records:
+        directory += struct.pack(">4sIIII", tag, offset + len(data), length, length, checksum)
+        table = sfnt[start : start + length]
+        data += table + b"\0" * (-len(table) % 4)
+    sfnt_size = 12 + 16 * count + sum(length + (-length % 4) for *_, length in records)
+    length = 44 + len(directory) + len(data)
+    # signature, flavor, length, numTables, reserved, totalSfntSize, version 1.0,
+    # then no metadata or private blocks.
+    header = struct.pack(
+        ">4sIIHHIHH5I", b"wOFF", flavor, length, count, 0, sfnt_size, 1, 0, *[0] * 5
+    )
+    return header + directory + data
+
+
+class TestFontFiles:
+    @pytest.fixture
+    def amiri_copy(self, tmp_path: Path) -> Path:
+        """The bundled Amiri copied under a non-ASCII directory and file name."""
+        folder = tmp_path / "خطوط"
+        folder.mkdir()
+        return Path(shutil.copy(font_path("amiri"), folder / "أميري.ttf"))
+
+    def test_path_resolves_to_the_file(self, amiri_copy: Path) -> None:
+        assert font_path(amiri_copy) == amiri_copy.resolve()
+        assert font_path(str(amiri_copy)) == amiri_copy.resolve()
+
+    def test_relative_path(self, amiri_copy: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.chdir(amiri_copy.parent)
+        assert font_path("أميري.ttf") == amiri_copy.resolve()
+
+    def test_renders_like_the_bundled_font(self, amiri_copy: Path) -> None:
+        assert khatt.render("مرحبا بالعالم", font=amiri_copy) == khatt.render("مرحبا بالعالم")
+        own = khatt.render_image("خط", font=str(amiri_copy))
+        bundled = khatt.render_image("خط")
+        assert own is not None
+        assert bundled is not None
+        assert own.tobytes() == bundled.tobytes()
+
+    def test_draws_like_the_bundled_font(self, amiri_copy: Path) -> None:
+        def draw(font: fonts.Font) -> bytes:
+            image = Image.new("RGB", (400, 200), "white")
+            khatt.draw_text(image, (380, 10), "مرحبا", font=font, anchor="ra")
+            khatt.overlay(image, "شهادة تقدير", (10, 100, 390, 190), font=font)
+            return image.tobytes()
+
+        assert draw(amiri_copy) == draw("amiri")
+
+    def test_bundled_name_wins_over_a_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        (tmp_path / "amiri").write_bytes(b"not a font")
+        monkeypatch.chdir(tmp_path)
+        assert font_path("amiri") == font_path("AMIRI")
+        assert font_path("amiri").parent == Path(fonts.__file__).resolve().parent
+
+    @pytest.mark.parametrize("missing", ["missing.ttf", Path("no/such/font.otf"), "", "."])
+    def test_missing_file(self, missing: str | Path) -> None:
+        with pytest.raises(KeyError, match=r"available fonts: amiri.*\.ttf"):
+            font_path(missing)
+
+    def test_not_a_font(self, tmp_path: Path) -> None:
+        bad = tmp_path / "bad.ttf"
+        bad.write_bytes(b"definitely not a font")
+        with pytest.raises(ValueError, match="not a TrueType or OpenType font"):
+            font_path(bad)
+        with pytest.raises(ValueError, match="not a TrueType or OpenType font"):
+            khatt.render("خط", font=bad)
+
+    def test_web_font(self, tmp_path: Path) -> None:
+        woff = tmp_path / "amiri.woff"
+        woff.write_bytes(to_woff(font_path("amiri").read_bytes()))
+        with pytest.raises(ValueError, match=r"web font .*\.ttf or \.otf"):
+            font_path(woff)
+
+    def test_bitmap_only_font(self, amiri_copy: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        class BitmapFace:
+            is_scalable = False
+
+            def __init__(self, stream: object) -> None:
+                pass
+
+        monkeypatch.setattr(fonts.freetype, "Face", BitmapFace)
+        fonts._check_font_file.cache_clear()
+        try:
+            with pytest.raises(ValueError, match="bitmap-only"):
+                font_path(amiri_copy)
+        finally:
+            fonts._check_font_file.cache_clear()
+
+    def test_cli_font_file(self, amiri_copy: Path, tmp_path: Path) -> None:
+        runner = CliRunner()
+        own = runner.invoke(app, ["خط", "-w", "40", "--font", str(amiri_copy)])
+        bundled = runner.invoke(app, ["خط", "-w", "40"])
+        assert own.exit_code == 0
+        assert own.output == bundled.output
+
+        bad = tmp_path / "bad.otf"
+        bad.write_bytes(b"nope")
+        result = runner.invoke(app, ["خط", "--font", str(bad)])
+        assert result.exit_code == 2
+        assert "error: cannot load font file" in result.output

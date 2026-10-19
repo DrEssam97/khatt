@@ -1,12 +1,13 @@
-"""Khatt (خَطّ) — render Arabic text as ASCII/Unicode-block art.
+"""Khatt (خَطّ) — render Arabic text as ASCII/Unicode-block art and onto images.
 
 FIGlet-style per-character fonts cannot express Arabic contextual shaping,
 mandatory ligatures or right-to-left layout, so khatt shapes text with
 HarfBuzz, rasterizes it with a real Arabic font via FreeType, and maps pixel
-coverage onto character ramps.
+coverage onto character ramps, or composites it onto Pillow images.
 
     >>> import khatt
     >>> print(khatt.render("مرحبا"))
+    >>> khatt.draw_text(image, (20, 20), "مرحبا")
 """
 
 from __future__ import annotations
@@ -14,8 +15,10 @@ from __future__ import annotations
 from PIL import Image, ImageOps
 
 from khatt.art_image import art_to_image
+from khatt.doctor import doctor
+from khatt.draw import TextOverflowWarning, draw_text, overlay
+from khatt.fonts import Font, font_path
 from khatt.fonts import available_fonts as list_fonts
-from khatt.fonts import font_path
 from khatt.layout import DEFAULT_SIZE, render_grids, render_ink
 from khatt.mapper import available_styles as list_styles
 from khatt.mapper import get_style, map_image
@@ -25,11 +28,15 @@ __version__ = "0.2.0"
 
 __all__ = [
     "DEFAULT_SIZE",
+    "TextOverflowWarning",
     "UnsupportedCharacterWarning",
     "__version__",
     "art_to_image",
+    "doctor",
+    "draw_text",
     "list_fonts",
     "list_styles",
+    "overlay",
     "render",
     "render_image",
 ]
@@ -37,7 +44,7 @@ __all__ = [
 
 def render(
     text: str,
-    font: str = "amiri",
+    font: Font = "amiri",
     style: str = "blocks",
     width: int | None = 80,
     threshold: float | None = None,
@@ -52,7 +59,8 @@ def render(
             forms and ligatures, and mixed Arabic/Latin/digit strings come
             out in visual order. Line breaks start new lines; right-to-left
             paragraphs are right-aligned.
-        font: A bundled font name (see :func:`list_fonts`).
+        font: A bundled font name (see :func:`list_fonts`) or the path
+            to a .ttf/.otf font file.
         style: Output character set (see :func:`list_styles`).
         width: Maximum output width in terminal columns; longer lines wrap
             at spaces. ``None`` means no limit (no wrapping).
@@ -93,7 +101,7 @@ def render(
 
 
 def render_image(
-    text: str, font: str = "amiri", *, keep_tashkeel: bool = True
+    text: str, font: Font = "amiri", *, keep_tashkeel: bool = True
 ) -> Image.Image | None:
     """Render text as a high-resolution grayscale image, black on white.
 
@@ -103,7 +111,8 @@ def render_image(
 
     Args:
         text: The text to render.
-        font: A bundled font name (see :func:`list_fonts`).
+        font: A bundled font name (see :func:`list_fonts`) or the path
+            to a .ttf/.otf font file.
         keep_tashkeel: Keep Arabic diacritics (the default, unlike
             :func:`render`: images have the resolution to show them).
             Pass ``False`` to strip them.
