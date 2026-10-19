@@ -91,7 +91,10 @@ print(khatt.render("القاهرة", font="cairo", style="ascii", threshold=0.4)
 print(khatt.render("السلام عليكم ورحمة الله", width=60))  # wraps at 60 columns
 print(khatt.render("مرحبا\nKhatt 2026", font="rubik"))    # one art line per text line
 
-image = khatt.render_image("مرحبا\nKhatt 2026")  # Pillow image, black on white
+art = khatt.render("مرحبا", style="braille")
+khatt.art_to_image(art, fg="white", bg="#1e1e2e").save("art.png")  # the art as a picture
+
+image = khatt.render_image("مرحبا\nKhatt 2026")  # the plain text: Pillow image, black on white
 image.save("khatt.png")
 
 khatt.list_fonts()   # ['amiri', 'cairo', 'noto-naskh', 'rubik']
@@ -107,16 +110,25 @@ khatt "القاهرة" -f cairo -s ascii -t 0.4
 echo "سلام" | khatt                    # stdin
 printf 'سطر أول\nسطر ثاني' | khatt     # multi-line input
 khatt "خط" --output art.txt            # save the art
-khatt "خط" --output khatt.png          # save the rendered text as an image
+khatt "خط" -s braille -o art.png       # save the art as an image
+khatt "خط" -s ascii -o art.png --fg "#e5e5e5" --bg "#1e1e2e"   # terminal colours
+khatt "خط" -o logo.png --bg none       # transparent background
+khatt "خط" -o khatt.png --png text     # the plain high-resolution text instead
 khatt --list-fonts
 khatt --list-styles
 ```
 
 Arabic diacritics (tashkeel) are stripped from text art by default — they're
 illegible at character-grid resolution. Pass `--keep-tashkeel` (API:
-`render(..., keep_tashkeel=True)`) to render them. Images keep them by default,
-since they have the resolution to show them: pass `--strip-tashkeel` (API:
+`render(..., keep_tashkeel=True)`) to render them. Plain-text images
+(`--png text`, `render_image`) keep them by default, since they have the
+resolution to show them: pass `--strip-tashkeel` (API:
 `render_image(..., keep_tashkeel=False)`) to remove them.
+
+In art images, braille dots and shade blocks are drawn as shapes, so they stay
+crisp at any size; ascii characters are drawn in a bold sans font. Each
+character gets a cell twice as tall as it is wide (12 × 24 px by default;
+API: `cell_width=`), matching the terminal the art was sized for.
 
 ### Sizing and wrapping
 

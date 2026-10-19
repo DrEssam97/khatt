@@ -24,13 +24,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Multi-line input: line breaks start new art lines, separated by a blank
   line; right-to-left paragraphs are right-aligned.
+- `khatt.art_to_image(art, fg=, bg=, cell_width=, padding=)`: draws text art
+  as an image. Braille dots and shade blocks are drawn as shapes (crisp at
+  any size), ascii characters in a bold sans font; `bg=None` gives a
+  transparent background.
+- **The CLI's `--output x.png` now saves the art itself as an image**, in the
+  chosen `--style`, with `--fg` / `--bg` colours (`--bg none` for
+  transparent). `--png text` saves the plain high-resolution text instead,
+  which was the only option in 0.1.0.
 - `khatt.render_image(text, font, keep_tashkeel=True)`: the shaped text as a
   high-resolution Pillow image (black on white), with the same multi-line
-  layout. The CLI's `--output x.png` and the Gradio app use it. Unlike text
-  art, images keep Arabic diacritics by default; `--strip-tashkeel` (API:
+  layout. `--png text` and the Gradio app use it. Unlike text art, these
+  images keep Arabic diacritics by default; `--strip-tashkeel` (API:
   `keep_tashkeel=False`) removes them.
 - `--size` and `--fit` CLI options; `khatt.DEFAULT_SIZE`.
-- Gradio app: size slider and "Fill width" checkbox.
+- Gradio app: size slider, "Fill width" checkbox, and a download of the art
+  as an image.
 
 ### Fixed
 

@@ -36,10 +36,10 @@ def render_art(
     size: float,
     fit: bool,
     threshold: float,
-) -> tuple[str, Image.Image | None]:
-    """Render the art and a PNG preview of the shaped text."""
+) -> tuple[str, Image.Image | None, Image.Image | None]:
+    """Render the art, the art drawn as an image, and the plain shaped text."""
     if not text.strip():
-        return "", None
+        return "", None, None
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # unsupported chars degrade silently in the UI
@@ -52,7 +52,7 @@ def render_art(
             size=None if fit else int(size),
         )
         image = khatt.render_image(text, font=font)
-    return art, image
+    return art, khatt.art_to_image(art), image
 
 
 with gr.Blocks(title="خط — Khatt", delete_cache=CACHE_PRUNING) as demo:
@@ -82,6 +82,13 @@ with gr.Blocks(title="خط — Khatt", delete_cache=CACHE_PRUNING) as demo:
                 buttons=["copy"],
                 interactive=False,
             )
+            art_png_out = gr.Image(
+                label="Art as image (PNG)",
+                type="pil",
+                format="png",
+                buttons=["download"],
+                interactive=False,
+            )
             png_out = gr.Image(
                 label="Rendered text (PNG)",
                 type="pil",
@@ -91,7 +98,7 @@ with gr.Blocks(title="خط — Khatt", delete_cache=CACHE_PRUNING) as demo:
             )
 
     controls = [text_in, font_in, style_in, width_in, size_in, fit_in, threshold_in]
-    outputs = [art_out, png_out]
+    outputs = [art_out, art_png_out, png_out]
     for control in controls:
         control.change(render_art, controls, outputs, trigger_mode="always_last")
     demo.load(render_art, controls, outputs)

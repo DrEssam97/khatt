@@ -136,23 +136,51 @@ def test_default_width_follows_terminal() -> None:
     assert bands(result.output) >= 2
 
 
-def test_output_png_multiline(tmp_path: Path) -> None:
+def test_output_png_text_multiline(tmp_path: Path) -> None:
     one, two = tmp_path / "one.png", tmp_path / "two.png"
-    assert runner.invoke(app, ["خط", "-o", str(one)]).exit_code == 0
-    assert runner.invoke(app, ["-o", str(two)], input="خط\nخط\n").exit_code == 0
+    assert runner.invoke(app, ["خط", "--png", "text", "-o", str(one)]).exit_code == 0
+    assert runner.invoke(app, ["--png", "text", "-o", str(two)], input="خط\nخط\n").exit_code == 0
     with Image.open(one) as a, Image.open(two) as b:
         assert b.size[1] > 2 * a.size[1]
-        assert a.getpixel((0, 0)) == 255  # black on white
+        assert a.getpixel((0, 0)) == (255, 255, 255)  # black on white
 
 
-def test_png_keeps_tashkeel_unless_stripped(tmp_path: Path) -> None:
+def test_png_text_keeps_tashkeel_unless_stripped(tmp_path: Path) -> None:
     kept, stripped, plain = (tmp_path / f"{name}.png" for name in ("kept", "stripped", "plain"))
-    assert runner.invoke(app, ["مَرْحَبًا", "-o", str(kept)]).exit_code == 0
-    assert runner.invoke(app, ["مَرْحَبًا", "--strip-tashkeel", "-o", str(stripped)]).exit_code == 0
-    assert runner.invoke(app, ["مرحبا", "-o", str(plain)]).exit_code == 0
+    voweled, text_png = "مَرْحَبًا", ["--png", "text", "-o"]
+    strip = "--strip-tashkeel"
+    assert runner.invoke(app, [voweled, *text_png, str(kept)]).exit_code == 0
+    assert runner.invoke(app, [voweled, strip, *text_png, str(stripped)]).exit_code == 0
+    assert runner.invoke(app, ["مرحبا", *text_png, str(plain)]).exit_code == 0
     with Image.open(kept) as a, Image.open(stripped) as b, Image.open(plain) as c:
         assert b.tobytes() == c.tobytes()
         assert a.tobytes() != c.tobytes()
+
+
+def test_png_draws_the_art_by_default(tmp_path: Path) -> None:
+    target = tmp_path / "art.png"
+    args = ["مرحبا", "-s", "braille", "-w", "60"]
+    art = runner.invoke(app, args).output.rstrip("\n").split("\n")
+    assert runner.invoke(app, [*args, "-o", str(target)]).exit_code == 0
+    with Image.open(target) as image:
+        # Default cells are 12 px wide and 24 px tall, with one cell of padding.
+        assert image.size == (12 * max(map(len, art)) + 24, 24 * len(art) + 24)
+
+
+def test_png_colours_and_transparent_background(tmp_path: Path) -> None:
+    target = tmp_path / "art.png"
+    args = ["خط", "-w", "40", "--fg", "#ff0000", "--bg", "none", "-o", str(target)]
+    assert runner.invoke(app, args).exit_code == 0
+    with Image.open(target) as image:
+        assert image.mode == "RGBA"
+        assert image.getpixel((0, 0))[3] == 0
+        opaque = {color[:3] for _, color in image.getcolors(1 << 20) or [] if color[3] == 255}
+        assert opaque == {(255, 0, 0)}
+
+
+def test_unknown_colour_fails() -> None:
+    result = runner.invoke(app, ["خط", "--fg", "not-a-colour"])
+    assert result.exit_code == 2
 
 
 def test_art_strips_tashkeel_unless_kept() -> None:

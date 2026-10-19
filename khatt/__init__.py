@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from PIL import Image, ImageOps
 
+from khatt.art_image import art_to_image
 from khatt.fonts import available_fonts as list_fonts
 from khatt.fonts import font_path
 from khatt.layout import DEFAULT_SIZE, render_grids, render_ink
@@ -26,6 +27,7 @@ __all__ = [
     "DEFAULT_SIZE",
     "UnsupportedCharacterWarning",
     "__version__",
+    "art_to_image",
     "list_fonts",
     "list_styles",
     "render",
