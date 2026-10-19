@@ -1,0 +1,483 @@
+"""Pixel-level tests for drawing shaped text onto Pillow images."""
+
+from __future__ import annotations
+
+import warnings
+from collections.abc import Callable, Iterator
+from typing import Any
+
+import pytest
+from PIL import Image, ImageChops, ImageDraw, ImageFont, features
+
+import khatt
+from khatt.draw import _largest_fitting
+from khatt.fonts import font_path
+from khatt.layout import measure_block
+from khatt.raster import compose_block, estimate
+from khatt.shaping import shape, units_per_em, vertical_metrics
+
+WHITE = (255, 255, 255)
+CLEAR = (0, 0, 0, 0)
+
+Box = tuple[int, int, int, int]
+
+
+def blank(size: tuple[int, int] = (600, 300), color: tuple[int, ...] = WHITE) -> Image.Image:
+    return Image.new("RGBA" if len(color) == 4 else "RGB", size, color)
+
+
+def ink(image: Image.Image, background: tuple[int, ...] = WHITE) -> Box:
+    """Bounding box of every pixel that differs from the background."""
+    difference = ImageChops.difference(image, Image.new(image.mode, image.size, background))
+    box = difference.getbbox(alpha_only=False)
+    assert box is not None, "nothing was drawn"
+    return box
+
+
+def band_ink(image: Image.Image, top: int, bottom: int) -> Box:
+    """Ink box of the rows ``top`` to ``bottom``, in image coordinates."""
+    x0, y0, x1, y1 = ink(image.crop((0, top, image.size[0], bottom)))
+    return x0, y0 + top, x1, y1 + top
+
+
+def pixels(image: Image.Image) -> Iterator[tuple[int, ...]]:
+    width, height = image.size
+    data = image.load()
+    assert data is not None
+    for y in range(height):
+        for x in range(width):
+            pixel = data[x, y]
+            assert isinstance(pixel, tuple)
+            yield pixel
+
+
+class TestPlacement:
+    def test_draws_in_place_and_returns_the_image(self) -> None:
+        image = blank()
+        assert khatt.draw_text(image, (20, 20), "مرحبا") is image
+        ink(image)
+
+    @pytest.mark.parametrize(
+        ("anchor", "check"),
+        [
+            ("la", lambda box: box[0] == 300),
+            ("ra", lambda box: box[2] == 300),
+            ("ma", lambda box: abs((box[0] + box[2]) / 2 - 300) <= 1),
+            ("lt", lambda box: box[1] == 150),
+            ("lb", lambda box: box[3] == 150),
+            ("lm", lambda box: box[1] < 150 < box[3]),
+            ("ls", lambda box: box[1] < 150 < box[3]),  # ر descends below the baseline
+        ],
+    )
+    def test_anchor(self, anchor: str, check: Callable[[Box], bool]) -> None:
+        image = khatt.draw_text(blank(), (300, 150), "مرحبا", anchor=anchor)
+        assert check(ink(image)), (anchor, ink(image))
+
+    def test_baseline_and_ascender_anchors(self) -> None:
+        path = font_path("rubik")
+        size = 60
+        on_baseline = ink(
+            khatt.draw_text(blank(), (20, 150), "HHH", font="rubik", size_px=size, anchor="ls")
+        )
+        assert abs(on_baseline[3] - 150) <= 1  # "H" sits on the baseline
+        below_ascender = ink(
+            khatt.draw_text(blank(), (20, 150), "HHH", font="rubik", size_px=size, anchor="la")
+        )
+        ascender, descender = vertical_metrics(path)
+        scale = size / units_per_em(path)
+        assert abs(below_ascender[3] - on_baseline[3] - round(ascender * scale)) <= 1
+        above_descender = ink(
+            khatt.draw_text(blank(), (20, 150), "HHH", font="rubik", size_px=size, anchor="ld")
+        )
+        assert abs(on_baseline[3] - above_descender[3] + round(descender * scale)) <= 1
+
+    def test_text_partly_outside_the_image_is_clipped(self) -> None:
+        image = khatt.draw_text(blank((100, 100)), (-40, -10), "مرحبا بالعالم", size_px=60)
+        assert ink(image)[0] == 0
+
+    def test_nothing_to_draw_leaves_the_image_unchanged(self) -> None:
+        for text in ("", "   ", "\n\n"):
+            image = blank()
+            khatt.draw_text(image, (10, 10), text)
+            assert image.tobytes() == blank().tobytes()
+
+    def test_invisible_text_leaves_the_image_unchanged(self) -> None:
+        off_image = khatt.draw_text(blank(), (5000, 10), "مرحبا")
+        transparent = khatt.draw_text(blank(), (10, 10), "مرحبا", fill=(0, 0, 0, 0))
+        assert off_image.tobytes() == transparent.tobytes() == blank().tobytes()
+
+    def test_empty_lines_keep_their_slot(self) -> None:
+        def bottom(text: str) -> int:
+            image = khatt.draw_text(blank((300, 400)), (150, 20), text, anchor="ma", size_px=40)
+            return ink(image)[3]
+
+        pitch = round(1.2 * 40)
+        assert bottom("خط\n\nخط") - bottom("خط\nخط") == pitch
+
+
+class TestAlignment:
+    # Baselines 2 em apart, so each line can be cropped to a band of its own.
+    SIZE = 40
+    PITCH = 2 * SIZE
+
+    def lines(self, text: str, **kwargs: Any) -> tuple[Image.Image, list[Box]]:
+        image = khatt.draw_text(
+            blank((600, 400)),
+            (300, 60),
+            text,
+            size_px=self.SIZE,
+            line_spacing=2.0,
+            anchor="ms",
+            **kwargs,
+        )
+        count = text.count("\n") + 1
+        boxes = [
+            band_ink(image, 60 + i * self.PITCH - self.SIZE, 60 + i * self.PITCH + self.SIZE)
+            for i in range(count)
+        ]
+        return image, boxes
+
+    def test_rtl_paragraphs_align_right(self) -> None:
+        _, boxes = self.lines("مرحبا بالعالم\nأهلا")
+        assert abs(boxes[0][2] - boxes[1][2]) <= 1
+        assert boxes[1][0] > boxes[0][0] + 20  # the short line is indented
+
+    def test_ltr_paragraphs_align_left(self) -> None:
+        _, boxes = self.lines("Hello world\nHi")
+        assert abs(boxes[0][0] - boxes[1][0]) <= 1
+        assert boxes[1][2] < boxes[0][2] - 20
+
+    def test_mixed_paragraphs_align_by_their_own_direction(self) -> None:
+        image, boxes = self.lines("Hello world, again\nمرحبا")
+        whole = ink(image)
+        assert abs(boxes[0][0] - whole[0]) <= 1
+        assert abs(boxes[1][2] - whole[2]) <= 1
+
+    @pytest.mark.parametrize("align", ["left", "right", "center"])
+    def test_explicit_alignment(self, align: str) -> None:
+        _, (long, short) = self.lines("مرحبا بالعالم\nأهلا", align=align)
+        if align == "left":
+            assert abs(long[0] - short[0]) <= 1
+        elif align == "right":
+            assert abs(long[2] - short[2]) <= 1
+        else:
+            assert abs((long[0] + long[2]) - (short[0] + short[2])) <= 2
+
+    def test_max_width_wraps(self) -> None:
+        text = "السلام عليكم ورحمة الله وبركاته"
+        one_line = ink(khatt.draw_text(blank((900, 400)), (880, 20), text, anchor="ra"))
+        wrapped = ink(
+            khatt.draw_text(blank((900, 400)), (880, 20), text, anchor="ra", max_width=250)
+        )
+        assert wrapped[2] - wrapped[0] <= 250
+        assert one_line[2] - one_line[0] > 250
+        assert wrapped[3] - wrapped[1] > 2 * (one_line[3] - one_line[1])
+
+
+class TestColor:
+    def test_fill_colour_is_applied(self) -> None:
+        image = khatt.draw_text(blank(), (20, 20), "مرحبا", fill="red")
+        changed = [p for p in pixels(image) if p != WHITE]
+        assert changed
+        assert (255, 0, 0) in changed  # fully covered pixels
+        assert all(r == 255 and g == b for r, g, b in changed)  # white→red blends only
+
+    @pytest.mark.parametrize("fill", ["#00ff00", (0, 255, 0), (0, 255, 0, 255), "lime"])
+    def test_fill_formats(self, fill: khatt.draw.Fill) -> None:
+        image = khatt.draw_text(blank(), (20, 20), "خط", fill=fill)
+        assert (0, 255, 0) in set(pixels(image))
+
+    def test_translucent_fill_on_rgb(self) -> None:
+        image = khatt.draw_text(blank(), (20, 20), "خط", fill=(0, 0, 0, 128))
+        darkest = min(p[0] for p in pixels(image))
+        assert abs(darkest - 127) <= 1
+
+
+class TestRGBA:
+    def test_transparent_background_stays_transparent(self) -> None:
+        image = khatt.draw_text(blank(color=CLEAR), (20, 20), "مرحبا", fill=(0, 0, 255))
+        drawn = [p for p in pixels(image) if p != CLEAR]
+        assert drawn
+        assert all(p[3] > 0 for p in drawn)  # untouched pixels are exactly CLEAR
+        assert max(p[3] for p in drawn) == 255
+        # Edges are blue at partial alpha, not darkened towards the black backdrop.
+        assert all(abs(p[0]) <= 1 and abs(p[1]) <= 1 and abs(p[2] - 255) <= 1 for p in drawn)
+
+    def test_background_alpha_is_preserved_around_the_text(self) -> None:
+        background = (255, 255, 255, 128)
+        image = khatt.draw_text(blank(color=background), (20, 20), "مرحبا", fill="black")
+        box = ink(image, background)
+        outside = [
+            p
+            for y in range(image.size[1])
+            for x in range(image.size[0])
+            if not (box[0] <= x < box[2] and box[1] <= y < box[3])
+            for p in [image.getpixel((x, y))]
+        ]
+        assert set(outside) == {background}
+        assert (0, 0, 0, 255) in set(pixels(image))
+
+    def test_translucent_fill_on_rgba(self) -> None:
+        image = khatt.draw_text(blank(color=CLEAR), (20, 20), "خط", fill=(255, 0, 0, 100))
+        assert max(p[3] for p in pixels(image)) == 100
+
+
+class TestNoPillowTextLayout:
+    """draw_text never touches Pillow's text stack, so Raqm can't change its output."""
+
+    TEXT = "بِسْمِ اللَّهِ\nKhatt 2026 مرحبا"
+
+    def render(self) -> bytes:
+        image = khatt.draw_text(blank((700, 260)), (680, 20), self.TEXT, anchor="ra")
+        khatt.overlay(image, "شهادة تقدير", (20, 140, 400, 250))
+        return image.tobytes()
+
+    @staticmethod
+    def forbid_pillow_text(monkeypatch: pytest.MonkeyPatch) -> None:
+        def forbidden(*args: object, **kwargs: object) -> None:
+            raise AssertionError("Pillow's text layout was used")
+
+        monkeypatch.setattr(ImageDraw.ImageDraw, "text", forbidden)
+        monkeypatch.setattr(ImageDraw.ImageDraw, "multiline_text", forbidden)
+        monkeypatch.setattr(ImageFont, "truetype", forbidden)
+        monkeypatch.setattr(ImageFont.FreeTypeFont, "__init__", forbidden)
+
+    def test_identical_output_with_raqm_reported_on_and_off(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self.forbid_pillow_text(monkeypatch)
+        real_check = features.check
+        outputs = []
+        for raqm in (True, False):
+            monkeypatch.setattr(
+                features,
+                "check",
+                lambda name, raqm=raqm: raqm if name == "raqm" else real_check(name),
+            )
+            outputs.append(self.render())
+        assert outputs[0] == outputs[1]
+
+    @pytest.mark.skipif(not features.check("raqm"), reason="this Pillow has no Raqm")
+    def test_real_raqm_changes_nothing(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        with_raqm = self.render()
+        self.forbid_pillow_text(monkeypatch)
+        assert self.render() == with_raqm
+
+
+class TestQuality:
+    @pytest.mark.parametrize("size", [9, 14, 24, 48, 131])
+    @pytest.mark.parametrize("text", ["مرحبا", "بِسْمِ اللَّهِ", "Khatt 3arabi", "لا إله"])
+    def test_estimate_contains_the_drawn_ink(self, size: int, text: str) -> None:
+        path = font_path("amiri")
+        glyphs = shape(text, path, keep_tashkeel=True)
+        box = estimate(glyphs, path, ppem=size)
+        block = compose_block([glyphs], path, ppem=size, pitch=size)
+        assert box is not None
+        assert block is not None
+        width, height = block.mask.size
+        assert box[2] - box[0] >= width
+        assert box[1] <= block.top
+        assert box[3] >= block.top + height
+        assert box[2] - box[0] <= width + 4  # and stays tight
+
+    def test_keep_tashkeel(self) -> None:
+        voweled = "مَرْحَبًا"
+        kept = khatt.draw_text(blank(), (20, 20), voweled, keep_tashkeel=True)
+        stripped = khatt.draw_text(blank(), (20, 20), voweled, keep_tashkeel=False)
+        assert kept.tobytes() != stripped.tobytes()
+        plain = khatt.draw_text(blank(), (20, 20), "مرحبا")
+        assert stripped.tobytes() == plain.tobytes()
+
+    def test_deterministic(self) -> None:
+        first = khatt.draw_text(blank(), (20, 20), "القاهرة 2026", size_px=31).tobytes()
+        assert khatt.draw_text(blank(), (20, 20), "القاهرة 2026", size_px=31).tobytes() == first
+
+
+class TestDrawTextErrors:
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            ({"anchor": "xx"}, "anchor"),
+            ({"anchor": "l"}, "anchor"),
+            ({"align": "justify"}, "align"),
+            ({"size_px": 0}, "size_px"),
+            ({"line_spacing": 0}, "line_spacing"),
+            ({"max_width": 0}, "max_width"),
+            ({"fill": "not-a-colour"}, "colour|color"),
+            ({"fill": (300, 0, 0)}, "fill"),
+            ({"fill": (1, 2)}, "fill"),
+            ({"fill": 5}, "fill"),
+        ],
+    )
+    def test_bad_arguments(self, kwargs: dict[str, Any], match: str) -> None:
+        with pytest.raises(ValueError, match=match):
+            khatt.draw_text(blank(), (0, 0), "خط", **kwargs)
+
+    def test_unsupported_image_mode(self) -> None:
+        with pytest.raises(ValueError, match="RGB or RGBA"):
+            khatt.draw_text(Image.new("L", (50, 50)), (0, 0), "خط")
+
+    def test_unknown_font(self) -> None:
+        with pytest.raises(KeyError):
+            khatt.draw_text(blank(), (0, 0), "خط", font="nope")
+
+
+class TestOverlay:
+    BOX = (50, 40, 450, 200)
+
+    def inner(self, padding: int = 0) -> Box:
+        left, top, right, bottom = self.BOX
+        return left + padding, top + padding, right - padding, bottom - padding
+
+    def assert_inside(self, box: Box, bounds: Box) -> None:
+        assert box[0] >= bounds[0]
+        assert box[1] >= bounds[1]
+        assert box[2] <= bounds[2]
+        assert box[3] <= bounds[3]
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "شهادة",
+            "شهادة تقدير",
+            "تُمنح هذه الشهادة إلى الطالب المتميز تقديرا لجهوده الكبيرة في العام الدراسي",
+            "سطر أول\nسطر ثاني\nسطر ثالث",
+            "Mohammed Essam محمد عصام",
+            "Supercalifragilisticexpialidocious",
+        ],
+    )
+    @pytest.mark.parametrize("padding", [0, 12])
+    def test_shrink_never_overflows(self, text: str, padding: int) -> None:
+        image = blank()
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", khatt.TextOverflowWarning)
+            khatt.overlay(image, text, self.BOX, padding=padding)
+        drawn = ink(image)
+        inner = self.inner(padding)
+        self.assert_inside(drawn, inner)
+        # ... and picks a size that fills the box in at least one direction.
+        fill_ratio = max(
+            (drawn[2] - drawn[0]) / (inner[2] - inner[0]),
+            (drawn[3] - drawn[1]) / (inner[3] - inner[1]),
+        )
+        assert fill_ratio > 0.8, fill_ratio
+
+    @pytest.mark.parametrize(
+        ("text", "box"),
+        [
+            ("خط", (400, 160)),
+            ("خط " * 12, (400, 160)),
+            ("خط " * 12, (120, 300)),
+            ("مرحبا بالعالم\nKhatt", (250, 90)),
+        ],
+    )
+    def test_shrink_picks_the_largest_size_that_fits(self, text: str, box: tuple[int, int]) -> None:
+        path = font_path("amiri")
+        size = _largest_fitting(
+            text, path, sizes=(8, 300), box=box, line_spacing=1.2, keep_tashkeel=True
+        )
+
+        def extent(size: int) -> tuple[int, int]:
+            measured = measure_block(
+                text, path, size_px=size, max_width=box[0], line_spacing=1.2, keep_tashkeel=True
+            )
+            assert measured is not None
+            return measured
+
+        width, height = extent(size)
+        assert width <= box[0]
+        assert height <= box[1]
+        width, height = extent(size + 1)
+        assert width > box[0] or height > box[1]
+
+    def test_shrink_gives_longer_text_smaller_letters(self) -> None:
+        path = font_path("amiri")
+        short, long = (
+            _largest_fitting(
+                text, path, sizes=(8, 300), box=(400, 160), line_spacing=1.2, keep_tashkeel=True
+            )
+            for text in ("خط", "خط " * 12)
+        )
+        assert long < short
+
+    def test_default_alignment_follows_the_direction(self) -> None:
+        rtl = ink(khatt.overlay(blank(), "مرحبا", self.BOX, max_size_px=40))
+        ltr = ink(khatt.overlay(blank(), "Hello", self.BOX, max_size_px=40))
+        assert abs(rtl[2] - self.BOX[2]) <= 1
+        assert abs(ltr[0] - self.BOX[0]) <= 1
+
+    @pytest.mark.parametrize("align", ["left", "right", "center"])
+    def test_explicit_alignment(self, align: str) -> None:
+        box = ink(khatt.overlay(blank(), "مرحبا", self.BOX, max_size_px=40, align=align))
+        left, _, right, _ = self.BOX
+        if align == "left":
+            assert abs(box[0] - left) <= 1
+        elif align == "right":
+            assert abs(box[2] - right) <= 1
+        else:
+            assert abs((box[0] - left) - (right - box[2])) <= 2
+
+    @pytest.mark.parametrize("valign", ["top", "middle", "bottom"])
+    def test_vertical_alignment(self, valign: str) -> None:
+        box = ink(khatt.overlay(blank(), "مرحبا", self.BOX, max_size_px=40, valign=valign))
+        _, top, _, bottom = self.BOX
+        if valign == "top":
+            assert box[1] == top
+        elif valign == "bottom":
+            assert box[3] == bottom
+        else:
+            assert abs((box[1] - top) - (bottom - box[3])) <= 1
+
+    def test_wrap_keeps_the_size_and_wraps(self) -> None:
+        text = "السلام عليكم ورحمة الله وبركاته"
+        unwrapped = ink(khatt.draw_text(blank((900, 300)), (10, 100), text, size_px=40))
+        assert unwrapped[2] - unwrapped[0] > 300  # too wide for the box below
+        box = (50, 40, 350, 260)
+        image = khatt.overlay(blank(), text, box, fit="wrap", max_size_px=40)
+        drawn = ink(image)
+        self.assert_inside(drawn, box)
+        pitch = 1.2 * 40
+        assert drawn[3] - drawn[1] > unwrapped[3] - unwrapped[1] + pitch / 2
+
+    def test_none_overflows_with_a_warning_and_clips_to_the_box(self) -> None:
+        image = blank()
+        text = "نص طويل جدا لا يتسع داخل الصندوق مهما حاولنا"
+        with pytest.warns(khatt.TextOverflowWarning):
+            khatt.overlay(image, text, self.BOX, fit="none", max_size_px=60)
+        drawn = ink(image)
+        self.assert_inside(drawn, self.BOX)
+        # Right-to-left text overflows on the left, keeping its start visible.
+        assert abs(drawn[2] - self.BOX[2]) <= 1
+        assert drawn[0] == self.BOX[0]
+
+    def test_shrink_warns_when_even_the_minimum_does_not_fit(self) -> None:
+        image = blank()
+        with pytest.warns(khatt.TextOverflowWarning):
+            khatt.overlay(image, "خط " * 200, self.BOX, min_size_px=30)
+        self.assert_inside(ink(image), self.BOX)
+
+    def test_on_rgba(self) -> None:
+        image = khatt.overlay(blank(color=CLEAR), "مرحبا", self.BOX, fill="navy")
+        self.assert_inside(ink(image, CLEAR), self.BOX)
+
+    def test_nothing_to_draw(self) -> None:
+        image = blank()
+        khatt.overlay(image, " ", self.BOX)
+        assert image.tobytes() == blank().tobytes()
+
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            ({"fit": "stretch"}, "fit"),
+            ({"valign": "center"}, "valign"),
+            ({"padding": -1}, "padding"),
+            ({"padding": 80}, "room"),
+            ({"max_size_px": 0}, "max_size_px"),
+            ({"min_size_px": 0}, "min_size_px"),
+            ({"max_size_px": 10, "min_size_px": 20}, "min_size_px"),
+            ({"align": "justify"}, "align"),
+        ],
+    )
+    def test_bad_arguments(self, kwargs: dict[str, Any], match: str) -> None:
+        with pytest.raises(ValueError, match=match):
+            khatt.overlay(blank(), "خط", self.BOX, **kwargs)

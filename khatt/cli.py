@@ -13,6 +13,7 @@ from PIL import ImageColor, ImageOps
 
 import khatt
 from khatt.art_image import paint
+from khatt.doctor import format_report
 from khatt.fonts import available_fonts
 
 app = typer.Typer(add_completion=False)
@@ -133,10 +134,23 @@ def main(
     ),
     list_fonts: bool = typer.Option(False, "--list-fonts", help="List bundled fonts and exit."),
     list_styles: bool = typer.Option(False, "--list-styles", help="List styles and exit."),
+    doctor: bool = typer.Option(
+        False,
+        "--doctor",
+        help="Check which Arabic shaping engines are installed (and double-shaping risks), "
+        "then exit.",
+    ),
 ) -> None:
     """Render Arabic text as ASCII/Unicode-block art."""
     _configure_utf8_output()
 
+    if doctor:
+        for line in format_report(khatt.doctor()):
+            if line.startswith("warning:"):
+                typer.secho(line, fg=typer.colors.YELLOW)
+            else:
+                typer.echo(line)
+        raise typer.Exit()
     if list_fonts:
         for name in available_fonts():
             typer.echo(name)

@@ -1,12 +1,13 @@
-"""Khatt (خَطّ) — render Arabic text as ASCII/Unicode-block art.
+"""Khatt (خَطّ) — render Arabic text as ASCII/Unicode-block art and onto images.
 
 FIGlet-style per-character fonts cannot express Arabic contextual shaping,
 mandatory ligatures or right-to-left layout, so khatt shapes text with
 HarfBuzz, rasterizes it with a real Arabic font via FreeType, and maps pixel
-coverage onto character ramps.
+coverage onto character ramps, or composites it onto Pillow images.
 
     >>> import khatt
     >>> print(khatt.render("مرحبا"))
+    >>> khatt.draw_text(image, (20, 20), "مرحبا")
 """
 
 from __future__ import annotations
@@ -14,6 +15,8 @@ from __future__ import annotations
 from PIL import Image, ImageOps
 
 from khatt.art_image import art_to_image
+from khatt.doctor import doctor
+from khatt.draw import TextOverflowWarning, draw_text, overlay
 from khatt.fonts import available_fonts as list_fonts
 from khatt.fonts import font_path
 from khatt.layout import DEFAULT_SIZE, render_grids, render_ink
@@ -25,11 +28,15 @@ __version__ = "0.2.0"
 
 __all__ = [
     "DEFAULT_SIZE",
+    "TextOverflowWarning",
     "UnsupportedCharacterWarning",
     "__version__",
     "art_to_image",
+    "doctor",
+    "draw_text",
     "list_fonts",
     "list_styles",
+    "overlay",
     "render",
     "render_image",
 ]
