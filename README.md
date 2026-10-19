@@ -116,6 +116,7 @@ khatt "خط" -o logo.png --bg none       # transparent background
 khatt "خط" -o khatt.png --png text     # the plain high-resolution text instead
 khatt --list-fonts
 khatt --list-styles
+khatt --doctor                         # which Arabic shapers are installed
 ```
 
 Arabic diacritics (tashkeel) are stripped from text art by default — they're
@@ -145,6 +146,65 @@ Like FIGlet, letters have a fixed size and long text wraps:
   right-aligned, left-to-right ones left-aligned.
 - `--fit` (API: `size=None`) is the 0.1.0 behaviour: scale each line to fill
   exactly `width` columns, without wrapping.
+
+### Drawing on images
+
+`khatt.draw_text` draws correctly shaped Arabic, mixed Arabic/Latin and Arabizi
+onto an existing Pillow image. It's a drop-in for `ImageDraw.text`, and
+`khatt.overlay` fits text into a box:
+
+```python
+from PIL import Image
+import khatt
+
+image = Image.open("certificate.png").convert("RGBA")
+
+# Like ImageDraw.text: xy is where the anchor goes ("ra" = right edge, ascender line).
+khatt.draw_text(image, (1100, 80), "شهادة تقدير", size_px=72, anchor="ra", fill="#1a3c6e")
+khatt.draw_text(image, (1100, 200), "تُمنح هذه الشهادة إلى", size_px=36, anchor="ra",
+                max_width=800)  # wraps at spaces
+
+# The largest size at which the name fits the box, wrapped if it has to be.
+khatt.overlay(image, "محمد عبد الله", (200, 260, 1100, 400), padding=12, fill="black")
+
+image.save("certificate-filled.png")
+```
+
+- Pass text as typed. Don't run it through `arabic_reshaper` or `get_display` first.
+- `draw_text`: `size_px` (pixels per em, like `ImageFont.truetype`), `fill`
+  (colour name, `#rrggbb[aa]` or an RGB/RGBA tuple; alpha makes the text
+  translucent), Pillow-style `anchor` (`l`/`m`/`r` + `a`/`t`/`m`/`s`/`b`/`d`),
+  `max_width` in pixels to wrap, `line_spacing` (baseline distance in multiples of
+  the size), `align` (`None`: right-to-left paragraphs right-aligned, left-to-right
+  ones left-aligned), `keep_tashkeel` (diacritics are kept by default on images).
+- `overlay(image, text, (left, top, right, bottom))`: `fit="shrink"` (default) uses
+  the largest size between `max_size_px` and `min_size_px` at which the wrapped
+  text fits; `"wrap"` wraps at `max_size_px`; `"none"` draws at `max_size_px` as
+  is. Also `align`, `valign` (`top`/`middle`/`bottom`) and `padding`. It never
+  draws outside the box: text that doesn't fit is clipped, with a
+  `khatt.TextOverflowWarning`.
+- RGB and RGBA images both work; on RGBA, a transparent background stays
+  transparent around the text.
+
+**Why not just `ImageDraw.text`?** Pillow shapes Arabic only when it's built with
+Raqm, which most Windows installs aren't. The usual workaround,
+`arabic_reshaper` plus `get_display`, pre-shapes the text, so wherever native
+shaping *is* available (Pillow with Raqm, matplotlib 3.11+) the text gets shaped
+twice and comes out corrupted. khatt never hands text to another shaper: it
+shapes with HarfBuzz, rasterizes with FreeType and composites only the finished
+pixels, so the output is identical everywhere.
+
+`khatt --doctor` (API: `khatt.doctor()`) shows which shapers your environment
+has and warns about that double-shaping trap:
+
+```text
+$ khatt --doctor
+khatt 0.2.0 (Python 3.13.15)
+Pillow 12.3.0: no Raqm, so ImageDraw.text cannot shape Arabic
+matplotlib: not installed
+arabic_reshaper: not installed
+khatt shapes text itself: its output is the same in every case above.
+```
 
 ### Gradio app
 

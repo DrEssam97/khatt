@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `khatt.draw_text(image, xy, text, ...)`: draws correctly shaped text onto
+  an existing RGB or RGBA Pillow image, a drop-in for `ImageDraw.text` with
+  Pillow-style anchors, `max_width` word-wrap, `line_spacing`, auto or
+  explicit `align`, and alpha-aware fills. It never uses Pillow's text
+  layout, so its output is identical with or without Raqm and text is never
+  shaped twice. Glyphs are rendered at the target size with quarter-pixel
+  positioning.
+- `khatt.overlay(image, text, box, fit=...)`: places text inside a box.
+  `fit="shrink"` picks the largest size that fits with wrapping (a binary
+  search measured from glyph outlines, without rendering), `"wrap"` wraps at
+  a fixed size and `"none"` draws as is; plus `align`, `valign` and
+  `padding`. Nothing is drawn outside the box: text that doesn't fit is
+  clipped with a `khatt.TextOverflowWarning`.
+- `khatt --doctor` / `khatt.doctor()`: reports the Pillow version and
+  whether it has Raqm, the matplotlib version (3.11+ shapes Arabic
+  natively), and whether `arabic_reshaper` is importable, with a warning
+  that combining it with native shaping corrupts text (double-shaping).
+
 ## [0.2.0] - 2026-10-19
 
 ### Changed
