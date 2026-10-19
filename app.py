@@ -6,16 +6,12 @@ Gradio SDK and it deploys unchanged (see README, "Deploy to a Space").
 
 from __future__ import annotations
 
-import tempfile
 import warnings
 
 import gradio as gr
-from PIL import ImageOps
+from PIL import Image
 
 import khatt
-from khatt.fonts import font_path
-from khatt.raster import rasterize
-from khatt.shaping import shape
 
 CSS = """
 #khatt-output textarea {
@@ -27,11 +23,21 @@ CSS = """
 }
 """
 
+# Gradio stores every returned image in its cache; prune files older than an
+# hour, every hour, so a long-running Space doesn't fill its disk.
+CACHE_PRUNING = (3600, 3600)
+
 
 def render_art(
-    text: str, font: str, style: str, width: float, threshold: float
-) -> tuple[str, str | None]:
-    """Render the art and a downloadable PNG of the shaped text."""
+    text: str,
+    font: str,
+    style: str,
+    width: float,
+    size: float,
+    fit: bool,
+    threshold: float,
+) -> tuple[str, Image.Image | None]:
+    """Render the art and a PNG preview of the shaped text."""
     if not text.strip():
         return "", None
 
@@ -43,20 +49,13 @@ def render_art(
             style=style,
             width=int(width),
             threshold=threshold or None,  # slider at 0 means "off"
+            size=None if fit else int(size),
         )
-
-    png_path: str | None = None
-    path = font_path(font)
-    image = rasterize(shape(text, path), path)
-    if image is not None:
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as handle:
-            png_path = handle.name
-        ImageOps.invert(image).save(png_path)
-
-    return art, png_path
+        image = khatt.render_image(text, font=font)
+    return art, image
 
 
-with gr.Blocks(title="خط — Khatt") as demo:
+with gr.Blocks(title="خط — Khatt", delete_cache=CACHE_PRUNING) as demo:
     gr.Markdown(
         "# خط — Khatt\n"
         "Render Arabic text as ASCII/Unicode-block art — with real shaping: "
@@ -65,10 +64,15 @@ with gr.Blocks(title="خط — Khatt") as demo:
     )
     with gr.Row():
         with gr.Column(scale=1):
-            text_in = gr.Textbox(label="النص / Text", value="مرحبا", rtl=True, lines=2)
+            text_in = gr.Textbox(label="النص / Text", value="مرحبا", rtl=True, lines=3)
             font_in = gr.Dropdown(khatt.list_fonts(), value="amiri", label="Font")
             style_in = gr.Dropdown(khatt.list_styles(), value="blocks", label="Style")
-            width_in = gr.Slider(20, 200, value=80, step=2, label="Width (columns)")
+            width_in = gr.Slider(20, 200, value=80, step=2, label="Max width (columns)")
+            size_in = gr.Slider(4, 30, value=khatt.DEFAULT_SIZE, step=1, label="Size (rows per em)")
+            fit_in = gr.Checkbox(
+                label="Fill width",
+                info="Scale the text to exactly the max width instead of wrapping.",
+            )
             threshold_in = gr.Slider(0.0, 0.95, value=0.0, step=0.05, label="Threshold (0 = off)")
         with gr.Column(scale=2):
             art_out = gr.Textbox(
@@ -78,12 +82,18 @@ with gr.Blocks(title="خط — Khatt") as demo:
                 buttons=["copy"],
                 interactive=False,
             )
-            png_out = gr.File(label="PNG of the rendered text")
+            png_out = gr.Image(
+                label="Rendered text (PNG)",
+                type="pil",
+                format="png",
+                buttons=["download"],
+                interactive=False,
+            )
 
-    controls = [text_in, font_in, style_in, width_in, threshold_in]
+    controls = [text_in, font_in, style_in, width_in, size_in, fit_in, threshold_in]
     outputs = [art_out, png_out]
     for control in controls:
-        control.change(render_art, controls, outputs)
+        control.change(render_art, controls, outputs, trigger_mode="always_last")
     demo.load(render_art, controls, outputs)
 
 
