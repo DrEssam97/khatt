@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import freetype
 from PIL import Image
 
 from khatt.fonts import available_fonts, font_path
-from khatt.raster import rasterize, to_grid
+from khatt.raster import _bitmap_bytes, _face, _glyph, rasterize, to_grid
 from khatt.shaping import shape
 
 AMIRI = font_path("amiri")
@@ -60,3 +61,21 @@ class TestEmptyInput:
 
     def test_whitespace_only_returns_none(self) -> None:
         assert rasterize(shape("   ", AMIRI), AMIRI) is None
+
+
+class TestGlyphCache:
+    def test_fast_buffer_read_matches_freetype_py(self) -> None:
+        face = _face(str(AMIRI))
+        gid = shape("خ", AMIRI)[0].gid
+        face.load_glyph(gid, freetype.FT_LOAD_RENDER | freetype.FT_LOAD_NO_HINTING)
+        bitmap = face.glyph.bitmap
+        assert _bitmap_bytes(bitmap) == bytes(bitmap.buffer)
+
+    def test_glyphs_are_cached(self) -> None:
+        gid = shape("خ", AMIRI)[0].gid
+        assert _glyph(str(AMIRI), gid) is _glyph(str(AMIRI), gid)
+
+    def test_cached_render_is_stable(self) -> None:
+        cold = ink("القاهرة").tobytes()
+        _glyph.cache_clear()
+        assert ink("القاهرة").tobytes() == cold

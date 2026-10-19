@@ -5,6 +5,9 @@ HarfBuzz, max-blended onto a high-resolution canvas (Arabic joins overlap, so
 plain pasting would clip strokes), cropped to the ink extents, and finally
 downsampled to the requested character grid.
 
+Rendered glyph bitmaps are cached per (font, glyph ID): text repeats the same
+few dozen glyphs, and reading a FreeType bitmap is the expensive step.
+
 Determinism: hinting is disabled, pen positions are rounded identically
 everywhere, the freetype-py wheel bundles its own libfreetype, and font files
 are bundled — so output is byte-identical across platforms for a locked
@@ -13,9 +16,13 @@ dependency set (this is what makes the golden-file tests portable).
 
 from __future__ import annotations
 
+import ctypes
 import io
+import threading
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 import freetype
 from PIL import Image, ImageChops
@@ -30,6 +37,18 @@ CELL_ASPECT = 0.5
 
 _LOAD_FLAGS = freetype.FT_LOAD_RENDER | freetype.FT_LOAD_NO_HINTING
 
+# A FreeType face is not thread-safe, and the cached faces are shared (the
+# Gradio app renders from worker threads).
+_FACE_LOCK = threading.Lock()
+
+
+@dataclass(frozen=True)
+class _Glyph:
+    image: Image.Image | None
+    """Coverage bitmap, or ``None`` for ink-less glyphs such as spaces."""
+    left: int
+    top: int
+
 
 @lru_cache(maxsize=8)
 def _face(path: str) -> freetype.Face:
@@ -40,12 +59,35 @@ def _face(path: str) -> freetype.Face:
     return face
 
 
-def _bitmap_to_image(bitmap: freetype.Bitmap) -> Image.Image:
+def _bitmap_bytes(bitmap: Any) -> bytes:
+    pitch, rows = bitmap.pitch, bitmap.rows
+    if pitch > 0:
+        try:
+            # freetype-py's ``bitmap.buffer`` builds a Python list of every
+            # pixel; copying the raw buffer is orders of magnitude faster.
+            return ctypes.string_at(bitmap._FT_Bitmap.buffer, pitch * rows)
+        except (AttributeError, TypeError, ValueError):
+            pass
+    return bytes(bitmap.buffer)
+
+
+def _bitmap_to_image(bitmap: Any) -> Image.Image:
     pitch, width, rows = bitmap.pitch, bitmap.width, bitmap.rows
-    data = bytes(bitmap.buffer)
+    data = _bitmap_bytes(bitmap)
     if pitch != width:
         data = b"".join(data[r * pitch : r * pitch + width] for r in range(rows))
     return Image.frombytes("L", (width, rows), data)
+
+
+@lru_cache(maxsize=4096)
+def _glyph(path: str, gid: int) -> _Glyph:
+    face = _face(path)
+    with _FACE_LOCK:
+        face.load_glyph(gid, _LOAD_FLAGS)
+        slot = face.glyph
+        if not (slot.bitmap.width and slot.bitmap.rows):
+            return _Glyph(None, 0, 0)
+        return _Glyph(_bitmap_to_image(slot.bitmap), slot.bitmap_left, slot.bitmap_top)
 
 
 def _blend_max(canvas: Image.Image, glyph_image: Image.Image, x: int, y: int) -> None:
@@ -89,12 +131,11 @@ def rasterize(glyphs: list[ShapedGlyph], font_path: str | Path) -> Image.Image |
 
     pen_x = float(margin)
     for glyph in glyphs:
-        face.load_glyph(glyph.gid, _LOAD_FLAGS)
-        slot = face.glyph
-        if slot.bitmap.width and slot.bitmap.rows:
-            x = round(pen_x + glyph.x_offset * scale) + slot.bitmap_left
-            y = baseline - slot.bitmap_top - round(glyph.y_offset * scale)
-            _blend_max(canvas, _bitmap_to_image(slot.bitmap), x, y)
+        rendered = _glyph(path, glyph.gid)
+        if rendered.image is not None:
+            x = round(pen_x + glyph.x_offset * scale) + rendered.left
+            y = baseline - rendered.top - round(glyph.y_offset * scale)
+            _blend_max(canvas, rendered.image, x, y)
         pen_x += glyph.x_advance * scale
 
     bbox = canvas.getbbox()
