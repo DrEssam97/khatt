@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a fixed size and `"none"` draws as is; plus `align`, `valign` and
   `padding`. Nothing is drawn outside the box: text that doesn't fit is
   clipped with a `khatt.TextOverflowWarning`.
+- Your own fonts: every `font` parameter (`render`, `render_image`,
+  `draw_text`, `overlay`, the CLI's `--font`) also accepts the path to a
+  `.ttf`/`.otf` file, as a string or `pathlib.Path`, including non-ASCII
+  paths on Windows. Bundled names still win over a file of the same name. A
+  missing file raises `KeyError` like an unknown name; a file khatt can't
+  shape and render (not a font, bitmap-only, or a WOFF/WOFF2 web font that
+  FreeType reads but HarfBuzz can't) raises a `ValueError` saying why.
 - `khatt --doctor` / `khatt.doctor()`: reports the Pillow version and
   whether it has Raqm, the matplotlib version (3.11+ shapes Arabic
   natively), and whether `arabic_reshaper` is importable, with a warning

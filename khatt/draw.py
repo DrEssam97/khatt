@@ -16,7 +16,7 @@ from pathlib import Path
 
 from PIL import Image, ImageColor
 
-from khatt.fonts import font_path
+from khatt.fonts import Font, font_path
 from khatt.layout import layout_block, measure_block
 
 Fill = str | tuple[int, int, int] | tuple[int, int, int, int]
@@ -107,7 +107,7 @@ def draw_text(
     xy: tuple[float, float],
     text: str,
     *,
-    font: str = "amiri",
+    font: Font = "amiri",
     size_px: int = 48,
     fill: Fill = "black",
     align: str | None = None,
@@ -127,7 +127,8 @@ def draw_text(
         xy: Where the ``anchor`` point of the text goes, in pixels.
         text: The text; line breaks start new lines and mixed Arabic/Latin
             text comes out in the correct visual order.
-        font: A bundled font name (see :func:`khatt.list_fonts`).
+        font: A bundled font name (see :func:`khatt.list_fonts`) or the path
+            to a .ttf/.otf font file.
         size_px: Font size in pixels per em, as in ``ImageFont.truetype``.
         fill: Text colour: a name, ``#rrggbb[aa]``, or an RGB(A) tuple. Its
             alpha makes the text translucent.
@@ -232,7 +233,7 @@ def overlay(
     box: tuple[int, int, int, int],
     *,
     fit: str = "shrink",
-    font: str = "amiri",
+    font: Font = "amiri",
     max_size_px: int | None = None,
     min_size_px: int = 8,
     fill: Fill = "black",
@@ -252,7 +253,8 @@ def overlay(
             ``max_size_px`` down to ``min_size_px`` at which the text, wrapped
             at spaces, fits the box. ``"wrap"`` wraps at ``max_size_px``;
             ``"none"`` draws at ``max_size_px`` without wrapping.
-        font: A bundled font name (see :func:`khatt.list_fonts`).
+        font: A bundled font name (see :func:`khatt.list_fonts`) or the path
+            to a .ttf/.otf font file.
         max_size_px: The font size for ``"wrap"`` and ``"none"`` and the
             largest size ``"shrink"`` tries, in pixels per em; default: the
             height inside the box.

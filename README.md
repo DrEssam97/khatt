@@ -107,6 +107,7 @@ khatt.list_styles()  # ['ascii', 'blocks', 'braille']
 khatt "مرحبا"                          # render to the terminal
 khatt "خط" --style braille --size 16
 khatt "القاهرة" -f cairo -s ascii -t 0.4
+khatt "خط" -f ./MyFont.ttf             # any .ttf/.otf font file
 echo "سلام" | khatt                    # stdin
 printf 'سطر أول\nسطر ثاني' | khatt     # multi-line input
 khatt "خط" --output art.txt            # save the art
@@ -224,6 +225,23 @@ uv run python app.py
 
 All fonts are licensed under the SIL Open Font License 1.1, preserved verbatim in
 [`khatt/fonts/LICENSES/`](khatt/fonts/LICENSES/).
+
+**Your own fonts.** Anywhere khatt takes a `font` (`render`, `render_image`,
+`draw_text`, `overlay`, the CLI's `--font`), you can pass the path to a TrueType or
+OpenType file instead of a bundled name, as a string or a `pathlib.Path`:
+
+```python
+khatt.draw_text(image, (40, 40), "مرحبا", font="brand/Tajawal-Bold.ttf")
+```
+
+```bash
+khatt "مرحبا" --font ~/fonts/Tajawal-Bold.ttf
+```
+
+Bundled names take precedence over a file with the same name. Web fonts
+(`.woff`/`.woff2`) aren't supported, so use the font's `.ttf` or `.otf` version. A
+path that doesn't exist raises `KeyError` (like an unknown name), and a file that
+isn't a usable font raises `ValueError`.
 
 | Style | Ramp | Notes |
 |---|---|---|

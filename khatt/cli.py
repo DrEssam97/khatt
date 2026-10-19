@@ -81,7 +81,12 @@ def main(
         help="Text to render. Omit (or pass '-') to read from stdin.",
         show_default=False,
     ),
-    font: str = typer.Option("amiri", "--font", "-f", help="Bundled font name."),
+    font: str = typer.Option(
+        "amiri",
+        "--font",
+        "-f",
+        help="Bundled font name (see --list-fonts) or the path to a .ttf/.otf file.",
+    ),
     style: str = typer.Option("blocks", "--style", "-s", help="Output style."),
     width: int | None = typer.Option(
         None,
@@ -178,7 +183,7 @@ def main(
                 size=None if fit else size,
                 keep_tashkeel=bool(keep_tashkeel),
             )
-        except KeyError as exc:
+        except (KeyError, ValueError) as exc:  # unknown font, unusable font file
             typer.secho(f"error: {exc.args[0]}", err=True, fg=typer.colors.RED)
             raise typer.Exit(code=2) from exc
     for warning in caught:

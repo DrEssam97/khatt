@@ -17,8 +17,8 @@ from PIL import Image, ImageOps
 from khatt.art_image import art_to_image
 from khatt.doctor import doctor
 from khatt.draw import TextOverflowWarning, draw_text, overlay
+from khatt.fonts import Font, font_path
 from khatt.fonts import available_fonts as list_fonts
-from khatt.fonts import font_path
 from khatt.layout import DEFAULT_SIZE, render_grids, render_ink
 from khatt.mapper import available_styles as list_styles
 from khatt.mapper import get_style, map_image
@@ -44,7 +44,7 @@ __all__ = [
 
 def render(
     text: str,
-    font: str = "amiri",
+    font: Font = "amiri",
     style: str = "blocks",
     width: int | None = 80,
     threshold: float | None = None,
@@ -59,7 +59,8 @@ def render(
             forms and ligatures, and mixed Arabic/Latin/digit strings come
             out in visual order. Line breaks start new lines; right-to-left
             paragraphs are right-aligned.
-        font: A bundled font name (see :func:`list_fonts`).
+        font: A bundled font name (see :func:`list_fonts`) or the path
+            to a .ttf/.otf font file.
         style: Output character set (see :func:`list_styles`).
         width: Maximum output width in terminal columns; longer lines wrap
             at spaces. ``None`` means no limit (no wrapping).
@@ -100,7 +101,7 @@ def render(
 
 
 def render_image(
-    text: str, font: str = "amiri", *, keep_tashkeel: bool = True
+    text: str, font: Font = "amiri", *, keep_tashkeel: bool = True
 ) -> Image.Image | None:
     """Render text as a high-resolution grayscale image, black on white.
 
@@ -110,7 +111,8 @@ def render_image(
 
     Args:
         text: The text to render.
-        font: A bundled font name (see :func:`list_fonts`).
+        font: A bundled font name (see :func:`list_fonts`) or the path
+            to a .ttf/.otf font file.
         keep_tashkeel: Keep Arabic diacritics (the default, unlike
             :func:`render`: images have the resolution to show them).
             Pass ``False`` to strip them.
