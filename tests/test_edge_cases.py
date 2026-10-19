@@ -23,8 +23,16 @@ def test_very_long_string_vs_width() -> None:
     art = khatt.render("مرحبا بالعالم " * 10, width=40)
     lines = art.split("\n")
     assert max(len(line) for line in lines) <= 40
-    # A long text squeezed into 40 columns flattens toward nothing tall;
-    # the call must still succeed and produce at least one row.
+    # A long text wraps onto many lines instead of flattening.
+    assert len(lines) > 40
+
+
+def test_very_long_string_in_fit_mode() -> None:
+    art = khatt.render("مرحبا بالعالم " * 10, width=40, size=None)
+    lines = art.split("\n")
+    assert max(len(line) for line in lines) <= 40
+    # Fit mode squeezes everything onto one line of art; it must still
+    # succeed and produce at least one row.
     assert len(lines) >= 1
 
 

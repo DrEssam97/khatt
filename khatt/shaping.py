@@ -48,6 +48,8 @@ _RTL_BIDI_CLASSES = frozenset({"AL", "R"})
 # Strong LTR and the digit classes: these must keep left-to-right order.
 _LTR_BIDI_CLASSES = frozenset({"L", "EN", "AN"})
 
+_BIDI_BASE_DIR = {"ltr": "L", "rtl": "R"}
+
 
 @dataclass(frozen=True)
 class ShapedGlyph:
@@ -64,6 +66,20 @@ class ShapedGlyph:
 def strip_tashkeel(text: str) -> str:
     """Remove Arabic diacritical marks (harakat, tanween, shadda, sukun…)."""
     return "".join(ch for ch in text if ch not in _TASHKEEL)
+
+
+def base_direction(text: str) -> str:
+    """Paragraph direction, ``"rtl"`` or ``"ltr"``, from the first strong character.
+
+    Text with no strong character (digits, punctuation, empty) is ``"ltr"``.
+    """
+    for ch in text:
+        bc = unicodedata.bidirectional(ch)
+        if bc in _RTL_BIDI_CLASSES:
+            return "rtl"
+        if bc == "L":
+            return "ltr"
+    return "ltr"
 
 
 @lru_cache(maxsize=8)
@@ -107,9 +123,10 @@ def _classify(visual: str) -> list[str]:
     return resolved
 
 
-def _visual_segments(text: str) -> list[tuple[str, str]]:
+def _visual_segments(text: str, direction: str | None = None) -> list[tuple[str, str]]:
     """Split text into ``(logical_segment, direction)`` pairs in visual order."""
-    visual = get_display(text)
+    base_dir = _BIDI_BASE_DIR[direction] if direction is not None else None
+    visual = get_display(text, base_dir=base_dir)
     kinds = _classify(visual)
 
     segments: list[tuple[str, str]] = []
@@ -127,7 +144,9 @@ def _visual_segments(text: str) -> list[tuple[str, str]]:
     return segments
 
 
-def _shape_segment(font: hb.Font, segment: str, direction: str) -> list[ShapedGlyph]:
+def _shape_segment(
+    font: hb.Font, segment: str, direction: str, *, warn: bool = True
+) -> list[ShapedGlyph]:
     buf = hb.Buffer()
     buf.add_str(segment)
     buf.guess_segment_properties()
@@ -140,6 +159,8 @@ def _shape_segment(font: hb.Font, segment: str, direction: str) -> list[ShapedGl
     glyphs: list[ShapedGlyph] = []
     for info, pos in zip(buf.glyph_infos, buf.glyph_positions, strict=True):
         if info.codepoint == 0:  # .notdef — the font has no glyph for this
+            if not warn:
+                continue
             offender = segment[info.cluster] if info.cluster < len(segment) else "?"
             warnings.warn(
                 f"character {offender!r} (U+{ord(offender):04X}) is not supported "
@@ -161,8 +182,15 @@ def _shape_segment(font: hb.Font, segment: str, direction: str) -> list[ShapedGl
     return glyphs
 
 
-def shape(text: str, font_path: str | Path, *, keep_tashkeel: bool = False) -> list[ShapedGlyph]:
-    """Shape ``text`` with the font at ``font_path``.
+def shape(
+    text: str,
+    font_path: str | Path,
+    *,
+    keep_tashkeel: bool = False,
+    direction: str | None = None,
+    warn: bool = True,
+) -> list[ShapedGlyph]:
+    """Shape one line of ``text`` with the font at ``font_path``.
 
     Returns glyphs in visual order (left to right) with positions in font
     units. Arabic contextual forms, mandatory ligatures and mixed-direction
@@ -171,7 +199,17 @@ def shape(text: str, font_path: str | Path, *, keep_tashkeel: bool = False) -> l
 
     ``keep_tashkeel`` keeps Arabic diacritics; by default they are stripped,
     because diacritics are illegible at character-grid resolution.
+
+    ``direction`` (``"rtl"`` or ``"ltr"``) sets the paragraph direction used
+    for bidi reordering; by default it is detected from the line itself. Pass
+    the paragraph's direction when shaping a wrapped line, so a line that
+    happens to start with a Latin word keeps the paragraph's order.
+
+    ``warn=False`` skips unsupported characters silently (used when shaping
+    candidate lines just to measure them).
     """
+    if direction is not None and direction not in _BIDI_BASE_DIR:
+        raise ValueError(f"direction must be 'rtl' or 'ltr', got {direction!r}")
     if not keep_tashkeel:
         text = strip_tashkeel(text)
     if not text:
@@ -179,8 +217,8 @@ def shape(text: str, font_path: str | Path, *, keep_tashkeel: bool = False) -> l
 
     font = _load_font(str(font_path))
     glyphs: list[ShapedGlyph] = []
-    for segment, direction in _visual_segments(text):
-        glyphs.extend(_shape_segment(font, segment, direction))
+    for segment, segment_direction in _visual_segments(text, direction):
+        glyphs.extend(_shape_segment(font, segment, segment_direction, warn=warn))
     return glyphs
 
 

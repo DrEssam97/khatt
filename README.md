@@ -85,9 +85,17 @@ uv sync
 ```python
 import khatt
 
-print(khatt.render("مرحبا"))                          # blocks style, 80 columns
-print(khatt.render("خط", style="braille", width=60))  # high effective resolution
+print(khatt.render("مرحبا"))                          # blocks style, size 10
+print(khatt.render("خط", style="braille", size=16))   # bigger, high effective resolution
 print(khatt.render("القاهرة", font="cairo", style="ascii", threshold=0.4))
+print(khatt.render("السلام عليكم ورحمة الله", width=60))  # wraps at 60 columns
+print(khatt.render("مرحبا\nKhatt 2026", font="rubik"))    # one art line per text line
+
+art = khatt.render("مرحبا", style="braille")
+khatt.art_to_image(art, fg="white", bg="#1e1e2e").save("art.png")  # the art as a picture
+
+image = khatt.render_image("مرحبا\nKhatt 2026")  # the plain text: Pillow image, black on white
+image.save("khatt.png")
 
 khatt.list_fonts()   # ['amiri', 'cairo', 'noto-naskh', 'rubik']
 khatt.list_styles()  # ['ascii', 'blocks', 'braille']
@@ -97,18 +105,46 @@ khatt.list_styles()  # ['ascii', 'blocks', 'braille']
 
 ```bash
 khatt "مرحبا"                          # render to the terminal
-khatt "خط" --style braille --width 60
+khatt "خط" --style braille --size 16
 khatt "القاهرة" -f cairo -s ascii -t 0.4
 echo "سلام" | khatt                    # stdin
+printf 'سطر أول\nسطر ثاني' | khatt     # multi-line input
 khatt "خط" --output art.txt            # save the art
-khatt "خط" --output khatt.png          # save the rendered text as an image
+khatt "خط" -s braille -o art.png       # save the art as an image
+khatt "خط" -s ascii -o art.png --fg "#e5e5e5" --bg "#1e1e2e"   # terminal colours
+khatt "خط" -o logo.png --bg none       # transparent background
+khatt "خط" -o khatt.png --png text     # the plain high-resolution text instead
 khatt --list-fonts
 khatt --list-styles
 ```
 
-Arabic diacritics (tashkeel) are stripped by default — they're illegible at
-character-grid resolution. Pass `--keep-tashkeel` (API: `keep_tashkeel=True`) to
-render them.
+Arabic diacritics (tashkeel) are stripped from text art by default — they're
+illegible at character-grid resolution. Pass `--keep-tashkeel` (API:
+`render(..., keep_tashkeel=True)`) to render them. Plain-text images
+(`--png text`, `render_image`) keep them by default, since they have the
+resolution to show them: pass `--strip-tashkeel` (API:
+`render_image(..., keep_tashkeel=False)`) to remove them.
+
+In art images, braille dots and shade blocks are drawn as shapes, so they stay
+crisp at any size; ascii characters are drawn in a bold sans font. Each
+character gets a cell twice as tall as it is wide (12 × 24 px by default;
+API: `cell_width=`), matching the terminal the art was sized for.
+
+### Sizing and wrapping
+
+Like FIGlet, letters have a fixed size and long text wraps:
+
+- `size` (`--size`) is the font size in character rows per em (default 10). It
+  gives the same on-screen height in every style; `braille` just packs 4× the
+  dots into it.
+- `width` (`--width`) is the maximum width. Lines wrap at spaces; a single
+  word that can't fit on its own shrinks the whole render until it does. The
+  CLI defaults to your terminal's width, the API to 80 columns; `width=None`
+  turns wrapping off.
+- Line breaks in the input start new lines. Right-to-left paragraphs are
+  right-aligned, left-to-right ones left-aligned.
+- `--fit` (API: `size=None`) is the 0.1.0 behaviour: scale each line to fill
+  exactly `width` columns, without wrapping.
 
 ### Gradio app
 
