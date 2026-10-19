@@ -85,9 +85,14 @@ uv sync
 ```python
 import khatt
 
-print(khatt.render("مرحبا"))                          # blocks style, 80 columns
-print(khatt.render("خط", style="braille", width=60))  # high effective resolution
+print(khatt.render("مرحبا"))                          # blocks style, size 10
+print(khatt.render("خط", style="braille", size=16))   # bigger, high effective resolution
 print(khatt.render("القاهرة", font="cairo", style="ascii", threshold=0.4))
+print(khatt.render("السلام عليكم ورحمة الله", width=60))  # wraps at 60 columns
+print(khatt.render("مرحبا\nKhatt 2026", font="rubik"))    # one art line per text line
+
+image = khatt.render_image("مرحبا\nKhatt 2026")  # Pillow image, black on white
+image.save("khatt.png")
 
 khatt.list_fonts()   # ['amiri', 'cairo', 'noto-naskh', 'rubik']
 khatt.list_styles()  # ['ascii', 'blocks', 'braille']
@@ -97,9 +102,10 @@ khatt.list_styles()  # ['ascii', 'blocks', 'braille']
 
 ```bash
 khatt "مرحبا"                          # render to the terminal
-khatt "خط" --style braille --width 60
+khatt "خط" --style braille --size 16
 khatt "القاهرة" -f cairo -s ascii -t 0.4
 echo "سلام" | khatt                    # stdin
+printf 'سطر أول\nسطر ثاني' | khatt     # multi-line input
 khatt "خط" --output art.txt            # save the art
 khatt "خط" --output khatt.png          # save the rendered text as an image
 khatt --list-fonts
@@ -109,6 +115,22 @@ khatt --list-styles
 Arabic diacritics (tashkeel) are stripped by default — they're illegible at
 character-grid resolution. Pass `--keep-tashkeel` (API: `keep_tashkeel=True`) to
 render them.
+
+### Sizing and wrapping
+
+Like FIGlet, letters have a fixed size and long text wraps:
+
+- `size` (`--size`) is the font size in character rows per em (default 10). It
+  gives the same on-screen height in every style; `braille` just packs 4× the
+  dots into it.
+- `width` (`--width`) is the maximum width. Lines wrap at spaces; a single
+  word that can't fit on its own shrinks the whole render until it does. The
+  CLI defaults to your terminal's width, the API to 80 columns; `width=None`
+  turns wrapping off.
+- Line breaks in the input start new lines. Right-to-left paragraphs are
+  right-aligned, left-to-right ones left-aligned.
+- `--fit` (API: `size=None`) is the 0.1.0 behaviour: scale each line to fill
+  exactly `width` columns, without wrapping.
 
 ### Gradio app
 
