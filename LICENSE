@@ -19,9 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-The Arabic fonts bundled under khatt/fonts/ are NOT covered by this license.
-They are licensed under the SIL Open Font License (OFL) 1.1; the full license
-text for each font family is preserved in khatt/fonts/LICENSES/.

@@ -1,0 +1,13 @@
+khatt
+Copyright (c) 2026 Mohammed Essam
+
+The khatt source code is licensed under the MIT License; see LICENSE.
+
+The Arabic fonts bundled under khatt/fonts/ are NOT covered by the MIT License.
+They are licensed under the SIL Open Font License (OFL) 1.1; the full license
+text for each font family is preserved in khatt/fonts/LICENSES/:
+
+- Amiri              khatt/fonts/Amiri-Regular.ttf
+- Cairo              khatt/fonts/Cairo-Regular.ttf
+- Noto Naskh Arabic  khatt/fonts/NotoNaskhArabic-Regular.ttf
+- Rubik              khatt/fonts/Rubik-Regular.ttf

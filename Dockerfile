@@ -6,7 +6,7 @@ FROM python:3.13-slim
 WORKDIR /app
 
 # Install the package (with the gradio extra) from the repo itself.
-COPY pyproject.toml README.md LICENSE ./
+COPY pyproject.toml README.md LICENSE NOTICE ./
 COPY khatt ./khatt
 COPY app.py ./
 RUN pip install --no-cache-dir ".[app]"
