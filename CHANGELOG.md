@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-19
+
 ### Changed
 
 - **Breaking — default sizing.** Text now renders at a fixed font size
@@ -15,10 +17,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fill it, so a short word came out huge and a sentence came out unreadably
   flat. Pass `size=None` (CLI: `--fit`) for the old behaviour; for single-line
   text its output is byte-identical to 0.1.0.
+- **Breaking — PNG output.** The CLI's `--output x.png` now saves the art
+  itself as an image, in the chosen `--style`, with `--fg` / `--bg` colours
+  (`--bg none` for transparent). `--png text` saves the plain high-resolution
+  text instead, which was the only option in 0.1.0.
 - The CLI's `--width` now defaults to the terminal width instead of 80.
+- `--keep-tashkeel` is now a `--keep-tashkeel/--strip-tashkeel` pair: with
+  neither, the art strips diacritics and `--png text` images keep them.
 - Rendering is ~20× faster: rasterized glyphs are cached per font and glyph,
   and FreeType bitmaps are copied directly instead of pixel by pixel
   (2000 characters: 5.7 s → 0.25 s).
+- `LICENSE` is now the plain MIT text, so GitHub and other tools detect the
+  license; the note about the bundled OFL fonts moved to a new `NOTICE` file,
+  which ships in the wheel and sdist.
 
 ### Added
 
@@ -28,10 +39,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as an image. Braille dots and shade blocks are drawn as shapes (crisp at
   any size), ascii characters in a bold sans font; `bg=None` gives a
   transparent background.
-- **The CLI's `--output x.png` now saves the art itself as an image**, in the
-  chosen `--style`, with `--fg` / `--bg` colours (`--bg none` for
-  transparent). `--png text` saves the plain high-resolution text instead,
-  which was the only option in 0.1.0.
 - `khatt.render_image(text, font, keep_tashkeel=True)`: the shaped text as a
   high-resolution Pillow image (black on white), with the same multi-line
   layout. `--png text` and the Gradio app use it. Unlike text art, these
@@ -75,4 +82,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   83-test suite at ≥85% enforced coverage on a 3.10–3.13 × Ubuntu/Windows
   CI matrix.
 
+[Unreleased]: https://github.com/DrEssam97/khatt/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/DrEssam97/khatt/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/DrEssam97/khatt/releases/tag/v0.1.0

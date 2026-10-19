@@ -21,7 +21,7 @@ from khatt.mapper import available_styles as list_styles
 from khatt.mapper import get_style, map_image
 from khatt.shaping import UnsupportedCharacterWarning
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "DEFAULT_SIZE",
