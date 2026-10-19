@@ -1,6 +1,6 @@
 [project]
 name = "khatt"
-version = "0.1.0"
+version = "0.2.0"
 description = "Render Arabic text as ASCII/Unicode-block art — the Arabic FIGlet"
 readme = "README.md"
 license = { text = "MIT" }
