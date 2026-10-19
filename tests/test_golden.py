@@ -31,9 +31,12 @@ def test_golden_snapshot(word: str, style: str, golden: GoldenCheck) -> None:
 
 
 @pytest.mark.parametrize("style", STYLES)
-def test_golden_default_size(style: str, golden: GoldenCheck) -> None:
-    art = khatt.render(WORDS["marhaba"], style=style)
-    golden(f"sized_marhaba_{style}_amiri.txt", art + "\n")
+@pytest.mark.parametrize("font", khatt.list_fonts())
+def test_golden_default_size(font: str, style: str, golden: GoldenCheck) -> None:
+    # Every bundled font in every style: a newly registered font fails here
+    # until its snapshots are generated with --update-golden.
+    art = khatt.render(WORDS["marhaba"], font=font, style=style)
+    golden(f"sized_marhaba_{style}_{font}.txt", art + "\n")
 
 
 def test_golden_wrapped_paragraphs(golden: GoldenCheck) -> None:
