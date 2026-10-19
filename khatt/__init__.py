@@ -91,13 +91,20 @@ def render(
 
 
 def render_image(
-    text: str, font: str = "amiri", *, keep_tashkeel: bool = False
+    text: str, font: str = "amiri", *, keep_tashkeel: bool = True
 ) -> Image.Image | None:
     """Render text as a high-resolution grayscale image, black on white.
 
     Uses the same shaping and line layout as :func:`render` (line breaks,
     right-aligned right-to-left paragraphs) at 256 pixels per em, without
     wrapping. The image is cropped to the ink.
+
+    Args:
+        text: The text to render.
+        font: A bundled font name (see :func:`list_fonts`).
+        keep_tashkeel: Keep Arabic diacritics (the default, unlike
+            :func:`render`: images have the resolution to show them).
+            Pass ``False`` to strip them.
 
     Returns:
         A Pillow image in mode ``"L"``, or ``None`` when the input contains

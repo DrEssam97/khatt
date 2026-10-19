@@ -176,6 +176,17 @@ class TestRenderImage:
         assert top[2] >= width - 2  # Arabic line: right-aligned
         assert bottom[0] <= 2  # Latin line: left-aligned
 
+    def test_keeps_tashkeel_by_default(self) -> None:
+        kept = khatt.render_image("مَرْحَبًا")
+        stripped = khatt.render_image("مَرْحَبًا", keep_tashkeel=False)
+        plain = khatt.render_image("مرحبا")
+        assert kept is not None
+        assert stripped is not None
+        assert plain is not None
+        assert stripped.size == plain.size
+        assert stripped.tobytes() == plain.tobytes()
+        assert kept.tobytes() != plain.tobytes()
+
     def test_nothing_renderable_returns_none(self) -> None:
         assert khatt.render_image("   ") is None
 

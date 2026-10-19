@@ -143,3 +143,21 @@ def test_output_png_multiline(tmp_path: Path) -> None:
     with Image.open(one) as a, Image.open(two) as b:
         assert b.size[1] > 2 * a.size[1]
         assert a.getpixel((0, 0)) == 255  # black on white
+
+
+def test_png_keeps_tashkeel_unless_stripped(tmp_path: Path) -> None:
+    kept, stripped, plain = (tmp_path / f"{name}.png" for name in ("kept", "stripped", "plain"))
+    assert runner.invoke(app, ["مَرْحَبًا", "-o", str(kept)]).exit_code == 0
+    assert runner.invoke(app, ["مَرْحَبًا", "--strip-tashkeel", "-o", str(stripped)]).exit_code == 0
+    assert runner.invoke(app, ["مرحبا", "-o", str(plain)]).exit_code == 0
+    with Image.open(kept) as a, Image.open(stripped) as b, Image.open(plain) as c:
+        assert b.tobytes() == c.tobytes()
+        assert a.tobytes() != c.tobytes()
+
+
+def test_art_strips_tashkeel_unless_kept() -> None:
+    plain = runner.invoke(app, ["مرحبا", "-w", "60"]).output
+    voweled = runner.invoke(app, ["مَرْحَبًا", "-w", "60"]).output
+    kept = runner.invoke(app, ["مَرْحَبًا", "-w", "60", "--keep-tashkeel"]).output
+    assert voweled == plain
+    assert kept != plain

@@ -75,8 +75,12 @@ def main(
         max=1.0,
         help="Coverage cutoff in [0, 1]; below it cells render blank.",
     ),
-    keep_tashkeel: bool = typer.Option(
-        False, "--keep-tashkeel", help="Keep Arabic diacritics instead of stripping them."
+    keep_tashkeel: bool | None = typer.Option(
+        None,
+        "--keep-tashkeel/--strip-tashkeel",
+        help="Keep or strip Arabic diacritics. Default: stripped in text art "
+        "(illegible at character-grid resolution), kept in .png output.",
+        show_default=False,
     ),
     output: Path | None = typer.Option(
         None,
@@ -114,7 +118,7 @@ def main(
                 width=width if width is not None else _terminal_width(),
                 threshold=threshold,
                 size=None if fit else size,
-                keep_tashkeel=keep_tashkeel,
+                keep_tashkeel=bool(keep_tashkeel),
             )
         except KeyError as exc:
             typer.secho(f"error: {exc.args[0]}", err=True, fg=typer.colors.RED)
@@ -129,7 +133,7 @@ def main(
     if output is None:
         typer.echo(art)
     elif output.suffix.lower() == ".png":
-        _save_png(text, font, keep_tashkeel, output)
+        _save_png(text, font, keep_tashkeel is not False, output)
         typer.secho(f"wrote {output}", err=True)
     else:
         output.write_text(art + "\n", encoding="utf-8")

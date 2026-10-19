@@ -24,9 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Multi-line input: line breaks start new art lines, separated by a blank
   line; right-to-left paragraphs are right-aligned.
-- `khatt.render_image(text, font, keep_tashkeel=...)`: the shaped text as a
+- `khatt.render_image(text, font, keep_tashkeel=True)`: the shaped text as a
   high-resolution Pillow image (black on white), with the same multi-line
-  layout. The CLI's `--output x.png` and the Gradio app use it.
+  layout. The CLI's `--output x.png` and the Gradio app use it. Unlike text
+  art, images keep Arabic diacritics by default; `--strip-tashkeel` (API:
+  `keep_tashkeel=False`) removes them.
 - `--size` and `--fit` CLI options; `khatt.DEFAULT_SIZE`.
 - Gradio app: size slider and "Fill width" checkbox.
 

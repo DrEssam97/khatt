@@ -112,9 +112,11 @@ khatt --list-fonts
 khatt --list-styles
 ```
 
-Arabic diacritics (tashkeel) are stripped by default — they're illegible at
-character-grid resolution. Pass `--keep-tashkeel` (API: `keep_tashkeel=True`) to
-render them.
+Arabic diacritics (tashkeel) are stripped from text art by default — they're
+illegible at character-grid resolution. Pass `--keep-tashkeel` (API:
+`render(..., keep_tashkeel=True)`) to render them. Images keep them by default,
+since they have the resolution to show them: pass `--strip-tashkeel` (API:
+`render_image(..., keep_tashkeel=False)`) to remove them.
 
 ### Sizing and wrapping
 
