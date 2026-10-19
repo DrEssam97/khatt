@@ -14,17 +14,32 @@ Sizing has two modes:
   on its own, the whole render shrinks just enough for it to fit.
 * **fit** (``size=None``): nothing wraps; the widest line is scaled to fill
   exactly ``width`` columns.
+
+Text drawn onto images (:func:`layout_block`) is laid out at a size in pixels
+per em, wraps to a width in pixels, and keeps its baselines a fixed multiple
+of the size apart.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 
 from PIL import Image
 
-from khatt.raster import CELL_ASPECT, RENDER_PPEM, compose, compose_lines, measure, to_grid
-from khatt.shaping import ShapedGlyph, base_direction, shape
+from khatt.raster import (
+    CELL_ASPECT,
+    RENDER_PPEM,
+    Block,
+    compose,
+    compose_block,
+    compose_lines,
+    estimate,
+    measure,
+    to_grid,
+)
+from khatt.shaping import ShapedGlyph, base_direction, shape, units_per_em, vertical_metrics
 
 DEFAULT_SIZE = 10
 """Default font size, in character rows per em."""
@@ -75,16 +90,26 @@ class _Lines:
         self.align.append("right" if direction == "rtl" else "left")
 
 
-def _ink_width(text: str, path: Path, direction: str, keep_tashkeel: bool) -> int:
+def _ink_width(
+    text: str, path: Path, direction: str, keep_tashkeel: bool, ppem: int | None = None
+) -> int:
+    """Ink width in render pixels, or estimated at ``ppem`` for drawing on images."""
     glyphs = shape(text, path, keep_tashkeel=keep_tashkeel, direction=direction, warn=False)
-    box = measure(glyphs, path)
+    box = measure(glyphs, path) if ppem is None else estimate(glyphs, path, ppem=ppem)
     return 0 if box is None else box[2] - box[0]
 
 
 def _shape_lines(
-    text: str, path: Path, keep_tashkeel: bool, max_width: float | None = None
+    text: str,
+    path: Path,
+    keep_tashkeel: bool,
+    max_width: float | None = None,
+    ppem: int | None = None,
 ) -> _Lines:
-    """Shape every paragraph, wrapping it to ``max_width`` render pixels if given."""
+    """Shape every paragraph, wrapping it to ``max_width`` pixels if given.
+
+    Widths are measured in render pixels, or at ``ppem`` when given.
+    """
     lines = _Lines()
     for paragraph in paragraphs(text):
         direction = base_direction(paragraph)
@@ -92,7 +117,7 @@ def _shape_lines(
         if max_width is not None:
 
             def fits(candidate: str, direction: str = direction, limit: float = max_width) -> bool:
-                return _ink_width(candidate, path, direction, keep_tashkeel) <= limit
+                return _ink_width(candidate, path, direction, keep_tashkeel, ppem) <= limit
 
             pieces = wrap(paragraph, fits)
         for piece in pieces:
@@ -168,3 +193,87 @@ def render_ink(text: str, path: Path, *, keep_tashkeel: bool) -> Image.Image | N
     """Render ``text`` at full resolution (no wrapping), white ink on black."""
     lines = _shape_lines(text, path, keep_tashkeel)
     return compose(lines.glyphs, path, align=lines.align, line_gap=IMAGE_LINE_GAP)
+
+
+@dataclass(frozen=True)
+class TextBlock:
+    """Text laid out by :func:`layout_block`.
+
+    Positions are in pixels relative to the first line's baseline (y down)
+    and the left edge of the layout width, like ``block``'s.
+    """
+
+    block: Block
+    ascender: int
+    """y of the first line's ascender line (negative: above the baseline)."""
+    descender: int
+    """y of the last line's descender line."""
+    align: tuple[str, ...]
+    """Alignment of each line."""
+
+
+def measure_block(
+    text: str,
+    path: Path,
+    *,
+    size_px: int,
+    max_width: int | None,
+    line_spacing: float,
+    keep_tashkeel: bool,
+) -> tuple[int, int] | None:
+    """Ink ``(width, height)`` of :func:`layout_block`'s output, without rendering.
+
+    Estimated from glyph outline boxes: never smaller than the drawn ink.
+    ``None`` means there is nothing to draw.
+    """
+    lines = _shape_lines(text, path, keep_tashkeel, max_width, ppem=size_px)
+    pitch = line_spacing * size_px
+    boxes = [
+        (box, round(index * pitch))
+        for index, glyphs in enumerate(lines.glyphs)
+        if (box := estimate(glyphs, path, ppem=size_px)) is not None
+    ]
+    if not boxes:
+        return None
+    width = max(box[2] - box[0] for box, _ in boxes)
+    top = min(box[1] + dy for box, dy in boxes)
+    bottom = max(box[3] + dy for box, dy in boxes)
+    return width, bottom - top
+
+
+def layout_block(
+    text: str,
+    path: Path,
+    *,
+    size_px: int,
+    max_width: int | None = None,
+    align: str | None = None,
+    line_spacing: float,
+    keep_tashkeel: bool,
+    width: int | None = None,
+) -> TextBlock | None:
+    """Lay out and draw ``text`` at ``size_px`` pixels per em for an image.
+
+    Paragraphs wrap at spaces to ``max_width`` pixels when given; baselines
+    are ``line_spacing * size_px`` pixels apart. Lines are aligned by
+    ``align`` (``"left"``, ``"right"`` or ``"center"``; ``None``: by each
+    paragraph's direction) within ``width`` pixels or the widest line.
+
+    Returns ``None`` when there is nothing to draw.
+    """
+    lines = _shape_lines(text, path, keep_tashkeel, max_width, ppem=size_px)
+    alignments = lines.align if align is None else [align] * len(lines.align)
+    pitch = line_spacing * size_px
+    block = compose_block(
+        lines.glyphs, path, ppem=size_px, pitch=pitch, align=alignments, width=width
+    )
+    if block is None:
+        return None
+    scale = size_px / units_per_em(path)
+    ascender, descender = vertical_metrics(path)
+    return TextBlock(
+        block,
+        ascender=-round(ascender * scale),
+        descender=round((len(lines.glyphs) - 1) * pitch) - round(descender * scale),
+        align=tuple(alignments),
+    )

@@ -226,3 +226,9 @@ def units_per_em(font_path: str | Path) -> int:
     """Units-per-em of the font; ShapedGlyph distances are in these units."""
     upem: int = _load_font(str(font_path)).face.upem
     return upem
+
+
+def vertical_metrics(font_path: str | Path) -> tuple[int, int]:
+    """The font's ``(ascender, descender)`` in font units, y up (descender < 0)."""
+    extents = _load_font(str(font_path)).get_font_extents("ltr")
+    return extents.ascender, extents.descender
