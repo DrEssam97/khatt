@@ -14,6 +14,8 @@ import khatt
 from khatt import fonts
 from khatt.cli import app
 from khatt.fonts import available_fonts, font_path
+from khatt.raster import _face
+from khatt.shaping import REGULAR_WEIGHT, variations
 
 
 def test_all_registered_fonts_exist_on_disk() -> None:
@@ -147,3 +149,33 @@ class TestFontFiles:
         result = runner.invoke(app, ["خط", "--font", str(bad)])
         assert result.exit_code == 2
         assert "error: cannot load font file" in result.output
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("amiri", {}),  # static font: nothing to set
+        ("cairo", {"wght": REGULAR_WEIGHT}),
+        ("noto-naskh", {"wght": REGULAR_WEIGHT}),
+        ("rubik", {"wght": REGULAR_WEIGHT}),  # its default instance is Light (300)
+    ],
+)
+def test_variable_fonts_render_at_regular_weight(name: str, expected: dict[str, float]) -> None:
+    assert variations(font_path(name)) == expected
+
+
+def test_freetype_rasterizes_the_instance_harfbuzz_shapes() -> None:
+    for name in available_fonts():
+        path = str(font_path(name))
+        settings = variations(path)
+        if not settings:
+            continue
+        face = _face(path)
+        coords = dict(
+            zip(
+                (a.tag for a in face.get_variation_info().axes),
+                face.get_var_design_coords(),
+                strict=True,
+            )
+        )
+        assert coords["wght"] == settings["wght"], name

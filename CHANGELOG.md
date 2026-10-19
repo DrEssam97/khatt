@@ -34,6 +34,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   natively), and whether `arabic_reshaper` is importable, with a warning
   that combining it with native shaping corrupts text (double-shaping).
 
+### Fixed
+
+- Rubik rendered at its Light weight: a variable font's default instance
+  isn't always Regular, and Rubik's is Light (300). Variable fonts now render
+  at their Regular weight (400) in both shaping and rasterization, so Rubik
+  output is heavier and easier to read. Cairo and Noto Naskh Arabic already
+  defaulted to Regular and are unchanged.
+
 ## [0.2.0] - 2026-10-19
 
 ### Changed
