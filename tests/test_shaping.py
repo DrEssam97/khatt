@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 
 from khatt.fonts import font_path
-from khatt.shaping import shape, strip_tashkeel
+from khatt.shaping import base_direction, shape, strip_tashkeel
 
 AMIRI = font_path("amiri")
 
@@ -109,3 +109,31 @@ class TestEdgeCases:
         assert glyph.gid > 0
         assert glyph.x_advance > 0
         assert isinstance(glyph.cluster, int)
+
+
+class TestDirection:
+    def test_base_direction_from_first_strong_character(self) -> None:
+        assert base_direction("مرحبا Hi") == "rtl"
+        assert base_direction("Hi مرحبا") == "ltr"
+        assert base_direction("123 مرحبا") == "rtl"
+        assert base_direction("ezayak ya 3am") == "ltr"
+        assert base_direction("123") == "ltr"
+        assert base_direction("") == "ltr"
+
+    def test_paragraph_direction_overrides_detection(self) -> None:
+        latin = [gids(c)[0] for c in "abc"]
+        auto = [g.gid for g in shape("abc سلام", AMIRI)]
+        rtl = [g.gid for g in shape("abc سلام", AMIRI, direction="rtl")]
+        assert auto[:3] == latin  # LTR paragraph: Latin on the left
+        assert rtl[-3:] == latin  # RTL paragraph: Latin on the right
+
+    def test_invalid_direction_rejected(self) -> None:
+        with pytest.raises(ValueError, match="direction"):
+            shape("خط", AMIRI, direction="up")
+
+    def test_warn_false_skips_silently(self) -> None:
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            assert shape("😀", AMIRI, warn=False) == []

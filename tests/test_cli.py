@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from itertools import pairwise
 from pathlib import Path
 
 from PIL import Image
@@ -101,3 +102,44 @@ def test_unrenderable_input_fails() -> None:
 def test_empty_stdin_ok() -> None:
     result = runner.invoke(app, [], input="")
     assert result.exit_code == 0
+
+
+def bands(output: str) -> int:
+    lines = output.strip("\n").split("\n")
+    return 1 + sum(1 for a, b in pairwise(lines) if not a.strip() and b.strip())
+
+
+def test_multiline_stdin_without_warnings() -> None:
+    result = runner.invoke(app, ["-w", "80"], input="سطر\nسطر\n")
+    assert result.exit_code == 0
+    assert "warning" not in result.output
+    assert bands(result.output) == 2
+
+
+def test_size_flag() -> None:
+    small = runner.invoke(app, ["خط", "-w", "200", "--size", "6"])
+    large = runner.invoke(app, ["خط", "-w", "200", "--size", "14"])
+    assert small.exit_code == large.exit_code == 0
+    assert large.output.count("\n") > small.output.count("\n")
+
+
+def test_fit_flag_fills_width() -> None:
+    result = runner.invoke(app, ["خط", "-w", "30", "--fit"])
+    assert result.exit_code == 0
+    assert 28 <= max(len(line) for line in result.output.split("\n")) <= 30
+
+
+def test_default_width_follows_terminal() -> None:
+    result = runner.invoke(app, ["مرحبا بالعالم يا أصدقاء"], env={"COLUMNS": "40"})
+    assert result.exit_code == 0
+    assert max(len(line) for line in result.output.split("\n")) <= 40
+    assert bands(result.output) >= 2
+
+
+def test_output_png_multiline(tmp_path: Path) -> None:
+    one, two = tmp_path / "one.png", tmp_path / "two.png"
+    assert runner.invoke(app, ["خط", "-o", str(one)]).exit_code == 0
+    assert runner.invoke(app, ["-o", str(two)], input="خط\nخط\n").exit_code == 0
+    with Image.open(one) as a, Image.open(two) as b:
+        assert b.size[1] > 2 * a.size[1]
+        assert a.getpixel((0, 0)) == 255  # black on white

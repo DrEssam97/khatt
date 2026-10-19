@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import freetype
+import pytest
 from PIL import Image
 
 from khatt.fonts import available_fonts, font_path
-from khatt.raster import _bitmap_bytes, _face, _glyph, rasterize, to_grid
+from khatt.raster import _bitmap_bytes, _face, _glyph, compose, measure, rasterize, to_grid
 from khatt.shaping import shape
 
 AMIRI = font_path("amiri")
@@ -79,3 +80,51 @@ class TestGlyphCache:
         cold = ink("القاهرة").tobytes()
         _glyph.cache_clear()
         assert ink("القاهرة").tobytes() == cold
+
+
+class TestMeasure:
+    def test_box_spans_the_ink(self) -> None:
+        box = measure(shape("مرحبا", AMIRI), AMIRI)
+        assert box is not None
+        x0, y0, x1, y1 = box
+        image = ink("مرحبا")
+        assert x1 - x0 >= image.size[0]
+        assert y1 - y0 >= image.size[1]
+        assert y0 < 0 < y1  # straddles the baseline
+
+    def test_spaces_have_no_box(self) -> None:
+        assert measure(shape("   ", AMIRI), AMIRI) is None
+
+
+class TestCompose:
+    def test_lines_stack(self) -> None:
+        one = compose([shape("خط", AMIRI)], AMIRI)
+        two = compose([shape("خط", AMIRI), shape("خط", AMIRI)], AMIRI, line_gap=10)
+        assert one is not None
+        assert two is not None
+        assert two.size[1] == 2 * one.size[1] + 10
+
+    def test_alignment(self) -> None:
+        lines = [shape("خط", AMIRI), shape("القاهرة", AMIRI)]
+        for align, check in (
+            ("left", lambda box, width: box[0] == 0),
+            ("right", lambda box, width: box[2] == width),
+            ("center", lambda box, width: box[0] > 0 and box[2] < width),
+        ):
+            image = compose(lines, AMIRI, align=[align, align])
+            assert image is not None
+            width, height = image.size
+            short_line = image.crop((0, 0, width, height // 2)).getbbox()
+            assert short_line is not None
+            assert check(short_line, width), align
+
+    def test_bad_alignment_rejected(self) -> None:
+        with pytest.raises(ValueError, match="alignment"):
+            compose([shape("خط", AMIRI)], AMIRI, align=["middle"])
+        with pytest.raises(ValueError, match="alignments"):
+            compose([shape("خط", AMIRI)], AMIRI, align=["left", "left"])
+
+    def test_explicit_rows(self) -> None:
+        assert to_grid(ink("خط"), 30, rows=7).size == (30, 7)
+        with pytest.raises(ValueError, match="rows"):
+            to_grid(ink("خط"), 30, rows=0)
