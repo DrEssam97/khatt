@@ -10,14 +10,15 @@ and text is never shaped twice.
 from __future__ import annotations
 
 import math
+import numbers
 import warnings
 from collections.abc import Sequence
 from pathlib import Path
 
-from PIL import Image, ImageColor
+from PIL import Image, ImageChops, ImageColor
 
 from khatt.fonts import Font, font_path
-from khatt.layout import layout_block, measure_block
+from khatt.layout import layout_block, line_pitch, measure_block
 from khatt.raster import Block, Box
 
 Fill = str | tuple[int, int, int] | tuple[int, int, int, int]
@@ -48,6 +49,11 @@ def _check_image(image: Image.Image) -> None:
         )
 
 
+def _is_number(value: object) -> bool:
+    """A finite real number, NumPy scalars included."""
+    return isinstance(value, numbers.Real) and math.isfinite(value)
+
+
 def _check_layout(
     size_px: int, line_spacing: float | None, spacing: float | None, align: str | None
 ) -> float:
@@ -56,19 +62,19 @@ def _check_layout(
         raise ValueError(f"size_px must be at least 1, got {size_px}")
     if line_spacing is not None and spacing is not None:
         raise ValueError("pass line_spacing (a multiple of the size) or spacing (pixels), not both")
-    if spacing is not None and not (isinstance(spacing, (int, float)) and math.isfinite(spacing)):
+    if spacing is not None and not _is_number(spacing):
         raise ValueError(f"spacing must be a number of pixels, got {spacing!r}")
     if line_spacing is None:
         line_spacing = DEFAULT_LINE_SPACING
-    if line_spacing <= 0:
-        raise ValueError(f"line_spacing must be positive, got {line_spacing}")
+    if not (_is_number(line_spacing) and line_spacing > 0):
+        raise ValueError(f"line_spacing must be a positive number, got {line_spacing!r}")
     if align is not None and align not in _ALIGNS:
         raise ValueError(f"align must be one of {', '.join(_ALIGNS)} or None, got {align!r}")
     return line_spacing
 
 
 def _check_stroke(stroke_width: float) -> None:
-    if not (isinstance(stroke_width, (int, float)) and 0 <= stroke_width < math.inf):
+    if not (_is_number(stroke_width) and stroke_width >= 0):
         raise ValueError(f"stroke_width must be a non-negative number, got {stroke_width!r}")
 
 
@@ -81,12 +87,23 @@ def _paint_text(
     clip: tuple[int, int, int, int] | None = None,
 ) -> None:
     """Paint ``block``'s stroke (if any) and then its text, the text mask's corner at ``xy``."""
-    if block.stroke is not None:
-        mask, left, top = block.stroke
-        _paint(
-            image, mask, (xy[0] + left - block.left, xy[1] + top - block.top), stroke_color, clip
-        )
-    _paint(image, block.mask, xy, color, clip)
+    if block.stroke is None:
+        _paint(image, block.mask, xy, color, clip)
+        return
+    stroke, left, top = block.stroke
+    stroke_xy = (xy[0] + left - block.left, xy[1] + top - block.top)
+    if stroke_color != color:
+        _paint(image, stroke, stroke_xy, stroke_color, clip)
+        _paint(image, block.mask, xy, color, clip)
+        return
+    # Same colour: one coat over text and outline together, as Pillow paints
+    # it. Two coats would darken a translucent fill where they overlap.
+    x0, y0, x1, y1 = _extent(block, xy)
+    union = Image.new("L", (x1 - x0, y1 - y0), 0)
+    for mask, (x, y) in ((stroke, stroke_xy), (block.mask, xy)):
+        region = (x - x0, y - y0, x - x0 + mask.size[0], y - y0 + mask.size[1])
+        union.paste(ImageChops.lighter(union.crop(region), mask), region[:2])
+    _paint(image, union, (x0, y0), color, clip)
 
 
 def _extent(block: Block, xy: tuple[int, int]) -> Box:
@@ -259,9 +276,10 @@ def draw_text(
             values pull lines closer.
         keep_tashkeel: Keep Arabic diacritics (``False`` strips them).
         stroke_width: Width in pixels of an outline drawn around the text,
-            as in Pillow: it grows outward by this much (and as far inward,
-            under the text), with round corners. It doesn't move the text:
-            anchors and alignment work as without it.
+            as in Pillow: the text grown outward by this much, with round
+            corners, painted under it. It doesn't move the text: anchors and
+            alignment work as without it (but with ``spacing``, lines also
+            move apart by twice the width, as in Pillow).
         stroke_fill: Outline colour, in the same formats as ``fill``;
             default: ``fill`` (which makes the text bolder).
 
@@ -367,6 +385,20 @@ def _largest_fitting(
         return extent is None or (extent[0] <= width and extent[1] <= height)
 
     low, high = sizes
+    if spacing is not None:
+        # Below some size a negative spacing would stack lines upwards, which
+        # lines can't do: search above it.
+        while low < high and (
+            line_pitch(
+                path,
+                size_px=low,
+                line_spacing=line_spacing,
+                spacing=spacing,
+                stroke_width=stroke_width,
+            )
+            <= 0
+        ):
+            low += 1
     if not fits(low):
         return low
     while low < high:

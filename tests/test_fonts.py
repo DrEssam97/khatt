@@ -199,6 +199,10 @@ class TestMissingCharacters:
     def test_a_missing_diacritic_is_reported_not_its_letter(self) -> None:
         assert khatt.missing_characters("بٟت", "rubik") == ["ٟ"]
 
+    def test_stripped_diacritics_are_not_missing(self) -> None:
+        # As drawing with keep_tashkeel=False, or render(), would skip nothing.
+        assert khatt.missing_characters("بٟت", "rubik", keep_tashkeel=False) == []
+
     def test_invisible_characters_and_line_breaks_are_not_missing(self) -> None:
         text = "لا‍م‌ا‏ب\nسطر\tآخر\r\nKhatt"
         assert khatt.missing_characters(text, "amiri") == []

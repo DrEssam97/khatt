@@ -251,18 +251,20 @@ def shape(
     return glyphs
 
 
-def missing_characters(text: str, font_path: str | Path) -> set[str]:
+def missing_characters(
+    text: str, font_path: str | Path, *, direction: str | None = None
+) -> set[str]:
     """Characters of one line of ``text`` that shaping with the font leaves out.
 
     These are the characters :func:`shape` skips with an
-    :class:`UnsupportedCharacterWarning`. Characters the font can still show
-    (composed or decomposed by HarfBuzz) and invisible ones such as ZWJ are
-    not missing.
+    :class:`UnsupportedCharacterWarning` (given the same ``direction``).
+    Characters the font can still show (composed or decomposed by HarfBuzz)
+    and invisible ones such as ZWJ are not missing.
     """
     font = _load_font(str(font_path))
     return {
         offender
-        for segment, segment_direction in _visual_segments(text)
+        for segment, segment_direction in _visual_segments(text, direction)
         for offender in _shape_segment(font, segment, segment_direction)[1]
     }
 

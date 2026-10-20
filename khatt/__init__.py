@@ -22,7 +22,7 @@ from khatt.fonts import available_fonts as list_fonts
 from khatt.layout import DEFAULT_SIZE, paragraphs, render_grids, render_ink
 from khatt.mapper import available_styles as list_styles
 from khatt.mapper import get_style, map_image
-from khatt.shaping import UnsupportedCharacterWarning
+from khatt.shaping import UnsupportedCharacterWarning, base_direction, strip_tashkeel
 from khatt.shaping import missing_characters as _missing_in_line
 
 __version__ = "0.2.0"
@@ -129,12 +129,11 @@ def render_image(
     return None if image is None else ImageOps.invert(image)
 
 
-def missing_characters(text: str, font: Font = "amiri") -> list[str]:
+def missing_characters(text: str, font: Font = "amiri", *, keep_tashkeel: bool = True) -> list[str]:
     """The characters of ``text`` that ``font`` has no glyph for.
 
     Check before drawing, e.g. to fall back to another font: khatt skips
     exactly these characters, with an :class:`UnsupportedCharacterWarning`.
-    Diacritics count even though :func:`render` strips them by default.
     Characters the font can still show, such as an accented letter it has
     in decomposed form, and invisible ones (ZWJ, ZWNJ, bidi marks) are not
     missing, nor are line breaks and tabs.
@@ -143,11 +142,18 @@ def missing_characters(text: str, font: Font = "amiri") -> list[str]:
         text: The text, as typed.
         font: A bundled font name (see :func:`list_fonts`) or the path to a
             .ttf/.otf font file.
+        keep_tashkeel: Count Arabic diacritics, as drawing on images does by
+            default. Pass ``False`` to match ``keep_tashkeel=False`` and
+            :func:`render`, which strip them.
 
     Returns:
         Each missing character once, in the order they first appear; an
         empty list when the font covers the whole text.
     """
     path = font_path(font)
-    missing = set().union(*(_missing_in_line(line, path) for line in paragraphs(text)))
+    if not keep_tashkeel:
+        text = strip_tashkeel(text)
+    missing = set().union(
+        *(_missing_in_line(line, path, direction=base_direction(line)) for line in paragraphs(text))
+    )
     return [ch for ch in dict.fromkeys(text) if ch in missing]

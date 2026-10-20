@@ -12,7 +12,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFont, features
 import khatt
 from khatt.draw import _largest_fitting
 from khatt.fonts import font_path
-from khatt.layout import measure_block
+from khatt.layout import layout_block, line_pitch, measure_block
 from khatt.raster import compose_block, estimate
 from khatt.shaping import shape, units_per_em, vertical_metrics
 
@@ -555,6 +555,30 @@ class TestStroke:
         assert 255 in alphas  # the opaque text
         assert any(0 < a < 255 for a in alphas)  # the half-transparent outline
 
+    @staticmethod
+    def stem_row(**kwargs: Any) -> list[tuple[int, ...]]:
+        """The pixels across the stem of a large translucent "I", edge to edge."""
+        image = blank((400, 500))
+        khatt.draw_text(
+            image, (100, 20), "I", size_px=400, fill=(0, 0, 255, 128), stroke_width=4, **kwargs
+        )
+        row = [image.getpixel((x, 250)) for x in range(image.size[0])]
+        inked = [x for x, p in enumerate(row) if p != WHITE]
+        return [p for p in row[inked[0] : inked[-1] + 1] if isinstance(p, tuple)]
+
+    def test_outline_is_filled_under_translucent_text(self) -> None:
+        # The outline covers the whole letter, as Pillow's does, so a
+        # translucent fill shows the outline colour evenly, with no ring.
+        row = self.stem_row(stroke_fill=(255, 0, 0))
+        inside = row[8:-8]
+        assert set(inside) == {(127, 0, 128)}
+
+    def test_same_colour_outline_is_one_coat(self) -> None:
+        # Text and outline in one colour are painted once: a second coat would
+        # darken a translucent fill where they overlap.
+        row = self.stem_row()
+        assert set(row[4:-4]) == {(127, 127, 255)}
+
     @pytest.mark.parametrize(
         ("kwargs", "match"),
         [
@@ -756,6 +780,40 @@ class TestSpacing:
 
         assert width(60) < width(0)
 
+    def test_spacing_does_not_apply_to_a_single_line(self) -> None:
+        # As in Pillow: with one line there is no gap for spacing to set.
+        single = khatt.text_bbox("سطر", size_px=8, spacing=-20)
+        assert single == khatt.text_bbox("سطر", size_px=8)
+        assert khatt.text_bbox("", size_px=8, spacing=-20) == (0, 0, 0, 0)
+
+    def test_overlay_shrink_with_negative_spacing(self) -> None:
+        # -10 is too tight for the smallest sizes but fine for the size picked.
+        box = (0, 0, 600, 300)
+        image = khatt.overlay(blank(), "سطر أول\nسطر ثاني", box, spacing=-10)
+        _, top, _, bottom = ink(image)
+        assert bottom - top > 150
+
+    @pytest.mark.parametrize("font", ["amiri", "rubik", "noto-naskh", "cairo"])
+    @pytest.mark.parametrize("size", [19, 48, 91])
+    def test_ascender_matches_pillow_and_the_pitch(self, font: str, size: int) -> None:
+        # The "a" anchor and the spacing rule share one ascender: Pillow's.
+        path = font_path(font)
+        laid_out = layout_block(
+            "خط", path, size_px=size, line_spacing=1.2, keep_tashkeel=True, spacing=0
+        )
+        assert laid_out is not None
+        pillow_ascent = ImageFont.truetype(str(path), size).getmetrics()[0]
+        assert -laid_out.ascender == pillow_ascent
+        pitch = line_pitch(path, size_px=size, line_spacing=1.2, spacing=7)
+        assert pitch == -laid_out.ascender + 7
+
+    def test_numpy_numbers(self) -> None:
+        np = pytest.importorskip("numpy")
+        kwargs = {"spacing": np.int64(6), "stroke_width": np.float32(2.0)}
+        assert khatt.text_bbox("خط\nخط", **kwargs) == khatt.text_bbox(
+            "خط\nخط", spacing=6, stroke_width=2
+        )
+
     @pytest.mark.parametrize(
         ("kwargs", "match"),
         [
@@ -763,6 +821,8 @@ class TestSpacing:
             ({"spacing": float("nan")}, "spacing"),
             ({"spacing": "4"}, "spacing"),
             ({"spacing": -500}, "spacing"),
+            ({"line_spacing": float("nan")}, "line_spacing"),
+            ({"line_spacing": float("inf")}, "line_spacing"),
         ],
     )
     def test_bad_arguments(self, kwargs: dict[str, Any], match: str) -> None:

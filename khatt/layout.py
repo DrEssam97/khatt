@@ -214,8 +214,11 @@ class TextBlock:
 
 
 def _ascender_px(path: Path, size_px: int) -> int:
-    """The font's ascender at ``size_px``, in whole pixels above the baseline."""
-    return round(vertical_metrics(path)[0] * size_px / units_per_em(path))
+    """The font's ascender at ``size_px``, in whole pixels above the baseline.
+
+    Rounded up, as FreeType (and so Pillow's ``a`` anchor) rounds it.
+    """
+    return math.ceil(vertical_metrics(path)[0] * size_px / units_per_em(path))
 
 
 def line_pitch(
@@ -229,25 +232,28 @@ def line_pitch(
     """Distance between baselines, in pixels.
 
     ``line_spacing`` times ``size_px``, or with ``spacing`` (pixels) Pillow's
-    rule: the font's ascender, rounded up to whole pixels as FreeType and
-    Pillow do, plus twice ``stroke_width`` plus ``spacing``. So each line's
-    ascender line sits ``spacing`` pixels below the previous baseline, plus
-    room for both lines' outlines.
-
-    Raises:
-        ValueError: ``spacing`` is so negative that baselines would not be
-            more than 0 pixels apart.
+    rule: the font's ascender (:func:`_ascender_px`) plus twice
+    ``stroke_width`` plus ``spacing``. So each line's ascender line sits
+    ``spacing`` pixels below the previous baseline, plus room for both
+    lines' outlines. A very negative ``spacing`` can make it zero or less.
     """
     if spacing is None:
         return line_spacing * size_px
-    ascender = math.ceil(vertical_metrics(path)[0] * size_px / units_per_em(path))
-    base = ascender + 2 * stroke_width
-    if base + spacing <= 0:
+    return _ascender_px(path, size_px) + 2 * stroke_width + spacing
+
+
+def _checked_pitch(pitch: float, line_count: int, size_px: int, spacing: float | None) -> float:
+    """``pitch``, or ``ValueError`` if it would stack lines upwards.
+
+    A single line has no pitch to check: spacing doesn't apply to it.
+    """
+    if line_count > 1 and pitch <= 0:
+        unspaced = pitch - (spacing or 0)
         raise ValueError(
-            f"spacing must be more than {-base:g} at {size_px}px, "
+            f"spacing must be more than {-unspaced:g} at {size_px}px, "
             f"or each line would not start below the one before; got {spacing}"
         )
-    return base + spacing
+    return pitch
 
 
 def measure_block(
@@ -275,6 +281,7 @@ def measure_block(
         spacing=spacing,
         stroke_width=stroke_width,
     )
+    pitch = _checked_pitch(pitch, len(lines.glyphs), size_px, spacing)
     boxes = [
         (box, round(index * pitch))
         for index, glyphs in enumerate(lines.glyphs)
@@ -321,6 +328,7 @@ def layout_block(
         spacing=spacing,
         stroke_width=stroke_width,
     )
+    pitch = _checked_pitch(pitch, len(lines.glyphs), size_px, spacing)
     block = compose_block(
         lines.glyphs,
         path,

@@ -111,8 +111,8 @@ def _glyph(path: str, gid: int, ppem: int = RENDER_PPEM, shift: int = 0, stroke:
     """Render one glyph at ``ppem``, its origin moved right by ``shift`` 1/64 px.
 
     With ``stroke`` (a radius in 1/64 px) it renders the glyph's outline
-    stroke instead: a band ``stroke`` wide on both sides of every contour,
-    with round caps and joins, the way Pillow's ``stroke_width`` draws.
+    stroke instead: the glyph grown by ``stroke`` all round, filled, with
+    round caps and joins, the way Pillow's ``stroke_width`` draws.
     """
     face = _face(path)
     with _FACE_LOCK:
@@ -127,7 +127,13 @@ def _glyph(path: str, gid: int, ppem: int = RENDER_PPEM, shift: int = 0, stroke:
                 stroke, freetype.FT_STROKER_LINECAP_ROUND, freetype.FT_STROKER_LINEJOIN_ROUND, 0
             )
             outline = face.glyph.get_glyph()
-            outline.stroke(stroker, True)
+            # The outside border only, filled (as Pillow's stroke_filled):
+            # a full stroke is a ring that a translucent fill shows through.
+            error = freetype.raw.FT_Glyph_StrokeBorder(
+                ctypes.byref(outline._FT_Glyph), stroker._FT_Stroker, False, True
+            )
+            if error:
+                raise freetype.FT_Exception(error)
             rendered = outline.to_bitmap(
                 freetype.FT_RENDER_MODE_NORMAL, freetype.Vector(0, 0), True
             )
