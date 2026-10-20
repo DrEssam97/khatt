@@ -69,6 +69,7 @@ terminal characters.
 
 ```bash
 pip install khatt        # or: uv add khatt
+pip install "khatt[video]"   # + moviepy captions (khatt.video)
 ```
 
 From source:
@@ -224,6 +225,42 @@ matplotlib: not installed
 arabic_reshaper: not installed
 khatt shapes text itself: its output is the same in every case above.
 ```
+
+### Video captions (moviepy)
+
+`khatt.video.TextClip` is a drop-in for moviepy's `TextClip`: same arguments,
+same order, same clip sizes, but the text is shaped by khatt. moviepy's own
+`TextClip` draws with Pillow, so on Windows (no Raqm) Arabic comes out as
+disconnected letters in reverse order, and with Pillow 11 or later it cuts off
+the bottom of label clips (descenders, kasra, tanween), English included.
+
+```python
+from moviepy import ColorClip, CompositeVideoClip
+from khatt.video import TextClip  # instead of: from moviepy import TextClip
+
+caption = TextClip(
+    text="بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ",
+    font_size=56, color="white", stroke_color="black", stroke_width=3,
+    method="caption", size=(1000, None),  # wraps to 1000 px
+).with_duration(3).with_position(("center", "bottom"))
+video = CompositeVideoClip([ColorClip((1280, 720), (20, 30, 60), duration=3), caption])
+video.write_videofile("caption.mp4", fps=24)
+```
+
+- Every moviepy 2.2 argument works: `font_size`, `size`, `margin`, `color`,
+  `bg_color`, `stroke_color`, `stroke_width`, `method` (`"label"` or
+  `"caption"`, with the automatic font size), `text_align`,
+  `horizontal_align`, `vertical_align`, `interline`, `transparent`,
+  `duration`, `filename`.
+- Differences: `font` takes a bundled name or a font path and defaults to
+  Amiri; `text_align` defaults to aligning each paragraph by its direction
+  (Arabic right, English left) instead of `"left"`; `filename` is read as
+  UTF-8; `keep_tashkeel=False` strips diacritics.
+- Clips are as tall as moviepy's formula says (ascent + descent + outline,
+  plus `interline` spacing per line), and taller only if stacked diacritics
+  reach beyond it: nothing is ever cut off.
+- Without moviepy, `khatt.caption_image(text, ...)` takes the same arguments
+  and returns the frame as a Pillow image, e.g. for ffmpeg overlays.
 
 ### Gradio app
 

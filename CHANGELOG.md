@@ -54,6 +54,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fall back to another font. Invisible characters (ZWJ, ZWNJ, bidi marks)
   and line breaks don't count; `keep_tashkeel=False` leaves out diacritics,
   as drawing with it (or `render`) does.
+- `khatt.video.TextClip` (new `khatt[video]` extra): a drop-in for moviepy's
+  `TextClip` that shapes text with khatt. It takes moviepy 2.2's arguments in
+  the same order, including `method="caption"` wrapping and the automatic
+  font size; `font` defaults to Amiri and `text_align` to each paragraph's
+  direction. Clips follow moviepy's documented height formula and grow only
+  when stacked diacritics reach beyond it, so nothing is cut off; moviepy's
+  own `TextClip` crops the bottom of label clips with Pillow 11 and later.
+- `khatt.caption_image(text, ...)`: the same caption as a Pillow image,
+  without moviepy.
 - `khatt --doctor` / `khatt.doctor()`: reports the Pillow version and
   whether it has Raqm, the matplotlib version (3.11+ shapes Arabic
   natively), and whether `arabic_reshaper` is importable, with a warning
@@ -67,6 +76,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   10/11 (for example through moviepy 2.2.1) can now depend on khatt. CI tests
   the minimums and MoneyPrinterTurbo's pins (Pillow 11.3.0, typer 0.26.5) on
   every change.
+- The `d` anchor rounds the font's descender as FreeType does (like
+  Pillow's), and both vertical metrics now match Pillow's `getmetrics` at
+  every size; the `d` and `m` anchors can move by a pixel.
+- Development: moviepy holds Pillow below 12, so the lockfile resolves the
+  `video` extra separately. `uv sync` keeps the newest Pillow; use
+  `uv sync --extra video --no-group latest-pillow` for the video extra.
 
 ### Fixed
 

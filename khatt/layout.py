@@ -213,12 +213,23 @@ class TextBlock:
     """Alignment of each line."""
 
 
-def _ascender_px(path: Path, size_px: int) -> int:
-    """The font's ascender at ``size_px``, in whole pixels above the baseline.
+def _metric_px(value: int, path: Path, size_px: int) -> int:
+    """A vertical metric in font units at ``size_px``, in whole pixels.
 
-    Rounded up, as FreeType (and so Pillow's ``a`` anchor) rounds it.
+    Rounded up from 26.6 fixed point, as FreeType (and so Pillow's anchors
+    and ``getmetrics``) rounds it.
     """
-    return math.ceil(vertical_metrics(path)[0] * size_px / units_per_em(path))
+    return math.ceil(round(value * size_px * 64 / units_per_em(path)) / 64)
+
+
+def _ascender_px(path: Path, size_px: int) -> int:
+    """The font's ascender at ``size_px``, in whole pixels above the baseline."""
+    return _metric_px(vertical_metrics(path)[0], path, size_px)
+
+
+def _descender_px(path: Path, size_px: int) -> int:
+    """The font's descender at ``size_px``, in whole pixels below the baseline."""
+    return _metric_px(-vertical_metrics(path)[1], path, size_px)
 
 
 def line_pitch(
@@ -340,11 +351,9 @@ def layout_block(
     )
     if block is None:
         return None
-    scale = size_px / units_per_em(path)
-    descender = vertical_metrics(path)[1]
     return TextBlock(
         block,
         ascender=-_ascender_px(path, size_px),
-        descender=round((len(lines.glyphs) - 1) * pitch) - round(descender * scale),
+        descender=round((len(lines.glyphs) - 1) * pitch) + _descender_px(path, size_px),
         align=tuple(alignments),
     )
