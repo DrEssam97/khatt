@@ -38,3 +38,76 @@ jobs:
 
       - name: Tests (pytest + coverage)
         run: uv run pytest
+
+  compat:
+    # The lockfile always tests the newest dependencies. These jobs prove khatt
+    # still works at its declared minimums, and next to the exact pins of
+    # MoneyPrinterTurbo (moviepy 2.2.1 holds it at Pillow 11.3.0).
+    name: ${{ matrix.name }} / py${{ matrix.python-version }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: minimum versions
+            os: ubuntu-latest
+            python-version: "3.11"
+            pins: pillow==10.1.0 typer==0.15.4
+          - name: MoneyPrinterTurbo pins
+            os: ubuntu-latest
+            python-version: "3.11"
+            pins: pillow==11.3.0 typer==0.26.5
+          - name: MoneyPrinterTurbo pins
+            os: windows-latest
+            python-version: "3.11"
+            pins: pillow==11.3.0 typer==0.26.5
+          - name: MoneyPrinterTurbo pins
+            os: ubuntu-latest
+            python-version: "3.13"
+            pins: pillow==11.3.0 typer==0.26.5
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies, then the pinned versions
+        run: |
+          uv sync --locked
+          uv pip install ${{ matrix.pins }}
+          uv run --no-sync python -c "import PIL, typer; print('Pillow', PIL.__version__, '| typer', typer.__version__)"
+
+      - name: Tests (pytest)
+        run: uv run --no-sync pytest
+
+  video:
+    # moviepy (the video extra) holds Pillow below 12, so the lockfile keeps
+    # a separate resolution for it: see [tool.uv] in pyproject.toml.
+    name: video extra / py${{ matrix.python-version }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.13"]
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies with the video extra
+        run: |
+          uv sync --locked --extra video --no-group latest-pillow
+          uv run --no-sync python -c "import PIL, moviepy; print('Pillow', PIL.__version__)"
+
+      - name: Tests (pytest)
+        run: uv run --no-sync pytest

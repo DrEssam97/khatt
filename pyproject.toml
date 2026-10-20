@@ -32,9 +32,9 @@ classifiers = [
 ]
 dependencies = [
     "freetype-py>=2.5.1",
-    "pillow>=12.3.0",
+    "pillow>=10.1.0",
     "python-bidi>=0.6.11",
-    "typer>=0.26.8",
+    "typer>=0.15.4",
     "uharfbuzz>=0.55.0",
 ]
 
@@ -51,6 +51,9 @@ Changelog = "https://github.com/DrEssam97/khatt/blob/main/CHANGELOG.md"
 app = [
     "gradio>=6.20.0",
 ]
+video = [
+    "moviepy>=2.2.1",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -60,6 +63,11 @@ build-backend = "hatchling.build"
 packages = ["khatt"]
 
 [dependency-groups]
+# The newest Pillow, which moviepy (the video extra) holds below 12: see
+# [tool.uv] below.
+latest-pillow = [
+    "pillow>=12.3.0",
+]
 dev = [
     "mypy>=2.2.0",
     "pre-commit>=4.6.0",
@@ -68,6 +76,15 @@ dev = [
     "ruff>=0.15.21",
     "twine>=7.0.0",
 ]
+
+[tool.uv]
+# moviepy requires pillow<12, and uv locks one Pillow for every extra unless
+# told otherwise, so the video extra would hold all of development back at
+# Pillow 11. Declaring it in conflict with the latest-pillow group (on by
+# default) locks both: `uv sync` gets the newest Pillow, and
+# `uv sync --extra video --no-group latest-pillow` gets moviepy.
+default-groups = ["dev", "latest-pillow"]
+conflicts = [[{ extra = "video" }, { group = "latest-pillow" }]]
 
 [tool.ruff]
 line-length = 100

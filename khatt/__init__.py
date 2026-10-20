@@ -15,6 +15,7 @@ from __future__ import annotations
 from PIL import Image, ImageOps
 
 from khatt.art_image import art_to_image
+from khatt.caption import caption_image
 from khatt.doctor import doctor
 from khatt.draw import TextOverflowWarning, draw_text, overlay, text_bbox
 from khatt.fonts import Font, font_path
@@ -33,6 +34,7 @@ __all__ = [
     "UnsupportedCharacterWarning",
     "__version__",
     "art_to_image",
+    "caption_image",
     "doctor",
     "draw_text",
     "list_fonts",

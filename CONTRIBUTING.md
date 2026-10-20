@@ -7,9 +7,13 @@ it that way.
 
 ```bash
 git clone https://github.com/DrEssam97/khatt.git && cd khatt
-uv sync --all-extras       # runtime + dev + gradio
+uv sync --extra app       # runtime + dev + gradio
 uv run pre-commit install
 ```
+
+The `video` extra (moviepy) needs an older Pillow, so it has its own
+environment: `uv sync --extra video --no-group latest-pillow`, then
+`uv run --no-sync pytest` (plain `uv run` would sync back).
 
 Python 3.10–3.13 are supported; local development is pinned to 3.13 via
 `.python-version`. Everything runs through [uv](https://docs.astral.sh/uv/) — there is

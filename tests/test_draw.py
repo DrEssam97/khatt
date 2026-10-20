@@ -802,8 +802,9 @@ class TestSpacing:
             "خط", path, size_px=size, line_spacing=1.2, keep_tashkeel=True, spacing=0
         )
         assert laid_out is not None
-        pillow_ascent = ImageFont.truetype(str(path), size).getmetrics()[0]
+        pillow_ascent, pillow_descent = ImageFont.truetype(str(path), size).getmetrics()
         assert -laid_out.ascender == pillow_ascent
+        assert laid_out.descender == pillow_descent  # one line: its own descender
         pitch = line_pitch(path, size_px=size, line_spacing=1.2, spacing=7)
         assert pitch == -laid_out.ascender + 7
 

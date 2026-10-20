@@ -86,6 +86,20 @@ def _face(path: str) -> freetype.Face:
     return face
 
 
+@lru_cache(maxsize=1024)
+def size_metrics(path: str, ppem: int) -> tuple[int, int]:
+    """The font's ascent and descent at ``ppem``, in whole pixels.
+
+    FreeType's scaled metrics, exactly what Pillow's ``getmetrics`` reports,
+    so khatt's anchors and line spacing land where Pillow's do.
+    """
+    face = _face(path)
+    with _FACE_LOCK:
+        face.set_pixel_sizes(0, ppem)
+        ascender, descender = face.size.ascender, face.size.descender
+    return math.ceil(ascender / 64), math.ceil(-descender / 64)
+
+
 def _bitmap_bytes(bitmap: Any) -> bytes:
     pitch, rows = bitmap.pitch, bitmap.rows
     if pitch > 0:

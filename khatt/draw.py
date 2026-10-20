@@ -18,7 +18,7 @@ from pathlib import Path
 from PIL import Image, ImageChops, ImageColor
 
 from khatt.fonts import Font, font_path
-from khatt.layout import layout_block, line_pitch, measure_block
+from khatt.layout import largest_size, layout_block, measure_block, smallest_spaced_size
 from khatt.raster import Block, Box
 
 Fill = str | tuple[int, int, int] | tuple[int, int, int, int]
@@ -365,7 +365,7 @@ def _largest_fitting(
     spacing: float | None = None,
     stroke_width: float = 0,
 ) -> int:
-    """Binary-search the largest size in ``sizes`` whose wrapped text fits ``box``.
+    """The largest size in ``sizes`` whose wrapped text fits ``box``.
 
     Returns the smallest size when none fits.
     """
@@ -384,30 +384,10 @@ def _largest_fitting(
         )
         return extent is None or (extent[0] <= width and extent[1] <= height)
 
-    low, high = sizes
-    if spacing is not None:
-        # Below some size a negative spacing would stack lines upwards, which
-        # lines can't do: search above it.
-        while low < high and (
-            line_pitch(
-                path,
-                size_px=low,
-                line_spacing=line_spacing,
-                spacing=spacing,
-                stroke_width=stroke_width,
-            )
-            <= 0
-        ):
-            low += 1
-    if not fits(low):
-        return low
-    while low < high:
-        middle = (low + high + 1) // 2
-        if fits(middle):
-            low = middle
-        else:
-            high = middle - 1
-    return low
+    low = smallest_spaced_size(
+        path, sizes, line_spacing=line_spacing, spacing=spacing, stroke_width=stroke_width
+    )
+    return largest_size(fits, (low, sizes[1]))
 
 
 def _block_alignment(alignments: Sequence[str]) -> str:
