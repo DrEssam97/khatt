@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-20
+
 ### Added
 
 - `khatt.draw_text(image, xy, text, ...)`: draws correctly shaped text onto
@@ -66,6 +68,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   font size is found without rendering, like `overlay`'s.
 - `khatt.caption_image(text, ...)`: the same caption as a Pillow image,
   without moviepy.
+- Regression tests against HarfBuzz itself: every glyph of `بِتَ` (the
+  kasra/fatha case from moviepy and MoneyPrinterTurbo reviews) lands where
+  HarfBuzz's positions and glyph extents put it, within a pixel, in all four
+  fonts; the whole vocalized Al-Fatiha and Persian and Urdu text match
+  HarfBuzz's ink boxes; Persian and Urdu letters take their joined forms; and
+  each font's coverage of Quranic marks and Urdu letters is pinned down.
 - `khatt --doctor` / `khatt.doctor()`: reports the Pillow version and
   whether it has Raqm, the matplotlib version (3.11+ shapes Arabic
   natively), and whether `arabic_reshaper` is importable, with a warning
@@ -173,6 +181,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   83-test suite at ≥85% enforced coverage on a 3.10–3.13 × Ubuntu/Windows
   CI matrix.
 
-[Unreleased]: https://github.com/DrEssam97/khatt/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/DrEssam97/khatt/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/DrEssam97/khatt/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/DrEssam97/khatt/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/DrEssam97/khatt/releases/tag/v0.1.0
