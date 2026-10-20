@@ -16,12 +16,13 @@ Sizing has two modes:
   exactly ``width`` columns.
 
 Text drawn onto images (:func:`layout_block`) is laid out at a size in pixels
-per em, wraps to a width in pixels, and keeps its baselines a fixed multiple
-of the size apart.
+per em, wraps to a width in pixels, and keeps its baselines evenly spaced
+(:func:`line_pitch`).
 """
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -212,6 +213,43 @@ class TextBlock:
     """Alignment of each line."""
 
 
+def _ascender_px(path: Path, size_px: int) -> int:
+    """The font's ascender at ``size_px``, in whole pixels above the baseline."""
+    return round(vertical_metrics(path)[0] * size_px / units_per_em(path))
+
+
+def line_pitch(
+    path: Path,
+    *,
+    size_px: int,
+    line_spacing: float,
+    spacing: float | None = None,
+    stroke_width: float = 0,
+) -> float:
+    """Distance between baselines, in pixels.
+
+    ``line_spacing`` times ``size_px``, or with ``spacing`` (pixels) Pillow's
+    rule: the font's ascender, rounded up to whole pixels as FreeType and
+    Pillow do, plus twice ``stroke_width`` plus ``spacing``. So each line's
+    ascender line sits ``spacing`` pixels below the previous baseline, plus
+    room for both lines' outlines.
+
+    Raises:
+        ValueError: ``spacing`` is so negative that baselines would not be
+            more than 0 pixels apart.
+    """
+    if spacing is None:
+        return line_spacing * size_px
+    ascender = math.ceil(vertical_metrics(path)[0] * size_px / units_per_em(path))
+    base = ascender + 2 * stroke_width
+    if base + spacing <= 0:
+        raise ValueError(
+            f"spacing must be more than {-base:g} at {size_px}px, "
+            f"or each line would not start below the one before; got {spacing}"
+        )
+    return base + spacing
+
+
 def measure_block(
     text: str,
     path: Path,
@@ -220,14 +258,23 @@ def measure_block(
     max_width: int | None,
     line_spacing: float,
     keep_tashkeel: bool,
+    spacing: float | None = None,
+    stroke_width: float = 0,
 ) -> tuple[int, int] | None:
     """Ink ``(width, height)`` of :func:`layout_block`'s output, without rendering.
 
-    Estimated from glyph outline boxes: never smaller than the drawn ink.
-    ``None`` means there is nothing to draw.
+    Estimated from glyph outline boxes: never smaller than the drawn ink,
+    which excludes the outline (``stroke_width`` only spaces the lines, see
+    :func:`line_pitch`). ``None`` means there is nothing to draw.
     """
     lines = _shape_lines(text, path, keep_tashkeel, max_width, ppem=size_px)
-    pitch = line_spacing * size_px
+    pitch = line_pitch(
+        path,
+        size_px=size_px,
+        line_spacing=line_spacing,
+        spacing=spacing,
+        stroke_width=stroke_width,
+    )
     boxes = [
         (box, round(index * pitch))
         for index, glyphs in enumerate(lines.glyphs)
@@ -252,21 +299,28 @@ def layout_block(
     keep_tashkeel: bool,
     width: int | None = None,
     stroke_width: float = 0,
+    spacing: float | None = None,
 ) -> TextBlock | None:
     """Lay out and draw ``text`` at ``size_px`` pixels per em for an image.
 
     Paragraphs wrap at spaces to ``max_width`` pixels when given; baselines
-    are ``line_spacing * size_px`` pixels apart. Lines are aligned by
-    ``align`` (``"left"``, ``"right"`` or ``"center"``; ``None``: by each
-    paragraph's direction) within ``width`` pixels or the widest line.
-    ``stroke_width`` (pixels) also draws an outline stroke around the text
-    (see :func:`khatt.raster.compose_block`).
+    are :func:`line_pitch` pixels apart (``line_spacing * size_px``, or by
+    ``spacing``). Lines are aligned by ``align`` (``"left"``, ``"right"`` or
+    ``"center"``; ``None``: by each paragraph's direction) within ``width``
+    pixels or the widest line. ``stroke_width`` (pixels) also draws an
+    outline stroke around the text (see :func:`khatt.raster.compose_block`).
 
     Returns ``None`` when there is nothing to draw.
     """
     lines = _shape_lines(text, path, keep_tashkeel, max_width, ppem=size_px)
     alignments = lines.align if align is None else [align] * len(lines.align)
-    pitch = line_spacing * size_px
+    pitch = line_pitch(
+        path,
+        size_px=size_px,
+        line_spacing=line_spacing,
+        spacing=spacing,
+        stroke_width=stroke_width,
+    )
     block = compose_block(
         lines.glyphs,
         path,
@@ -279,10 +333,10 @@ def layout_block(
     if block is None:
         return None
     scale = size_px / units_per_em(path)
-    ascender, descender = vertical_metrics(path)
+    descender = vertical_metrics(path)[1]
     return TextBlock(
         block,
-        ascender=-round(ascender * scale),
+        ascender=-_ascender_px(path, size_px),
         descender=round((len(lines.glyphs) - 1) * pitch) - round(descender * scale),
         align=tuple(alignments),
     )

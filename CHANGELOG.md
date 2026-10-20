@@ -35,6 +35,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `stroke_fill` defaults to `fill`. `overlay` fits the outline inside the
   padding too. Arabic joins stay continuous because the text is painted over
   its outline.
+- `khatt.text_bbox(text, xy=..., ...)`: measures text without drawing it, like
+  Pillow's `textbbox`, with `draw_text`'s arguments. The box is exact: every
+  pixel `draw_text` would paint, outline included. Empty text gives an empty
+  box at `xy`.
+- `spacing=` on `draw_text`, `overlay` and `text_bbox`: pixels between lines,
+  with the same meaning as Pillow's `multiline_text` spacing (each line's
+  ascender line sits `spacing` pixels below the previous baseline, plus twice
+  the stroke width), so lines land within a pixel per line of where Pillow
+  puts them. It replaces `line_spacing`, whose default is still 1.2; passing
+  both raises a `ValueError`.
 - `khatt.missing_characters(text, font)`: the characters a font has no glyph
   for, each once, in the order typed. These are exactly the ones drawing
   skips with an `UnsupportedCharacterWarning`, so you can check first and

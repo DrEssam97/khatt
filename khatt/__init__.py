@@ -16,7 +16,7 @@ from PIL import Image, ImageOps
 
 from khatt.art_image import art_to_image
 from khatt.doctor import doctor
-from khatt.draw import TextOverflowWarning, draw_text, overlay
+from khatt.draw import TextOverflowWarning, draw_text, overlay, text_bbox
 from khatt.fonts import Font, font_path
 from khatt.fonts import available_fonts as list_fonts
 from khatt.layout import DEFAULT_SIZE, paragraphs, render_grids, render_ink
@@ -41,6 +41,7 @@ __all__ = [
     "overlay",
     "render",
     "render_image",
+    "text_bbox",
 ]
 
 

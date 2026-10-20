@@ -174,6 +174,10 @@ image.save("certificate-filled.png")
 frame = Image.open("frame.png").convert("RGB")
 khatt.draw_text(frame, (640, 650), "مرحبا بالعالم", size_px=64, anchor="md",
                 fill="white", stroke_width=5, stroke_fill="black")
+
+# Measure without drawing, like ImageDraw.textbbox: the exact box draw_text paints.
+left, top, right, bottom = khatt.text_bbox("مرحبا بالعالم", xy=(640, 650), size_px=64,
+                                           anchor="md", stroke_width=5)
 ```
 
 - Pass text as typed. Don't run it through `arabic_reshaper` or `get_display` first.
@@ -181,7 +185,8 @@ khatt.draw_text(frame, (640, 650), "مرحبا بالعالم", size_px=64, anch
   (colour name, `#rrggbb[aa]` or an RGB/RGBA tuple; alpha makes the text
   translucent), Pillow-style `anchor` (`l`/`m`/`r` + `a`/`t`/`m`/`s`/`b`/`d`),
   `max_width` in pixels to wrap, `line_spacing` (baseline distance in multiples of
-  the size), `align` (`None`: right-to-left paragraphs right-aligned, left-to-right
+  the size) or `spacing` (pixels between lines, as in Pillow's `multiline_text`),
+  `align` (`None`: right-to-left paragraphs right-aligned, left-to-right
   ones left-aligned), `keep_tashkeel` (diacritics are kept by default on images),
   and `stroke_width` / `stroke_fill` for an outline, as in Pillow: it grows
   outward around the text without moving it, and `stroke_fill` defaults to
@@ -193,6 +198,10 @@ khatt.draw_text(frame, (640, 650), "مرحبا بالعالم", size_px=64, anch
   `stroke_width` / `stroke_fill` (the outline is fitted inside the padding too).
   It never draws outside the box: text that doesn't fit is clipped, with a
   `khatt.TextOverflowWarning`.
+- `text_bbox(text, xy=(0, 0), ...)` takes `draw_text`'s arguments and returns
+  `(left, top, right, bottom)`: exactly the pixels `draw_text` would paint, outline
+  included. Use it to measure words for your own wrapping or to size a box behind
+  a caption.
 - RGB and RGBA images both work; on RGBA, a transparent background stays
   transparent around the text.
 
