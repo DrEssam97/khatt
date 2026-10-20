@@ -12,7 +12,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFont, features
 import khatt
 from khatt.draw import _largest_fitting
 from khatt.fonts import font_path
-from khatt.layout import measure_block
+from khatt.layout import layout_block, line_pitch, measure_block
 from khatt.raster import compose_block, estimate
 from khatt.shaping import shape, units_per_em, vertical_metrics
 
@@ -481,3 +481,352 @@ class TestOverlay:
     def test_bad_arguments(self, kwargs: dict[str, Any], match: str) -> None:
         with pytest.raises(ValueError, match=match):
             khatt.overlay(blank(), "خط", self.BOX, **kwargs)
+
+
+class TestStroke:
+    TEXT = "مرحبا بالعالم"
+    RED = (255, 0, 0)
+
+    def draw(self, **kwargs: Any) -> Image.Image:
+        image = blank()
+        khatt.draw_text(image, (580, 40), self.TEXT, anchor="ra", size_px=80, **kwargs)
+        return image
+
+    @pytest.mark.parametrize("width", [1, 3, 6])
+    def test_outline_grows_the_ink_by_its_width(self, width: int) -> None:
+        plain = ink(self.draw())
+        stroked = ink(self.draw(stroke_width=width, stroke_fill="red"))
+        for side, grows in zip(range(4), (-1, -1, 1, 1), strict=True):
+            assert abs((stroked[side] - plain[side]) * grows - width) <= 1, (side, plain, stroked)
+
+    def test_outline_does_not_move_the_text(self) -> None:
+        # Every fully opaque text pixel is drawn in exactly the same place:
+        # the outline grows around the text and under it, never moving it.
+        def solid_text(image: Image.Image) -> set[tuple[int, int]]:
+            width = image.size[0]
+            return {(i % width, i // width) for i, p in enumerate(pixels(image)) if p == (0, 0, 0)}
+
+        plain = solid_text(self.draw())
+        stroked = solid_text(self.draw(stroke_width=4, stroke_fill="red"))
+        assert plain
+        assert plain == stroked
+
+    def test_text_is_painted_over_its_outline(self) -> None:
+        image = self.draw(stroke_width=4, stroke_fill="red")
+        colours = set(pixels(image))
+        assert (0, 0, 0) in colours
+        assert self.RED in colours
+
+    def test_stroke_fill_defaults_to_fill(self) -> None:
+        # Like Pillow: an outline in the text colour just makes it bolder.
+        bolder = self.draw(fill="navy", stroke_width=3)
+        plain = self.draw(fill="navy")
+        assert self.RED not in set(pixels(bolder))
+        assert ink(bolder)[2] - ink(bolder)[0] > ink(plain)[2] - ink(plain)[0]
+
+    def test_zero_width_draws_no_outline(self) -> None:
+        assert self.draw(stroke_width=0, stroke_fill="red").tobytes() == self.draw().tobytes()
+
+    def test_matches_pillows_outline_on_latin_text(self) -> None:
+        # Amiri is a static font, so Pillow and khatt render the same instance.
+        size, width, text = 90, 5, "Khatt"
+        pillow = blank()
+        font = ImageFont.truetype(str(font_path("amiri")), size)
+        ImageDraw.Draw(pillow).text((40, 40), text, font=font, fill="black", stroke_width=width)
+        ours = blank()
+        khatt.draw_text(ours, (40, 40), text, font="amiri", size_px=size, stroke_width=width)
+        (px0, py0, px1, py1), (kx0, ky0, kx1, ky1) = ink(pillow), ink(ours)
+        assert abs((px1 - px0) - (kx1 - kx0)) <= 2
+        assert abs((py1 - py0) - (ky1 - ky0)) <= 2
+
+    def test_translucent_outline_on_rgba(self) -> None:
+        image = blank(color=CLEAR)
+        khatt.draw_text(
+            image,
+            (20, 20),
+            "خط",
+            size_px=80,
+            fill="white",
+            stroke_width=4,
+            stroke_fill=(0, 0, 0, 128),
+        )
+        alphas = {p[3] for p in pixels(image)}
+        assert 0 in alphas  # background stays transparent
+        assert 255 in alphas  # the opaque text
+        assert any(0 < a < 255 for a in alphas)  # the half-transparent outline
+
+    @staticmethod
+    def stem_row(**kwargs: Any) -> list[tuple[int, ...]]:
+        """The pixels across the stem of a large translucent "I", edge to edge."""
+        image = blank((400, 500))
+        khatt.draw_text(
+            image, (100, 20), "I", size_px=400, fill=(0, 0, 255, 128), stroke_width=4, **kwargs
+        )
+        row = [image.getpixel((x, 250)) for x in range(image.size[0])]
+        inked = [x for x, p in enumerate(row) if p != WHITE]
+        return [p for p in row[inked[0] : inked[-1] + 1] if isinstance(p, tuple)]
+
+    def test_outline_is_filled_under_translucent_text(self) -> None:
+        # The outline covers the whole letter, as Pillow's does, so a
+        # translucent fill shows the outline colour evenly, with no ring.
+        row = self.stem_row(stroke_fill=(255, 0, 0))
+        inside = row[8:-8]
+        assert set(inside) == {(127, 0, 128)}
+
+    def test_same_colour_outline_is_one_coat(self) -> None:
+        # Text and outline in one colour are painted once: a second coat would
+        # darken a translucent fill where they overlap.
+        row = self.stem_row()
+        assert set(row[4:-4]) == {(127, 127, 255)}
+
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            ({"stroke_width": -1}, "stroke_width"),
+            ({"stroke_width": float("inf")}, "stroke_width"),
+            ({"stroke_width": 2, "stroke_fill": "no-such-colour"}, "colour|color"),
+        ],
+    )
+    def test_bad_arguments(self, kwargs: dict[str, Any], match: str) -> None:
+        with pytest.raises(ValueError, match=match):
+            khatt.draw_text(blank(), (10, 10), "خط", **kwargs)
+
+
+class TestOverlayStroke:
+    BOX = (50, 40, 450, 200)
+
+    @pytest.mark.parametrize(
+        "text", ["شهادة", "شهادة تقدير للطالب المتميز", "سطر أول\nسطر ثاني", "Mohammed محمد"]
+    )
+    @pytest.mark.parametrize(("stroke", "padding"), [(3, 0), (8, 0), (6, 10)])
+    def test_outline_stays_inside_the_padding(self, text: str, stroke: int, padding: int) -> None:
+        image = blank()
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", khatt.TextOverflowWarning)
+            khatt.overlay(
+                image, text, self.BOX, padding=padding, stroke_width=stroke, stroke_fill="red"
+            )
+        left, top, right, bottom = self.BOX
+        x0, y0, x1, y1 = ink(image)
+        assert x0 >= left + padding
+        assert y0 >= top + padding
+        assert x1 <= right - padding
+        assert y1 <= bottom - padding
+
+    def test_thicker_outline_means_smaller_text(self) -> None:
+        def text_height(stroke: int) -> int:
+            image = blank()
+            khatt.overlay(
+                image, "شهادة", self.BOX, fill="black", stroke_width=stroke, stroke_fill="white"
+            )
+            box = ImageChops.difference(image, blank()).getbbox()
+            assert box is not None
+            return box[3] - box[1]
+
+        assert text_height(12) < text_height(0)
+
+    def test_no_room_for_the_outline(self) -> None:
+        with pytest.raises(ValueError, match="stroke"):
+            khatt.overlay(blank(), "خط", (0, 0, 20, 20), stroke_width=10)
+
+
+class TestTextBbox:
+    @pytest.mark.parametrize(
+        ("text", "kwargs"),
+        [
+            ("مرحبا", {}),
+            ("مرحبا", {"anchor": "ms"}),
+            ("بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ", {"anchor": "rd", "size_px": 37}),
+            ("Khatt 2026 خط", {"anchor": "mm", "stroke_width": 4}),
+            ("سطر أول\nسطر ثاني أطول\n\nبعد سطر فارغ", {"anchor": "ra", "align": "center"}),
+            ("السلام عليكم ورحمة الله وبركاته", {"max_width": 260, "anchor": "lt"}),
+            ("سطر أول\nسطر ثاني", {"spacing": 10, "stroke_width": 2.5, "anchor": "lb"}),
+            ("مَرْحَبًا", {"keep_tashkeel": False, "line_spacing": 2.0}),
+        ],
+    )
+    def test_is_exactly_what_draw_text_paints(self, text: str, kwargs: dict[str, Any]) -> None:
+        xy = (450.3, 220.7)
+        image = khatt.draw_text(blank((900, 500)), xy, text, stroke_fill="red", **kwargs)
+        assert khatt.text_bbox(text, xy=xy, **kwargs) == ink(image)
+
+    def test_moves_with_xy(self) -> None:
+        x0, y0, x1, y1 = khatt.text_bbox("مرحبا بالعالم", size_px=31)
+        assert khatt.text_bbox("مرحبا بالعالم", xy=(17, -5), size_px=31) == (
+            x0 + 17,
+            y0 - 5,
+            x1 + 17,
+            y1 - 5,
+        )
+
+    def test_nothing_to_draw_is_an_empty_box_at_xy(self) -> None:
+        for text in ("", "   ", "\n"):
+            assert khatt.text_bbox(text, xy=(10.4, 20.6)) == (10, 21, 10, 21)
+
+    @pytest.mark.parametrize(("text", "anchor"), [("Khatt", "la"), ("Hello, world", "ms")])
+    def test_close_to_pillows_textbbox_on_latin_text(self, text: str, anchor: str) -> None:
+        font = ImageFont.truetype(str(font_path("amiri")), 60)
+        pillow = ImageDraw.Draw(blank()).textbbox((300, 150), text, font=font, anchor=anchor)
+        ours = khatt.text_bbox(text, xy=(300, 150), size_px=60, anchor=anchor)
+        assert all(abs(a - b) <= 2 for a, b in zip(pillow, ours, strict=True)), (pillow, ours)
+
+    def test_measures_words_for_wrapping(self) -> None:
+        # The width of a line is the sum of its words' widths, and then some.
+        words = ["تُمنح", "هذه", "الشهادة"]
+        widths = [box[2] - box[0] for box in map(khatt.text_bbox, words)]
+        line = khatt.text_bbox(" ".join(words))
+        assert line[2] - line[0] > sum(widths)
+
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            ({"anchor": "xx"}, "anchor"),
+            ({"size_px": 0}, "size_px"),
+            ({"max_width": 0}, "max_width"),
+            ({"stroke_width": -1}, "stroke_width"),
+            ({"line_spacing": 1.5, "spacing": 4}, "not both"),
+        ],
+    )
+    def test_bad_arguments(self, kwargs: dict[str, Any], match: str) -> None:
+        with pytest.raises(ValueError, match=match):
+            khatt.text_bbox("خط", **kwargs)
+
+
+class TestSpacing:
+    TEXT = "H\nH\nH"
+
+    @staticmethod
+    def line_tops(image: Image.Image) -> list[int]:
+        """The top row of each separate run of inked rows."""
+        rows = [
+            ImageChops.difference(
+                image.crop((0, y, image.size[0], y + 1)), blank((image.size[0], 1))
+            ).getbbox()
+            is not None
+            for y in range(image.size[1])
+        ]
+        return [y for y, inked in enumerate(rows) if inked and (y == 0 or not rows[y - 1])]
+
+    @pytest.mark.parametrize("font", ["amiri", "rubik"])
+    @pytest.mark.parametrize("size", [19, 48, 90])
+    @pytest.mark.parametrize(("spacing", "stroke"), [(0, 0), (4, 0), (17, 3), (-3, 2)])
+    def test_matches_pillows_multiline_spacing(
+        self, font: str, size: int, spacing: int, stroke: int
+    ) -> None:
+        pillow = blank((300, 600))
+        ImageDraw.Draw(pillow).multiline_text(
+            (20, 20),
+            self.TEXT,
+            font=ImageFont.truetype(str(font_path(font)), size),
+            fill="black",
+            spacing=spacing,
+            stroke_width=stroke,
+        )
+        ours = khatt.draw_text(
+            blank((300, 600)),
+            (20, 20),
+            self.TEXT,
+            font=font,
+            size_px=size,
+            spacing=spacing,
+            stroke_width=stroke,
+        )
+        theirs, mine = self.line_tops(pillow), self.line_tops(ours)
+        assert len(theirs) == len(mine) == 3
+        for line in (1, 2):
+            pitch_theirs = theirs[line] - theirs[line - 1]
+            pitch_mine = mine[line] - mine[line - 1]
+            assert abs(pitch_theirs - pitch_mine) <= 1, (theirs, mine)
+
+    def test_adds_pixels_between_lines(self) -> None:
+        def bottom(spacing: float) -> int:
+            box = khatt.text_bbox("خط\nخط\nخط", size_px=40, spacing=spacing)
+            return box[3]
+
+        assert bottom(25) - bottom(0) == 50
+        assert bottom(-10) - bottom(0) == -20
+
+    def test_outline_widens_the_spacing_by_twice_its_width(self) -> None:
+        # As in Pillow, so neither line's outline eats into the spacing.
+        def pitch(stroke: int) -> int:
+            image = khatt.draw_text(
+                blank(), (20, 20), self.TEXT, size_px=40, spacing=6, stroke_width=stroke
+            )
+            tops = self.line_tops(image)
+            return tops[1] - tops[0]
+
+        assert pitch(3) - pitch(0) == 2 * 3
+
+    def test_line_spacing_is_unchanged_by_default(self) -> None:
+        explicit = khatt.draw_text(blank(), (20, 20), "خط\nخط", line_spacing=1.2)
+        default = khatt.draw_text(blank(), (20, 20), "خط\nخط")
+        assert explicit.tobytes() == default.tobytes()
+
+    @pytest.mark.parametrize("spacing", [0, 12, 40])
+    def test_overlay_fits_spaced_lines(self, spacing: int) -> None:
+        box = (50, 40, 450, 260)
+        image = blank()
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", khatt.TextOverflowWarning)
+            khatt.overlay(image, "سطر أول\nسطر ثاني\nسطر ثالث", box, spacing=spacing)
+        x0, y0, x1, y1 = ink(image)
+        assert x0 >= box[0] and y0 >= box[1] and x1 <= box[2] and y1 <= box[3]
+
+    def test_overlay_shrinks_more_with_more_spacing(self) -> None:
+        def width(spacing: int) -> int:
+            box = ink(
+                khatt.overlay(blank(), "سطر أول\nسطر ثاني", (50, 40, 450, 260), spacing=spacing)
+            )
+            return box[2] - box[0]
+
+        assert width(60) < width(0)
+
+    def test_spacing_does_not_apply_to_a_single_line(self) -> None:
+        # As in Pillow: with one line there is no gap for spacing to set.
+        single = khatt.text_bbox("سطر", size_px=8, spacing=-20)
+        assert single == khatt.text_bbox("سطر", size_px=8)
+        assert khatt.text_bbox("", size_px=8, spacing=-20) == (0, 0, 0, 0)
+
+    def test_overlay_shrink_with_negative_spacing(self) -> None:
+        # -10 is too tight for the smallest sizes but fine for the size picked.
+        box = (0, 0, 600, 300)
+        image = khatt.overlay(blank(), "سطر أول\nسطر ثاني", box, spacing=-10)
+        _, top, _, bottom = ink(image)
+        assert bottom - top > 150
+
+    @pytest.mark.parametrize("font", ["amiri", "rubik", "noto-naskh", "cairo"])
+    @pytest.mark.parametrize("size", [19, 48, 91])
+    def test_ascender_matches_pillow_and_the_pitch(self, font: str, size: int) -> None:
+        # The "a" anchor and the spacing rule share one ascender: Pillow's.
+        path = font_path(font)
+        laid_out = layout_block(
+            "خط", path, size_px=size, line_spacing=1.2, keep_tashkeel=True, spacing=0
+        )
+        assert laid_out is not None
+        pillow_ascent = ImageFont.truetype(str(path), size).getmetrics()[0]
+        assert -laid_out.ascender == pillow_ascent
+        pitch = line_pitch(path, size_px=size, line_spacing=1.2, spacing=7)
+        assert pitch == -laid_out.ascender + 7
+
+    def test_numpy_numbers(self) -> None:
+        np = pytest.importorskip("numpy")
+        kwargs = {"spacing": np.int64(6), "stroke_width": np.float32(2.0)}
+        assert khatt.text_bbox("خط\nخط", **kwargs) == khatt.text_bbox(
+            "خط\nخط", spacing=6, stroke_width=2
+        )
+
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            ({"spacing": 4, "line_spacing": 1.2}, "not both"),
+            ({"spacing": float("nan")}, "spacing"),
+            ({"spacing": "4"}, "spacing"),
+            ({"spacing": -500}, "spacing"),
+            ({"line_spacing": float("nan")}, "line_spacing"),
+            ({"line_spacing": float("inf")}, "line_spacing"),
+        ],
+    )
+    def test_bad_arguments(self, kwargs: dict[str, Any], match: str) -> None:
+        with pytest.raises(ValueError, match=match):
+            khatt.draw_text(blank(), (10, 10), "خط\nخط", **kwargs)
+        with pytest.raises(ValueError, match=match):
+            khatt.overlay(blank(), "خط\nخط", (10, 10, 300, 200), **kwargs)

@@ -29,6 +29,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   missing file raises `KeyError` like an unknown name; a file khatt can't
   shape and render (not a font, bitmap-only, or a WOFF/WOFF2 web font that
   FreeType reads but HarfBuzz can't) raises a `ValueError` saying why.
+- Outlined text: `stroke_width=` and `stroke_fill=` on `draw_text` and
+  `overlay`, with the same meaning as Pillow's. The outline is FreeType's own
+  stroke (round corners), filled like Pillow's, and grows outward around the
+  text without moving it; `stroke_fill` defaults to `fill`, and an outline in
+  the text's own colour is painted in one coat, so translucent text stays
+  even. `overlay` fits the outline inside the padding too. Arabic joins stay
+  continuous because the text is painted over its outline.
+- `khatt.text_bbox(text, xy=..., ...)`: measures text without drawing it, like
+  Pillow's `textbbox`, with `draw_text`'s arguments. The box is exact: every
+  pixel `draw_text` would paint, outline included. Empty text gives an empty
+  box at `xy`.
+- `spacing=` on `draw_text`, `overlay` and `text_bbox`: pixels between lines,
+  with the same meaning as Pillow's `multiline_text` spacing (each line's
+  ascender line sits `spacing` pixels below the previous baseline, plus twice
+  the stroke width), so lines land within a pixel per line of where Pillow
+  puts them. Like Pillow's, it doesn't apply to a single line. It replaces
+  `line_spacing`, whose default is still 1.2; passing both raises a
+  `ValueError`. The `a` anchor uses the same ascender, rounded up to whole
+  pixels as in Pillow.
+- `khatt.missing_characters(text, font)`: the characters a font has no glyph
+  for, each once, in the order typed. These are exactly the ones drawing
+  skips with an `UnsupportedCharacterWarning`, so you can check first and
+  fall back to another font. Invisible characters (ZWJ, ZWNJ, bidi marks)
+  and line breaks don't count; `keep_tashkeel=False` leaves out diacritics,
+  as drawing with it (or `render`) does.
 - `khatt --doctor` / `khatt.doctor()`: reports the Pillow version and
   whether it has Raqm, the matplotlib version (3.11+ shapes Arabic
   natively), and whether `arabic_reshaper` is importable, with a warning
@@ -36,6 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- When a font had no glyph for a diacritic, `UnsupportedCharacterWarning`
+  named the letter it sat on instead of the diacritic itself.
 - Rubik rendered at its Light weight: a variable font's default instance
   isn't always Regular, and Rubik's is Light (300). Variable fonts now render
   at their Regular weight (400) in both shaping and rasterization, so Rubik

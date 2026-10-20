@@ -107,17 +107,44 @@ def _bitmap_to_image(bitmap: Any) -> Image.Image:
 
 
 @lru_cache(maxsize=4096)
-def _glyph(path: str, gid: int, ppem: int = RENDER_PPEM, shift: int = 0) -> _Glyph:
-    """Render one glyph at ``ppem``, its origin moved right by ``shift`` 1/64 px."""
+def _glyph(path: str, gid: int, ppem: int = RENDER_PPEM, shift: int = 0, stroke: int = 0) -> _Glyph:
+    """Render one glyph at ``ppem``, its origin moved right by ``shift`` 1/64 px.
+
+    With ``stroke`` (a radius in 1/64 px) it renders the glyph's outline
+    stroke instead: the glyph grown by ``stroke`` all round, filled, with
+    round caps and joins, the way Pillow's ``stroke_width`` draws.
+    """
     face = _face(path)
     with _FACE_LOCK:
         face.set_pixel_sizes(0, ppem)
         face.set_transform(_IDENTITY, freetype.Vector(shift, 0))
-        face.load_glyph(gid, _LOAD_FLAGS)
-        slot = face.glyph
-        if not (slot.bitmap.width and slot.bitmap.rows):
+        if stroke:
+            face.load_glyph(gid, freetype.FT_LOAD_DEFAULT | freetype.FT_LOAD_NO_HINTING)
+            if not face.glyph.outline.n_points:
+                return _Glyph(None, 0, 0)
+            stroker = freetype.Stroker()
+            stroker.set(
+                stroke, freetype.FT_STROKER_LINECAP_ROUND, freetype.FT_STROKER_LINEJOIN_ROUND, 0
+            )
+            outline = face.glyph.get_glyph()
+            # The outside border only, filled (as Pillow's stroke_filled):
+            # a full stroke is a ring that a translucent fill shows through.
+            error = freetype.raw.FT_Glyph_StrokeBorder(
+                ctypes.byref(outline._FT_Glyph), stroker._FT_Stroker, False, True
+            )
+            if error:
+                raise freetype.FT_Exception(error)
+            rendered = outline.to_bitmap(
+                freetype.FT_RENDER_MODE_NORMAL, freetype.Vector(0, 0), True
+            )
+            bitmap, left, top = rendered.bitmap, rendered.left, rendered.top
+        else:
+            face.load_glyph(gid, _LOAD_FLAGS)
+            slot = face.glyph
+            bitmap, left, top = slot.bitmap, slot.bitmap_left, slot.bitmap_top
+        if not (bitmap.width and bitmap.rows):
             return _Glyph(None, 0, 0)
-        return _Glyph(_bitmap_to_image(slot.bitmap), slot.bitmap_left, slot.bitmap_top)
+        return _Glyph(_bitmap_to_image(bitmap), left, top)
 
 
 @lru_cache(maxsize=4096)
@@ -159,12 +186,16 @@ def _pen(
 
 
 def _place(
-    glyphs: Sequence[ShapedGlyph], path: str, ppem: int = RENDER_PPEM, subpixel: bool = False
+    glyphs: Sequence[ShapedGlyph],
+    path: str,
+    ppem: int = RENDER_PPEM,
+    subpixel: bool = False,
+    stroke: int = 0,
 ) -> list[_Placed]:
-    """Position each inked glyph bitmap relative to the pen origin."""
+    """Position each inked glyph bitmap (or its ``stroke``) relative to the pen origin."""
     placed: list[_Placed] = []
     for glyph, x, shift, y in _pen(glyphs, path, ppem, subpixel):
-        rendered = _glyph(path, glyph.gid, ppem, shift)
+        rendered = _glyph(path, glyph.gid, ppem, shift, stroke)
         if rendered.image is not None:
             placed.append(_Placed(rendered.image, x + rendered.left, y - rendered.top))
     return placed
@@ -358,6 +389,10 @@ class Block:
     """Position of the mask's top-left corner."""
     width: int
     """The layout width the lines were aligned in."""
+    stroke: tuple[Image.Image, int, int] | None = None
+    """The outline stroke's coverage and its top-left corner, when stroked.
+
+    It surrounds ``mask``: paint it first, then the text on top."""
 
 
 def compose_block(
@@ -368,6 +403,7 @@ def compose_block(
     pitch: float,
     align: Sequence[str] | None = None,
     width: int | None = None,
+    stroke: int = 0,
 ) -> Block | None:
     """Draw shaped lines at ``ppem`` pixels per em, baselines ``pitch`` pixels apart.
 
@@ -376,6 +412,10 @@ def compose_block(
     that is wider or ``width`` is ``None``. Unlike :func:`compose`, glyphs
     are rendered at the target size with quarter-pixel pen positions, and
     empty lines keep their slot.
+
+    ``stroke`` (a radius in 1/64 px) also draws the text's outline stroke as
+    ``Block.stroke``. It doesn't move the text: lines are laid out as without
+    it, and the stroke grows around them.
 
     Returns ``None`` when there is nothing to draw.
     """
@@ -390,22 +430,34 @@ def compose_block(
     if width is not None:
         layout_width = max(layout_width, width)
 
-    glyphs: list[_Placed] = []
-    for index, (line, box, alignment) in enumerate(zip(placed, boxes, alignments, strict=True)):
-        if box is None:
-            continue
-        dx = _shift(alignment, layout_width - (box[2] - box[0])) - box[0]
-        dy = round(index * pitch)
-        glyphs.extend(_Placed(glyph.image, glyph.x + dx, glyph.y + dy) for glyph in line)
+    # Where each line goes; the stroke reuses these offsets so it stays
+    # registered with the text.
+    offsets = {
+        index: (_shift(alignment, layout_width - (box[2] - box[0])) - box[0], round(index * pitch))
+        for index, (box, alignment) in enumerate(zip(boxes, alignments, strict=True))
+        if box is not None
+    }
 
-    x0, y0, x1, y1 = _bounds(glyphs) or (0, 0, 0, 0)
-    canvas = Image.new("L", (x1 - x0, y1 - y0), 0)
-    for glyph in glyphs:
-        _blend_max(canvas, glyph.image, glyph.x - x0, glyph.y - y0)
-    ink = canvas.getbbox()
-    if ink is None:
+    def draw(lines_placed: Sequence[Sequence[_Placed]]) -> tuple[Image.Image, int, int] | None:
+        glyphs = [
+            _Placed(glyph.image, glyph.x + dx, glyph.y + dy)
+            for index, (dx, dy) in offsets.items()
+            for glyph in lines_placed[index]
+        ]
+        x0, y0, x1, y1 = _bounds(glyphs) or (0, 0, 0, 0)
+        canvas = Image.new("L", (x1 - x0, y1 - y0), 0)
+        for glyph in glyphs:
+            _blend_max(canvas, glyph.image, glyph.x - x0, glyph.y - y0)
+        ink = canvas.getbbox()
+        return None if ink is None else (canvas.crop(ink), x0 + ink[0], y0 + ink[1])
+
+    text = draw(placed)
+    if text is None:
         return None
-    return Block(canvas.crop(ink), x0 + ink[0], y0 + ink[1], layout_width)
+    outline = None
+    if stroke:
+        outline = draw([_place(line, path, ppem, subpixel=True, stroke=stroke) for line in lines])
+    return Block(text[0], text[1], text[2], layout_width, outline)
 
 
 def rasterize(glyphs: Sequence[ShapedGlyph], font_path: str | Path) -> Image.Image | None:

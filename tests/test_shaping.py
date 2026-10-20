@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 
 from khatt.fonts import font_path
-from khatt.shaping import base_direction, shape, strip_tashkeel
+from khatt.shaping import UnsupportedCharacterWarning, base_direction, shape, strip_tashkeel
 
 AMIRI = font_path("amiri")
 
@@ -103,6 +103,14 @@ class TestEdgeCases:
         with pytest.warns(UserWarning, match="not supported"):
             shaped = shape("خط😀", AMIRI)
         assert [g.gid for g in shaped] == gids("خط")
+
+    def test_unsupported_diacritic_is_named_not_its_letter(self) -> None:
+        # Rubik has no U+065F (wavy hamza below). HarfBuzz merges a mark into
+        # its letter's cluster by default, which used to blame the letter.
+        with pytest.warns(UnsupportedCharacterWarning, match="U\\+065F") as caught:
+            shaped = shape("بٟت", font_path("rubik"), keep_tashkeel=True)
+        assert len(caught) == 1
+        assert len(shaped) == 2
 
     def test_shaped_glyph_fields(self) -> None:
         glyph = shape("خ", AMIRI)[0]
