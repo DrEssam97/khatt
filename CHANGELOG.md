@@ -34,6 +34,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   natively), and whether `arabic_reshaper` is importable, with a warning
   that combining it with native shaping corrupts text (double-shaping).
 
+### Changed
+
+- khatt now installs alongside older Pillow and typer: the minimums drop from
+  Pillow 12.3 and typer 0.26.8 to **Pillow 10.1** and **typer 0.15.4**, the
+  oldest versions the full test suite passes with. Projects pinned to Pillow
+  10/11 (for example through moviepy 2.2.1) can now depend on khatt. CI tests
+  the minimums and MoneyPrinterTurbo's pins (Pillow 11.3.0, typer 0.26.5) on
+  every change.
+
 ### Fixed
 
 - Rubik rendered at its Light weight: a variable font's default instance
