@@ -50,6 +50,10 @@ _LTR_BIDI_CLASSES = frozenset({"L", "EN", "AN"})
 
 _BIDI_BASE_DIR = {"ltr": "L", "rtl": "R"}
 
+REGULAR_WEIGHT = 400
+"""Weight variable fonts render at (clamped to the font's range). A variable
+font's default instance isn't always Regular: Rubik's is Light (300)."""
+
 
 @dataclass(frozen=True)
 class ShapedGlyph:
@@ -86,7 +90,27 @@ def base_direction(text: str) -> str:
 def _load_font(path: str) -> hb.Font:
     blob = hb.Blob.from_file_path(path)
     face = hb.Face(blob)
-    return hb.Font(face)
+    font = hb.Font(face)
+    settings = _regular_variations(face)
+    if settings:
+        font.set_variations(settings)
+    return font
+
+
+def _regular_variations(face: hb.Face) -> dict[str, float]:
+    for axis in face.axis_infos:
+        if axis.tag == "wght":
+            return {"wght": min(max(REGULAR_WEIGHT, axis.min_value), axis.max_value)}
+    return {}
+
+
+def variations(font_path: str | Path) -> dict[str, float]:
+    """Variation-axis settings the font is rendered with; empty for static fonts.
+
+    Shaping (HarfBuzz) and rasterization (FreeType) must use the same
+    instance, or glyph advances and outlines would disagree.
+    """
+    return _regular_variations(_load_font(str(font_path)).face)
 
 
 def _classify(visual: str) -> list[str]:

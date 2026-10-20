@@ -35,7 +35,7 @@ from typing import Any
 import freetype
 from PIL import Image, ImageChops
 
-from khatt.shaping import ShapedGlyph, units_per_em
+from khatt.shaping import ShapedGlyph, units_per_em, variations
 
 RENDER_PPEM = 256
 """Pixels per em of the high-resolution render stage."""
@@ -78,6 +78,10 @@ def _face(path: str) -> freetype.Face:
     # Load via a byte stream: freetype's own file handling can trip over
     # non-ASCII paths on Windows.
     face = freetype.Face(io.BytesIO(Path(path).read_bytes()))
+    settings = variations(path)
+    if settings:  # the same instance HarfBuzz shapes with
+        axes = face.get_variation_info().axes
+        face.set_var_design_coords([settings.get(axis.tag, axis.default) for axis in axes])
     face.set_pixel_sizes(0, RENDER_PPEM)
     return face
 
