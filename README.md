@@ -252,6 +252,16 @@ Bundled names take precedence over a file with the same name. Web fonts
 path that doesn't exist raises `KeyError` (like an unknown name), and a file that
 isn't a usable font raises `ValueError`.
 
+**Glyph coverage.** khatt skips characters a font has no glyph for, with a
+`khatt.UnsupportedCharacterWarning`. `khatt.missing_characters(text, font)` lists
+them beforehand, so you can fall back to another font:
+
+```python
+font = "brand/Tajawal-Bold.ttf"
+if khatt.missing_characters(text, font):  # e.g. ["ے", "ٹ"]
+    font = "amiri"  # also covers Persian and Urdu letters
+```
+
 | Style | Ramp | Notes |
 |---|---|---|
 | `blocks` | `░ ▒ ▓ █` | Default; reads well at any size |

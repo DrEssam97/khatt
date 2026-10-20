@@ -169,8 +169,9 @@ def _visual_segments(text: str, direction: str | None = None) -> list[tuple[str,
 
 
 def _shape_segment(
-    font: hb.Font, segment: str, direction: str, *, warn: bool = True
-) -> list[ShapedGlyph]:
+    font: hb.Font, segment: str, direction: str
+) -> tuple[list[ShapedGlyph], list[str]]:
+    """Shape one directional segment: its glyphs, and the characters with no glyph."""
     buf = hb.Buffer()
     buf.add_str(segment)
     buf.guess_segment_properties()
@@ -178,20 +179,16 @@ def _shape_segment(
     if direction == "rtl":
         buf.script = "Arab"
         buf.language = "ar"
+    # Keep each character its own cluster (by default a mark joins its base
+    # letter's), so a missing diacritic is reported as itself.
+    buf.cluster_level = hb.BufferClusterLevel.MONOTONE_CHARACTERS
     hb.shape(font, buf, None)
 
     glyphs: list[ShapedGlyph] = []
+    missing: list[str] = []
     for info, pos in zip(buf.glyph_infos, buf.glyph_positions, strict=True):
         if info.codepoint == 0:  # .notdef — the font has no glyph for this
-            if not warn:
-                continue
-            offender = segment[info.cluster] if info.cluster < len(segment) else "?"
-            warnings.warn(
-                f"character {offender!r} (U+{ord(offender):04X}) is not supported "
-                "by the selected font and was skipped",
-                UnsupportedCharacterWarning,
-                stacklevel=3,
-            )
+            missing.append(segment[info.cluster])
             continue
         glyphs.append(
             ShapedGlyph(
@@ -203,7 +200,7 @@ def _shape_segment(
                 y_offset=pos.y_offset,
             )
         )
-    return glyphs
+    return glyphs, missing
 
 
 def shape(
@@ -242,8 +239,32 @@ def shape(
     font = _load_font(str(font_path))
     glyphs: list[ShapedGlyph] = []
     for segment, segment_direction in _visual_segments(text, direction):
-        glyphs.extend(_shape_segment(font, segment, segment_direction, warn=warn))
+        shaped, missing = _shape_segment(font, segment, segment_direction)
+        glyphs.extend(shaped)
+        for offender in missing if warn else ():
+            warnings.warn(
+                f"character {offender!r} (U+{ord(offender):04X}) is not supported "
+                "by the selected font and was skipped",
+                UnsupportedCharacterWarning,
+                stacklevel=2,
+            )
     return glyphs
+
+
+def missing_characters(text: str, font_path: str | Path) -> set[str]:
+    """Characters of one line of ``text`` that shaping with the font leaves out.
+
+    These are the characters :func:`shape` skips with an
+    :class:`UnsupportedCharacterWarning`. Characters the font can still show
+    (composed or decomposed by HarfBuzz) and invisible ones such as ZWJ are
+    not missing.
+    """
+    font = _load_font(str(font_path))
+    return {
+        offender
+        for segment, segment_direction in _visual_segments(text)
+        for offender in _shape_segment(font, segment, segment_direction)[1]
+    }
 
 
 def units_per_em(font_path: str | Path) -> int:

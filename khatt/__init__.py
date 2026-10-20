@@ -19,10 +19,11 @@ from khatt.doctor import doctor
 from khatt.draw import TextOverflowWarning, draw_text, overlay
 from khatt.fonts import Font, font_path
 from khatt.fonts import available_fonts as list_fonts
-from khatt.layout import DEFAULT_SIZE, render_grids, render_ink
+from khatt.layout import DEFAULT_SIZE, paragraphs, render_grids, render_ink
 from khatt.mapper import available_styles as list_styles
 from khatt.mapper import get_style, map_image
 from khatt.shaping import UnsupportedCharacterWarning
+from khatt.shaping import missing_characters as _missing_in_line
 
 __version__ = "0.2.0"
 
@@ -36,6 +37,7 @@ __all__ = [
     "draw_text",
     "list_fonts",
     "list_styles",
+    "missing_characters",
     "overlay",
     "render",
     "render_image",
@@ -124,3 +126,27 @@ def render_image(
     """
     image = render_ink(text, font_path(font), keep_tashkeel=keep_tashkeel)
     return None if image is None else ImageOps.invert(image)
+
+
+def missing_characters(text: str, font: Font = "amiri") -> list[str]:
+    """The characters of ``text`` that ``font`` has no glyph for.
+
+    Check before drawing, e.g. to fall back to another font: khatt skips
+    exactly these characters, with an :class:`UnsupportedCharacterWarning`.
+    Diacritics count even though :func:`render` strips them by default.
+    Characters the font can still show, such as an accented letter it has
+    in decomposed form, and invisible ones (ZWJ, ZWNJ, bidi marks) are not
+    missing, nor are line breaks and tabs.
+
+    Args:
+        text: The text, as typed.
+        font: A bundled font name (see :func:`list_fonts`) or the path to a
+            .ttf/.otf font file.
+
+    Returns:
+        Each missing character once, in the order they first appear; an
+        empty list when the font covers the whole text.
+    """
+    path = font_path(font)
+    missing = set().union(*(_missing_in_line(line, path) for line in paragraphs(text)))
+    return [ch for ch in dict.fromkeys(text) if ch in missing]

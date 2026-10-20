@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import shutil
 import struct
+import warnings
 from pathlib import Path
 
 import pytest
@@ -179,3 +180,49 @@ def test_freetype_rasterizes_the_instance_harfbuzz_shapes() -> None:
             )
         )
         assert coords["wght"] == settings["wght"], name
+
+
+class TestMissingCharacters:
+    def test_bundled_fonts_cover_arabic_persian_and_latin(self) -> None:
+        text = "بِسْمِ اللَّهِ الرَّحْمَٰنِ — پ چ ژ گ — Khatt 2026 ٠١٢"
+        for name in available_fonts():
+            assert khatt.missing_characters(text, name) == [], name
+
+    def test_urdu_letters_rubik_lacks(self) -> None:
+        assert khatt.missing_characters("پاکستان ے ٹ ڈ", "amiri") == []
+        assert khatt.missing_characters("ٹیکسی ے", "rubik") == ["ٹ", "ے"]
+
+    def test_each_once_in_logical_order(self) -> None:
+        # Right-to-left text: in the order typed, not the order displayed.
+        assert khatt.missing_characters("ے 😀 ٹ 😀 ے", "rubik") == ["ے", "😀", "ٹ"]
+
+    def test_a_missing_diacritic_is_reported_not_its_letter(self) -> None:
+        assert khatt.missing_characters("بٟت", "rubik") == ["ٟ"]
+
+    def test_invisible_characters_and_line_breaks_are_not_missing(self) -> None:
+        text = "لا‍م‌ا‏ب\nسطر\tآخر\r\nKhatt"
+        assert khatt.missing_characters(text, "amiri") == []
+
+    def test_empty_text(self) -> None:
+        assert khatt.missing_characters("", "amiri") == []
+
+    def test_names_exactly_what_drawing_skips(self) -> None:
+        text = "خط ے 😀 ✓ a͙ ٹ\nسطر"
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            khatt.draw_text(Image.new("RGB", (900, 300), "white"), (10, 10), text, font="rubik")
+        skipped = {
+            str(w.message).split("'")[1]
+            for w in caught
+            if issubclass(w.category, khatt.UnsupportedCharacterWarning)
+        }
+        assert skipped == set(khatt.missing_characters(text, "rubik"))
+        assert len(skipped) == 5
+
+    def test_font_file(self, tmp_path: Path) -> None:
+        copy = Path(shutil.copy(font_path("rubik"), tmp_path / "brand.ttf"))
+        assert khatt.missing_characters("ے", copy) == ["ے"]
+
+    def test_unknown_font(self) -> None:
+        with pytest.raises(KeyError):
+            khatt.missing_characters("خط", "nope")

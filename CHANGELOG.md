@@ -35,6 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `stroke_fill` defaults to `fill`. `overlay` fits the outline inside the
   padding too. Arabic joins stay continuous because the text is painted over
   its outline.
+- `khatt.missing_characters(text, font)`: the characters a font has no glyph
+  for, each once, in the order typed. These are exactly the ones drawing
+  skips with an `UnsupportedCharacterWarning`, so you can check first and
+  fall back to another font. Invisible characters (ZWJ, ZWNJ, bidi marks)
+  and line breaks don't count.
 - `khatt --doctor` / `khatt.doctor()`: reports the Pillow version and
   whether it has Raqm, the matplotlib version (3.11+ shapes Arabic
   natively), and whether `arabic_reshaper` is importable, with a warning
@@ -42,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- When a font had no glyph for a diacritic, `UnsupportedCharacterWarning`
+  named the letter it sat on instead of the diacritic itself.
 - Rubik rendered at its Light weight: a variable font's default instance
   isn't always Regular, and Rubik's is Light (300). Variable fonts now render
   at their Regular weight (400) in both shaping and rasterization, so Rubik
