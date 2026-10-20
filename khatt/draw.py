@@ -18,6 +18,7 @@ from PIL import Image, ImageColor
 
 from khatt.fonts import Font, font_path
 from khatt.layout import layout_block, measure_block
+from khatt.raster import Block
 
 Fill = str | tuple[int, int, int] | tuple[int, int, int, int]
 """A colour name or ``#rrggbb[aa]`` string, or an RGB / RGBA tuple."""
@@ -51,6 +52,28 @@ def _check_layout(size_px: int, line_spacing: float, align: str | None) -> None:
         raise ValueError(f"line_spacing must be positive, got {line_spacing}")
     if align is not None and align not in _ALIGNS:
         raise ValueError(f"align must be one of {', '.join(_ALIGNS)} or None, got {align!r}")
+
+
+def _check_stroke(stroke_width: float) -> None:
+    if not (isinstance(stroke_width, (int, float)) and 0 <= stroke_width < math.inf):
+        raise ValueError(f"stroke_width must be a non-negative number, got {stroke_width!r}")
+
+
+def _paint_text(
+    image: Image.Image,
+    block: Block,
+    xy: tuple[int, int],
+    color: tuple[int, int, int, int],
+    stroke_color: tuple[int, int, int, int],
+    clip: tuple[int, int, int, int] | None = None,
+) -> None:
+    """Paint ``block``'s stroke (if any) and then its text, the text mask's corner at ``xy``."""
+    if block.stroke is not None:
+        mask, left, top = block.stroke
+        _paint(
+            image, mask, (xy[0] + left - block.left, xy[1] + top - block.top), stroke_color, clip
+        )
+    _paint(image, block.mask, xy, color, clip)
 
 
 def _rgba(fill: Fill) -> tuple[int, int, int, int]:
@@ -115,6 +138,8 @@ def draw_text(
     max_width: int | None = None,
     line_spacing: float = 1.2,
     keep_tashkeel: bool = True,
+    stroke_width: float = 0,
+    stroke_fill: Fill | None = None,
 ) -> Image.Image:
     """Draw shaped text onto ``image`` (in place) and return it.
 
@@ -144,6 +169,12 @@ def draw_text(
             than that on its own still gets a line of its own.
         line_spacing: Distance between baselines, in multiples of ``size_px``.
         keep_tashkeel: Keep Arabic diacritics (``False`` strips them).
+        stroke_width: Width in pixels of an outline drawn around the text,
+            as in Pillow: it grows outward by this much (and as far inward,
+            under the text), with round corners. It doesn't move the text:
+            anchors and alignment work as without it.
+        stroke_fill: Outline colour, in the same formats as ``fill``;
+            default: ``fill`` (which makes the text bolder).
 
     Returns:
         ``image``, drawn on. Characters the font does not cover are skipped
@@ -151,6 +182,8 @@ def draw_text(
     """
     _check_image(image)
     color = _rgba(fill)
+    stroke_color = color if stroke_fill is None else _rgba(stroke_fill)
+    _check_stroke(stroke_width)
     _check_layout(size_px, line_spacing, align)
     if len(anchor) != 2 or anchor[0] not in "lmr" or anchor[1] not in "atmsbd":
         raise ValueError(f"anchor must be one of l/m/r followed by a/t/m/s/b/d, got {anchor!r}")
@@ -165,6 +198,7 @@ def draw_text(
         align=align,
         line_spacing=line_spacing,
         keep_tashkeel=keep_tashkeel,
+        stroke_width=stroke_width,
     )
     if laid_out is None:
         return image
@@ -180,7 +214,7 @@ def draw_text(
         "d": laid_out.descender,
     }[anchor[1]]
     position = (_round(xy[0] - anchor_x), _round(xy[1] - anchor_y) + block.top)
-    _paint(image, block.mask, position, color)
+    _paint_text(image, block, position, color, stroke_color)
     return image
 
 
@@ -242,6 +276,8 @@ def overlay(
     padding: int = 0,
     line_spacing: float = 1.2,
     keep_tashkeel: bool = True,
+    stroke_width: float = 0,
+    stroke_fill: Fill | None = None,
 ) -> Image.Image:
     """Place shaped text inside ``box`` on ``image`` (in place) and return it.
 
@@ -268,6 +304,10 @@ def overlay(
         padding: Pixels kept clear inside each edge of the box.
         line_spacing: Distance between baselines, in multiples of the size.
         keep_tashkeel: Keep Arabic diacritics (``False`` strips them).
+        stroke_width: Width in pixels of an outline around the text, as in
+            :func:`draw_text`. The outline counts as part of the text: it is
+            fitted inside the padding too.
+        stroke_fill: Outline colour; default: ``fill``.
 
     Returns:
         ``image``, drawn on. Nothing is ever drawn outside ``box``: text that
@@ -277,6 +317,8 @@ def overlay(
     """
     _check_image(image)
     color = _rgba(fill)
+    stroke_color = color if stroke_fill is None else _rgba(stroke_fill)
+    _check_stroke(stroke_width)
     if fit not in _FITS:
         raise ValueError(f"fit must be one of {', '.join(_FITS)}, got {fit!r}")
     if valign not in _VALIGNS:
@@ -285,9 +327,14 @@ def overlay(
         raise ValueError(f"padding must not be negative, got {padding}")
     left, top, right, bottom = (_round(edge) for edge in box)
     inner = (left + padding, top + padding, right - padding, bottom - padding)
-    inner_width, inner_height = inner[2] - inner[0], inner[3] - inner[1]
+    # The text itself goes inside the padding minus the outline, which then
+    # grows into that margin.
+    inset = math.ceil(stroke_width)
+    text_area = (inner[0] + inset, inner[1] + inset, inner[2] - inset, inner[3] - inset)
+    inner_width, inner_height = text_area[2] - text_area[0], text_area[3] - text_area[1]
     if inner_width < 1 or inner_height < 1:
-        raise ValueError(f"box {box} has no room inside a padding of {padding}")
+        room = f"a padding of {padding}" + (f" and a stroke of {stroke_width}" if inset else "")
+        raise ValueError(f"box {box} has no room inside {room}")
     for name, value in (("max_size_px", max_size_px), ("min_size_px", min_size_px)):
         if value is not None and value < 1:
             raise ValueError(f"{name} must be at least 1, got {value}")
@@ -315,24 +362,32 @@ def overlay(
         line_spacing=line_spacing,
         keep_tashkeel=keep_tashkeel,
         width=inner_width,
+        stroke_width=stroke_width,
     )
     if laid_out is None:
         return image
     block = laid_out.block
     width, height = block.mask.size
     overhang = block.width - inner_width
-    x = inner[0] + block.left
+    x = text_area[0] + block.left
     x -= {"left": 0, "right": overhang, "center": overhang // 2}[_block_alignment(laid_out.align)]
     y = {
-        "top": inner[1],
-        "middle": inner[1] + (inner_height - height) // 2,
-        "bottom": inner[3] - height,
+        "top": text_area[1],
+        "middle": text_area[1] + (inner_height - height) // 2,
+        "bottom": text_area[3] - height,
     }[valign]
-    if x < inner[0] or y < inner[1] or x + width > inner[2] or y + height > inner[3]:
+    # What has to fit is everything drawn: the outline when there is one.
+    if block.stroke is not None:
+        mask, stroke_left, stroke_top = block.stroke
+        outer = (x + stroke_left - block.left, y + stroke_top - block.top, *mask.size)
+    else:
+        outer = (x, y, width, height)
+    ox, oy, ow, oh = outer
+    if ox < inner[0] or oy < inner[1] or ox + ow > inner[2] or oy + oh > inner[3]:
         warnings.warn(
             f"text does not fit inside the box at {size}px; anything outside the box is clipped",
             TextOverflowWarning,
             stacklevel=2,
         )
-    _paint(image, block.mask, (x, y), color, clip=(left, top, right, bottom))
+    _paint_text(image, block, (x, y), color, stroke_color, clip=(left, top, right, bottom))
     return image

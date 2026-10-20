@@ -481,3 +481,126 @@ class TestOverlay:
     def test_bad_arguments(self, kwargs: dict[str, Any], match: str) -> None:
         with pytest.raises(ValueError, match=match):
             khatt.overlay(blank(), "خط", self.BOX, **kwargs)
+
+
+class TestStroke:
+    TEXT = "مرحبا بالعالم"
+    RED = (255, 0, 0)
+
+    def draw(self, **kwargs: Any) -> Image.Image:
+        image = blank()
+        khatt.draw_text(image, (580, 40), self.TEXT, anchor="ra", size_px=80, **kwargs)
+        return image
+
+    @pytest.mark.parametrize("width", [1, 3, 6])
+    def test_outline_grows_the_ink_by_its_width(self, width: int) -> None:
+        plain = ink(self.draw())
+        stroked = ink(self.draw(stroke_width=width, stroke_fill="red"))
+        for side, grows in zip(range(4), (-1, -1, 1, 1), strict=True):
+            assert abs((stroked[side] - plain[side]) * grows - width) <= 1, (side, plain, stroked)
+
+    def test_outline_does_not_move_the_text(self) -> None:
+        # Every fully opaque text pixel is drawn in exactly the same place:
+        # the outline grows around the text and under it, never moving it.
+        def solid_text(image: Image.Image) -> set[tuple[int, int]]:
+            width = image.size[0]
+            return {(i % width, i // width) for i, p in enumerate(pixels(image)) if p == (0, 0, 0)}
+
+        plain = solid_text(self.draw())
+        stroked = solid_text(self.draw(stroke_width=4, stroke_fill="red"))
+        assert plain
+        assert plain == stroked
+
+    def test_text_is_painted_over_its_outline(self) -> None:
+        image = self.draw(stroke_width=4, stroke_fill="red")
+        colours = set(pixels(image))
+        assert (0, 0, 0) in colours
+        assert self.RED in colours
+
+    def test_stroke_fill_defaults_to_fill(self) -> None:
+        # Like Pillow: an outline in the text colour just makes it bolder.
+        bolder = self.draw(fill="navy", stroke_width=3)
+        plain = self.draw(fill="navy")
+        assert self.RED not in set(pixels(bolder))
+        assert ink(bolder)[2] - ink(bolder)[0] > ink(plain)[2] - ink(plain)[0]
+
+    def test_zero_width_draws_no_outline(self) -> None:
+        assert self.draw(stroke_width=0, stroke_fill="red").tobytes() == self.draw().tobytes()
+
+    def test_matches_pillows_outline_on_latin_text(self) -> None:
+        # Amiri is a static font, so Pillow and khatt render the same instance.
+        size, width, text = 90, 5, "Khatt"
+        pillow = blank()
+        font = ImageFont.truetype(str(font_path("amiri")), size)
+        ImageDraw.Draw(pillow).text((40, 40), text, font=font, fill="black", stroke_width=width)
+        ours = blank()
+        khatt.draw_text(ours, (40, 40), text, font="amiri", size_px=size, stroke_width=width)
+        (px0, py0, px1, py1), (kx0, ky0, kx1, ky1) = ink(pillow), ink(ours)
+        assert abs((px1 - px0) - (kx1 - kx0)) <= 2
+        assert abs((py1 - py0) - (ky1 - ky0)) <= 2
+
+    def test_translucent_outline_on_rgba(self) -> None:
+        image = blank(color=CLEAR)
+        khatt.draw_text(
+            image,
+            (20, 20),
+            "خط",
+            size_px=80,
+            fill="white",
+            stroke_width=4,
+            stroke_fill=(0, 0, 0, 128),
+        )
+        alphas = {p[3] for p in pixels(image)}
+        assert 0 in alphas  # background stays transparent
+        assert 255 in alphas  # the opaque text
+        assert any(0 < a < 255 for a in alphas)  # the half-transparent outline
+
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            ({"stroke_width": -1}, "stroke_width"),
+            ({"stroke_width": float("inf")}, "stroke_width"),
+            ({"stroke_width": 2, "stroke_fill": "no-such-colour"}, "colour|color"),
+        ],
+    )
+    def test_bad_arguments(self, kwargs: dict[str, Any], match: str) -> None:
+        with pytest.raises(ValueError, match=match):
+            khatt.draw_text(blank(), (10, 10), "خط", **kwargs)
+
+
+class TestOverlayStroke:
+    BOX = (50, 40, 450, 200)
+
+    @pytest.mark.parametrize(
+        "text", ["شهادة", "شهادة تقدير للطالب المتميز", "سطر أول\nسطر ثاني", "Mohammed محمد"]
+    )
+    @pytest.mark.parametrize(("stroke", "padding"), [(3, 0), (8, 0), (6, 10)])
+    def test_outline_stays_inside_the_padding(self, text: str, stroke: int, padding: int) -> None:
+        image = blank()
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", khatt.TextOverflowWarning)
+            khatt.overlay(
+                image, text, self.BOX, padding=padding, stroke_width=stroke, stroke_fill="red"
+            )
+        left, top, right, bottom = self.BOX
+        x0, y0, x1, y1 = ink(image)
+        assert x0 >= left + padding
+        assert y0 >= top + padding
+        assert x1 <= right - padding
+        assert y1 <= bottom - padding
+
+    def test_thicker_outline_means_smaller_text(self) -> None:
+        def text_height(stroke: int) -> int:
+            image = blank()
+            khatt.overlay(
+                image, "شهادة", self.BOX, fill="black", stroke_width=stroke, stroke_fill="white"
+            )
+            box = ImageChops.difference(image, blank()).getbbox()
+            assert box is not None
+            return box[3] - box[1]
+
+        assert text_height(12) < text_height(0)
+
+    def test_no_room_for_the_outline(self) -> None:
+        with pytest.raises(ValueError, match="stroke"):
+            khatt.overlay(blank(), "خط", (0, 0, 20, 20), stroke_width=10)

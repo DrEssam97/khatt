@@ -251,6 +251,7 @@ def layout_block(
     line_spacing: float,
     keep_tashkeel: bool,
     width: int | None = None,
+    stroke_width: float = 0,
 ) -> TextBlock | None:
     """Lay out and draw ``text`` at ``size_px`` pixels per em for an image.
 
@@ -258,6 +259,8 @@ def layout_block(
     are ``line_spacing * size_px`` pixels apart. Lines are aligned by
     ``align`` (``"left"``, ``"right"`` or ``"center"``; ``None``: by each
     paragraph's direction) within ``width`` pixels or the widest line.
+    ``stroke_width`` (pixels) also draws an outline stroke around the text
+    (see :func:`khatt.raster.compose_block`).
 
     Returns ``None`` when there is nothing to draw.
     """
@@ -265,7 +268,13 @@ def layout_block(
     alignments = lines.align if align is None else [align] * len(lines.align)
     pitch = line_spacing * size_px
     block = compose_block(
-        lines.glyphs, path, ppem=size_px, pitch=pitch, align=alignments, width=width
+        lines.glyphs,
+        path,
+        ppem=size_px,
+        pitch=pitch,
+        align=alignments,
+        width=width,
+        stroke=round(stroke_width * 64),
     )
     if block is None:
         return None

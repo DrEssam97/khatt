@@ -29,6 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   missing file raises `KeyError` like an unknown name; a file khatt can't
   shape and render (not a font, bitmap-only, or a WOFF/WOFF2 web font that
   FreeType reads but HarfBuzz can't) raises a `ValueError` saying why.
+- Outlined text: `stroke_width=` and `stroke_fill=` on `draw_text` and
+  `overlay`, with the same meaning as Pillow's. The outline is FreeType's own
+  stroke (round corners) and grows outward around the text without moving it;
+  `stroke_fill` defaults to `fill`. `overlay` fits the outline inside the
+  padding too. Arabic joins stay continuous because the text is painted over
+  its outline.
 - `khatt --doctor` / `khatt.doctor()`: reports the Pillow version and
   whether it has Raqm, the matplotlib version (3.11+ shapes Arabic
   natively), and whether `arabic_reshaper` is importable, with a warning

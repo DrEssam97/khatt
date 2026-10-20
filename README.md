@@ -169,6 +169,11 @@ khatt.draw_text(image, (1100, 200), "تُمنح هذه الشهادة إلى", s
 khatt.overlay(image, "محمد عبد الله", (200, 260, 1100, 400), padding=12, fill="black")
 
 image.save("certificate-filled.png")
+
+# Outlined text, e.g. captions or thumbnails over busy backgrounds.
+frame = Image.open("frame.png").convert("RGB")
+khatt.draw_text(frame, (640, 650), "مرحبا بالعالم", size_px=64, anchor="md",
+                fill="white", stroke_width=5, stroke_fill="black")
 ```
 
 - Pass text as typed. Don't run it through `arabic_reshaper` or `get_display` first.
@@ -177,12 +182,16 @@ image.save("certificate-filled.png")
   translucent), Pillow-style `anchor` (`l`/`m`/`r` + `a`/`t`/`m`/`s`/`b`/`d`),
   `max_width` in pixels to wrap, `line_spacing` (baseline distance in multiples of
   the size), `align` (`None`: right-to-left paragraphs right-aligned, left-to-right
-  ones left-aligned), `keep_tashkeel` (diacritics are kept by default on images).
+  ones left-aligned), `keep_tashkeel` (diacritics are kept by default on images),
+  and `stroke_width` / `stroke_fill` for an outline, as in Pillow: it grows
+  outward around the text without moving it, and `stroke_fill` defaults to
+  `fill`.
 - `overlay(image, text, (left, top, right, bottom))`: `fit="shrink"` (default) uses
   the largest size between `max_size_px` and `min_size_px` at which the wrapped
   text fits; `"wrap"` wraps at `max_size_px`; `"none"` draws at `max_size_px` as
-  is. Also `align`, `valign` (`top`/`middle`/`bottom`) and `padding`. It never
-  draws outside the box: text that doesn't fit is clipped, with a
+  is. Also `align`, `valign` (`top`/`middle`/`bottom`), `padding`, and the same
+  `stroke_width` / `stroke_fill` (the outline is fitted inside the padding too).
+  It never draws outside the box: text that doesn't fit is clipped, with a
   `khatt.TextOverflowWarning`.
 - RGB and RGBA images both work; on RGBA, a transparent background stays
   transparent around the text.
