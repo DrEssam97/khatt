@@ -32,9 +32,9 @@ classifiers = [
 ]
 dependencies = [
     "freetype-py>=2.5.1",
-    "pillow>=12.3.0",
+    "pillow>=10.1.0",
     "python-bidi>=0.6.11",
-    "typer>=0.26.8",
+    "typer>=0.15.4",
     "uharfbuzz>=0.55.0",
 ]
 

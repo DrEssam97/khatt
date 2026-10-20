@@ -947,9 +947,9 @@ dev = [
 requires-dist = [
     { name = "freetype-py", specifier = ">=2.5.1" },
     { name = "gradio", marker = "extra == 'app'", specifier = ">=6.20.0" },
-    { name = "pillow", specifier = ">=12.3.0" },
+    { name = "pillow", specifier = ">=10.1.0" },
     { name = "python-bidi", specifier = ">=0.6.11" },
-    { name = "typer", specifier = ">=0.26.8" },
+    { name = "typer", specifier = ">=0.15.4" },
     { name = "uharfbuzz", specifier = ">=0.55.0" },
 ]
 provides-extras = ["app"]
