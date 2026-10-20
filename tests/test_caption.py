@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import importlib
+import sys
+import warnings
 from itertools import pairwise
 from pathlib import Path
 from typing import Any
@@ -108,10 +111,14 @@ class TestLabel:
         assert box[3] < image.size[1]
 
     def test_tall_marks_grow_the_image(self) -> None:
-        plain = khatt.caption_image("للّٰه", font_size=60, keep_tashkeel=False)
-        marked = khatt.caption_image("للّٰه", font_size=60)
-        assert marked.size[1] >= plain.size[1]
-        assert alpha_box(marked)[1] >= 0
+        # Amiri's stacked marks on ٱللَّٰهُ rise 20 px above its ascender at
+        # 60 px: the image grows to hold them instead of cutting them off.
+        size = 60
+        pillow = ImageFont.truetype(str(font_path("amiri")), size)
+        ascent, descent = pillow.getmetrics()
+        image = khatt.caption_image("ٱللَّٰهُ", font_size=size)
+        assert image.size[1] > ascent + descent
+        assert alpha_box(image)[1] == 0
 
     def test_empty_text(self) -> None:
         image = khatt.caption_image("", font_size=40)
@@ -210,14 +217,52 @@ class TestCaption:
             size for size in range(8, 120) if extent(size)[0] <= 420 and extent(size)[1] <= 300
         ]
         best = max(fitted)
-        bigger = extent(best + 1)
-        assert bigger[0] > 420 or bigger[1] > 300
-        drawn = alpha_box(image)
-        assert drawn[3] - drawn[1] > 150  # it fills the box
+        # The search measures without rendering, conservatively: it picks the
+        # best size or one below it, never one that doesn't fit.
+        chosen = [
+            size
+            for size in (best, best - 1)
+            if khatt.caption_image(
+                self.TEXT, font_size=size, method="caption", size=(420, 300)
+            ).tobytes()
+            == image.tobytes()
+        ]
+        assert chosen, "picked neither the best size nor the one below"
 
     def test_a_box_too_small_for_any_size_gets_the_smallest(self) -> None:
-        image = khatt.caption_image("مرحبا", method="caption", size=(10, 1))
+        with pytest.warns(khatt.TextOverflowWarning):
+            image = khatt.caption_image("مرحبا", method="caption", size=(10, 1))
         assert image.size == (10, 1)
+
+    def test_a_word_wider_than_a_fixed_size_warns(self) -> None:
+        # Words aren't broken, so at a fixed size a long one can't fit: say so.
+        with pytest.warns(khatt.TextOverflowWarning, match="200x"):
+            image = khatt.caption_image(
+                "Supercalifragilisticexpialidocious word",
+                font_size=60,
+                method="caption",
+                size=(200, None),
+            )
+        assert image.size[0] == 200
+
+    def test_fitting_text_does_not_warn(self) -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", khatt.TextOverflowWarning)
+            khatt.caption_image(self.TEXT, method="caption", size=(420, 300))
+            khatt.caption_image(self.TEXT, font_size=30, method="caption", size=(420, None))
+
+    def test_negative_interline_with_an_automatic_size(self) -> None:
+        # Too tight for the smallest sizes, fine for the size picked.
+        image = khatt.caption_image("سطر أول\nسطر ثاني", size=(500, None), interline=-10)
+        box = alpha_box(image)
+        assert box[2] - box[0] > 400
+
+    def test_the_size_search_does_not_repeat_warnings(self) -> None:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            khatt.caption_image("مرحبا 中文", size=(800, None))
+        skipped = [w for w in caught if issubclass(w.category, khatt.UnsupportedCharacterWarning)]
+        assert len(skipped) == 2  # 中 and 文, once each
 
     def test_label_with_a_width_picks_the_size(self) -> None:
         image = khatt.caption_image("مرحبا بالعالم", size=(300, None))
@@ -264,6 +309,13 @@ class TestOptions:
         loose = line_boxes(khatt.caption_image("خط\nخط", font_size=40, interline=30))
         assert (loose[1][1] - loose[0][1]) - (tight[1][1] - tight[0][1]) == 30
 
+    def test_fractional_font_size(self) -> None:
+        # moviepy (through Pillow) takes them; khatt renders the nearest size.
+        assert (
+            khatt.caption_image("مرحبا", font_size=40.4).tobytes()
+            == khatt.caption_image("مرحبا", font_size=40).tobytes()
+        )
+
     def test_font_file_and_default_font(self) -> None:
         by_name = khatt.caption_image("مرحبا", font="amiri", font_size=40)
         by_none = khatt.caption_image("مرحبا", font=None, font_size=40)
@@ -293,6 +345,13 @@ class TestOptions:
         assert ImageChops.difference(first, second).getbbox() is None
 
 
+def test_video_without_moviepy_says_how_to_install_it(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setitem(sys.modules, "moviepy", None)
+    monkeypatch.delitem(sys.modules, "khatt.video", raising=False)
+    with pytest.raises(ImportError, match=r"khatt\[video\]"):
+        importlib.import_module("khatt.video")
+
+
 class TestErrors:
     @pytest.mark.parametrize(
         ("kwargs", "match"),
@@ -306,6 +365,7 @@ class TestErrors:
             ({"font_size": 40, "horizontal_align": "middle"}, "horizontal_align"),
             ({"font_size": 40, "vertical_align": "middle"}, "vertical_align"),
             ({"font_size": 0}, "font_size"),
+            ({"font_size": "40"}, "font_size"),
             ({"font_size": 40, "size": (0, None)}, "width"),
             ({"font_size": 40, "interline": float("nan")}, "interline"),
             ({"font_size": 40, "stroke_width": -1}, "stroke_width"),

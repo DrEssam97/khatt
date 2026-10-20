@@ -58,9 +58,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `TextClip` that shapes text with khatt. It takes moviepy 2.2's arguments in
   the same order, including `method="caption"` wrapping and the automatic
   font size; `font` defaults to Amiri and `text_align` to each paragraph's
-  direction. Clips follow moviepy's documented height formula and grow only
-  when stacked diacritics reach beyond it, so nothing is cut off; moviepy's
-  own `TextClip` crops the bottom of label clips with Pillow 11 and later.
+  direction; fractional font sizes round to whole pixels. Clips follow
+  moviepy's documented height formula and grow only when stacked diacritics
+  reach beyond it, so nothing is cut off (text too wide for a fixed size and
+  font size warns with `TextOverflowWarning`); moviepy's own `TextClip`
+  crops the bottom of label clips with Pillow 11 and later. The automatic
+  font size is found without rendering, like `overlay`'s.
 - `khatt.caption_image(text, ...)`: the same caption as a Pillow image,
   without moviepy.
 - `khatt --doctor` / `khatt.doctor()`: reports the Pillow version and
@@ -76,9 +79,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   10/11 (for example through moviepy 2.2.1) can now depend on khatt. CI tests
   the minimums and MoneyPrinterTurbo's pins (Pillow 11.3.0, typer 0.26.5) on
   every change.
-- The `d` anchor rounds the font's descender as FreeType does (like
-  Pillow's), and both vertical metrics now match Pillow's `getmetrics` at
-  every size; the `d` and `m` anchors can move by a pixel.
+- Vertical metrics (the `a`, `d` and `m` anchors, and `spacing`) come from
+  FreeType's scaled metrics, exactly what Pillow's `getmetrics` reports, for
+  any font; the `d` and `m` anchors can move by a pixel.
 - Development: moviepy holds Pillow below 12, so the lockfile resolves the
   `video` extra separately. `uv sync` keeps the newest Pillow; use
   `uv sync --extra video --no-group latest-pillow` for the video extra.
@@ -87,6 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - When a font had no glyph for a diacritic, `UnsupportedCharacterWarning`
   named the letter it sat on instead of the diacritic itself.
+- `overlay(fit="shrink")` repeated each `UnsupportedCharacterWarning` once
+  per size it tried; it now warns once.
 - Rubik rendered at its Light weight: a variable font's default instance
   isn't always Regular, and Rubik's is Light (300). Variable fonts now render
   at their Regular weight (400) in both shaping and rasterization, so Rubik

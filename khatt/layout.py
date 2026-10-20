@@ -22,7 +22,6 @@ per em, wraps to a width in pixels, and keeps its baselines evenly spaced
 
 from __future__ import annotations
 
-import math
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -33,14 +32,16 @@ from khatt.raster import (
     CELL_ASPECT,
     RENDER_PPEM,
     Block,
+    Box,
     compose,
     compose_block,
     compose_lines,
     estimate,
     measure,
+    size_metrics,
     to_grid,
 )
-from khatt.shaping import ShapedGlyph, base_direction, shape, units_per_em, vertical_metrics
+from khatt.shaping import ShapedGlyph, base_direction, shape
 
 DEFAULT_SIZE = 10
 """Default font size, in character rows per em."""
@@ -106,10 +107,12 @@ def _shape_lines(
     keep_tashkeel: bool,
     max_width: float | None = None,
     ppem: int | None = None,
+    warn: bool = True,
 ) -> _Lines:
     """Shape every paragraph, wrapping it to ``max_width`` pixels if given.
 
     Widths are measured in render pixels, or at ``ppem`` when given.
+    ``warn=False`` skips unsupported characters silently.
     """
     lines = _Lines()
     for paragraph in paragraphs(text):
@@ -123,7 +126,8 @@ def _shape_lines(
             pieces = wrap(paragraph, fits)
         for piece in pieces:
             lines.add(
-                shape(piece, path, keep_tashkeel=keep_tashkeel, direction=direction), direction
+                shape(piece, path, keep_tashkeel=keep_tashkeel, direction=direction, warn=warn),
+                direction,
             )
     return lines
 
@@ -213,23 +217,14 @@ class TextBlock:
     """Alignment of each line."""
 
 
-def _metric_px(value: int, path: Path, size_px: int) -> int:
-    """A vertical metric in font units at ``size_px``, in whole pixels.
-
-    Rounded up from 26.6 fixed point, as FreeType (and so Pillow's anchors
-    and ``getmetrics``) rounds it.
-    """
-    return math.ceil(round(value * size_px * 64 / units_per_em(path)) / 64)
-
-
 def _ascender_px(path: Path, size_px: int) -> int:
     """The font's ascender at ``size_px``, in whole pixels above the baseline."""
-    return _metric_px(vertical_metrics(path)[0], path, size_px)
+    return size_metrics(str(path), size_px)[0]
 
 
 def _descender_px(path: Path, size_px: int) -> int:
     """The font's descender at ``size_px``, in whole pixels below the baseline."""
-    return _metric_px(-vertical_metrics(path)[1], path, size_px)
+    return size_metrics(str(path), size_px)[1]
 
 
 def line_pitch(
@@ -267,7 +262,7 @@ def _checked_pitch(pitch: float, line_count: int, size_px: int, spacing: float |
     return pitch
 
 
-def measure_block(
+def estimate_block(
     text: str,
     path: Path,
     *,
@@ -277,14 +272,17 @@ def measure_block(
     keep_tashkeel: bool,
     spacing: float | None = None,
     stroke_width: float = 0,
-) -> tuple[int, int] | None:
-    """Ink ``(width, height)`` of :func:`layout_block`'s output, without rendering.
+) -> tuple[Box, int] | None:
+    """Ink box of :func:`layout_block`'s text, and its line count, without rendering.
 
-    Estimated from glyph outline boxes: never smaller than the drawn ink,
+    The box is relative to the first baseline and the layout's left edge,
+    estimated from glyph outline boxes: never smaller than the drawn ink,
     which excludes the outline (``stroke_width`` only spaces the lines, see
-    :func:`line_pitch`). ``None`` means there is nothing to draw.
+    :func:`line_pitch`). Unsupported characters are skipped silently, so a
+    search over sizes doesn't repeat their warnings. ``None`` means there
+    is nothing to draw.
     """
-    lines = _shape_lines(text, path, keep_tashkeel, max_width, ppem=size_px)
+    lines = _shape_lines(text, path, keep_tashkeel, max_width, ppem=size_px, warn=False)
     pitch = line_pitch(
         path,
         size_px=size_px,
@@ -300,10 +298,91 @@ def measure_block(
     ]
     if not boxes:
         return None
-    width = max(box[2] - box[0] for box, _ in boxes)
-    top = min(box[1] + dy for box, dy in boxes)
-    bottom = max(box[3] + dy for box, dy in boxes)
-    return width, bottom - top
+    ink = (
+        0,
+        min(box[1] + dy for box, dy in boxes),
+        max(box[2] - box[0] for box, _ in boxes),
+        max(box[3] + dy for box, dy in boxes),
+    )
+    return ink, len(lines.glyphs)
+
+
+def measure_block(
+    text: str,
+    path: Path,
+    *,
+    size_px: int,
+    max_width: int | None,
+    line_spacing: float,
+    keep_tashkeel: bool,
+    spacing: float | None = None,
+    stroke_width: float = 0,
+) -> tuple[int, int] | None:
+    """Ink ``(width, height)`` of :func:`layout_block`'s output, without rendering.
+
+    See :func:`estimate_block`. ``None`` means there is nothing to draw.
+    """
+    estimated = estimate_block(
+        text,
+        path,
+        size_px=size_px,
+        max_width=max_width,
+        line_spacing=line_spacing,
+        keep_tashkeel=keep_tashkeel,
+        spacing=spacing,
+        stroke_width=stroke_width,
+    )
+    if estimated is None:
+        return None
+    (left, top, right, bottom), _ = estimated
+    return right - left, bottom - top
+
+
+def smallest_spaced_size(
+    path: Path,
+    sizes: tuple[int, int],
+    *,
+    line_spacing: float,
+    spacing: float | None,
+    stroke_width: float,
+) -> int:
+    """The smallest size in ``sizes`` at which lines still stack downwards.
+
+    A negative ``spacing`` stacks lines upwards below some size, which
+    :func:`layout_block` refuses; size searches start above it. Returns the
+    largest size if none qualifies.
+    """
+    low, high = sizes
+    while (
+        low < high
+        and line_pitch(
+            path,
+            size_px=low,
+            line_spacing=line_spacing,
+            spacing=spacing,
+            stroke_width=stroke_width,
+        )
+        <= 0
+    ):
+        low += 1
+    return low
+
+
+def largest_size(fits: Callable[[int], bool], sizes: tuple[int, int]) -> int:
+    """Binary-search the largest size in ``sizes`` for which ``fits`` holds.
+
+    Returns the smallest size when none fits.
+    """
+    low, high = sizes
+    if not fits(low):
+        return low
+    while low < high:
+        middle = (low + high + 1) // 2
+        if fits(middle):
+            low = middle
+        else:
+            high = middle - 1
+    return low
 
 
 def layout_block(

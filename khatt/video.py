@@ -16,11 +16,10 @@ import os
 from collections.abc import Sequence
 from pathlib import Path
 
-import numpy as np
-
 try:
+    import numpy as np
     from moviepy import ImageClip
-except ImportError as error:  # pragma: no cover - depends on the environment
+except ImportError as error:
     raise ImportError('khatt.video needs moviepy: pip install "khatt[video]"') from error
 
 from khatt.caption import caption_image
@@ -90,7 +89,8 @@ class TextClip(ImageClip):
             transparent=transparent,
             keep_tashkeel=keep_tashkeel,
         )
-        super().__init__(np.asarray(image), transparent=transparent, duration=duration)
+        # A writeable copy, as moviepy's: effects may edit frames in place.
+        super().__init__(np.array(image), transparent=transparent, duration=duration)
         self.text = text
         self.color = color
         self.stroke_color = stroke_color

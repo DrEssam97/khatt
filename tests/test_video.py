@@ -43,6 +43,14 @@ def test_positional_font_and_text_like_moviepy() -> None:
     assert clip.text == "مرحبا"
 
 
+def test_frames_are_writeable_like_moviepys() -> None:
+    # Effects may edit a frame in place.
+    clip = TextClip(text="مرحبا", font_size=40)
+    assert clip.get_frame(0).flags.writeable
+    edited = clip.image_transform(lambda frame: (frame.__setitem__((0, 0), 0), frame)[1])
+    assert tuple(edited.get_frame(0)[0, 0]) == (0, 0, 0)
+
+
 def test_attributes_and_duration() -> None:
     clip = TextClip(text="مرحبا", font_size=40, color="white", stroke_color="red", duration=2.5)
     assert (clip.text, clip.color, clip.stroke_color) == ("مرحبا", "white", "red")

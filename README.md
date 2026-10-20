@@ -258,7 +258,9 @@ video.write_videofile("caption.mp4", fps=24)
   UTF-8; `keep_tashkeel=False` strips diacritics.
 - Clips are as tall as moviepy's formula says (ascent + descent + outline,
   plus `interline` spacing per line), and taller only if stacked diacritics
-  reach beyond it: nothing is ever cut off.
+  reach beyond it, so nothing is cut off. The exception: words aren't broken,
+  so if you fix both `size` and `font_size` and a word is wider than the
+  width, the edges are cut and you get a `khatt.TextOverflowWarning`.
 - Without moviepy, `khatt.caption_image(text, ...)` takes the same arguments
   and returns the frame as a Pillow image, e.g. for ffmpeg overlays.
 

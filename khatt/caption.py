@@ -9,21 +9,40 @@ Text is shaped and drawn by khatt, never by Pillow's text layout, so Arabic
 comes out right with or without Raqm. The height follows moviepy's
 documented formula (ascent + descent + twice the stroke, plus the pitch of
 each further line) and grows if the ink reaches beyond it, e.g. stacked
-diacritics, so nothing is ever cut off.
+diacritics, so nothing is cut off unless a fixed size is too small for it
+(which warns).
 """
 
 from __future__ import annotations
 
 import math
-from collections.abc import Callable, Sequence
+import warnings
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 from PIL import Image
 
-from khatt.draw import Fill, _check_stroke, _is_number, _paint_text, _rgba
+from khatt.draw import (
+    Fill,
+    TextOverflowWarning,
+    _check_stroke,
+    _extent,
+    _is_number,
+    _paint_text,
+    _rgba,
+)
 from khatt.fonts import Font, font_path
-from khatt.layout import TextBlock, _ascender_px, _descender_px, layout_block
+from khatt.layout import (
+    TextBlock,
+    _ascender_px,
+    _descender_px,
+    estimate_block,
+    largest_size,
+    layout_block,
+    line_pitch,
+    smallest_spaced_size,
+)
 from khatt.raster import Box
 
 _METHODS = ("label", "caption")
@@ -54,22 +73,6 @@ class _Measured:
         return self.bottom - self.top
 
 
-def _ink_box(laid_out: TextBlock) -> Box:
-    """Box of everything painted for ``laid_out``, text and outline."""
-    block = laid_out.block
-    width, height = block.mask.size
-    boxes = [(block.left, block.top, block.left + width, block.top + height)]
-    if block.stroke is not None:
-        mask, left, top = block.stroke
-        boxes.append((left, top, left + mask.size[0], top + mask.size[1]))
-    return (
-        min(b[0] for b in boxes),
-        min(b[1] for b in boxes),
-        max(b[2] for b in boxes),
-        max(b[3] for b in boxes),
-    )
-
-
 def _measure(
     text: str,
     path: Path,
@@ -96,24 +99,49 @@ def _measure(
     if laid_out is None:
         ascender, descender = _ascender_px(path, size_px), _descender_px(path, size_px)
         return _Measured(None, (0, 0, 0, 0), -ascender - stroke, descender + stroke)
-    ink = _ink_box(laid_out)
+    block = laid_out.block
+    ink = _extent(block, (block.left, block.top))
     top = min(laid_out.ascender - stroke, ink[1])
     bottom = max(laid_out.descender + stroke, ink[3])
     return _Measured(laid_out, ink, top, bottom)
 
 
-def _largest_size(fits: Callable[[int], bool], high: int) -> int:
-    """The largest size from 1 to ``high`` for which ``fits`` holds; 1 if none."""
-    low = 1
-    if not fits(low):
-        return low
-    while low < high:
-        middle = (low + high + 1) // 2
-        if fits(middle):
-            low = middle
-        else:
-            high = middle - 1
-    return low
+def _estimate(
+    text: str,
+    path: Path,
+    size_px: int,
+    *,
+    max_width: int | None,
+    interline: float,
+    stroke_width: float,
+    keep_tashkeel: bool,
+) -> tuple[int, int]:
+    """``(width, height)`` that :func:`_measure` would find, estimated without rendering.
+
+    Never smaller than the measured size, so a size that fits by the
+    estimate fits when drawn.
+    """
+    stroke = math.ceil(stroke_width)
+    top = -_ascender_px(path, size_px) - stroke
+    descender = _descender_px(path, size_px) + stroke
+    estimated = estimate_block(
+        text,
+        path,
+        size_px=size_px,
+        max_width=max_width,
+        line_spacing=1.0,  # unused: spacing always decides
+        keep_tashkeel=keep_tashkeel,
+        spacing=interline,
+        stroke_width=stroke_width,
+    )
+    if estimated is None:
+        return 0, descender - top
+    (left, ink_top, right, ink_bottom), count = estimated
+    pitch = line_pitch(
+        path, size_px=size_px, line_spacing=1.0, spacing=interline, stroke_width=stroke_width
+    )
+    bottom = max(round((count - 1) * pitch) + descender, ink_bottom + stroke)
+    return right - left + 2 * stroke, bottom - min(top, ink_top - stroke)
 
 
 def _margins(margin: Sequence[int | None]) -> tuple[int, int, int, int]:
@@ -202,8 +230,11 @@ def caption_image(
     _check_stroke(stroke_width)
     if not _is_number(interline):
         raise ValueError(f"interline must be a number of pixels, got {interline!r}")
-    if font_size is not None and font_size < 1:
-        raise ValueError(f"font_size must be at least 1, got {font_size}")
+    if font_size is not None:
+        # moviepy (through Pillow) takes fractional sizes; glyphs render at whole ones.
+        if not (_is_number(font_size) and font_size >= 1):
+            raise ValueError(f"font_size must be a number of at least 1, got {font_size!r}")
+        font_size = round(font_size)
     width, height = size
     for name, value in (("width", width), ("height", height)):
         if value is not None and value < 1:
@@ -241,13 +272,31 @@ def caption_image(
         area = (width, height)
 
         def fits(size_px: int) -> bool:
-            measured = measure(size_px)
-            return measured.width <= area[0] and (area[1] is None or measured.height <= area[1])
+            extent = _estimate(
+                text,
+                path,
+                size_px,
+                max_width=wrap,
+                interline=interline,
+                stroke_width=stroke_width,
+                keep_tashkeel=keep_tashkeel,
+            )
+            return extent[0] <= area[0] and (area[1] is None or extent[1] <= area[1])
 
-        font_size = _largest_size(fits, high=width)
+        low = smallest_spaced_size(
+            path, (1, width), line_spacing=1.0, spacing=interline, stroke_width=stroke_width
+        )
+        font_size = largest_size(fits, (low, width))
     measured = measure(font_size)
     area_width = width if width is not None else max(1, measured.width)
     area_height = height if height is not None else measured.height
+    if measured.width > area_width or measured.height > area_height:
+        warnings.warn(
+            f"text does not fit in {area_width}x{area_height} at {font_size}px; "
+            "anything outside is cut off",
+            TextOverflowWarning,
+            stacklevel=2,
+        )
 
     mode = "RGBA" if transparent else "RGB"
     image = Image.new(
