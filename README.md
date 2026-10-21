@@ -6,7 +6,24 @@
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](pyproject.toml)
 [![Fonts: OFL](https://img.shields.io/badge/fonts-SIL%20OFL%201.1-lightgrey.svg)](khatt/fonts/LICENSES/)
 
-**Render Arabic text as ASCII/Unicode-block art — the Arabic FIGlet that FIGlet can't be.**
+**Correct Arabic text for Python — on images, in videos and in the terminal.**
+Joined letters, right-to-left order and vowel marks in place, the same on Windows,
+macOS and Linux, with no system libraries.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/DrEssam97/khatt/main/docs/assets/khatt-promo.gif" width="380"
+       alt="Pillow draws «مرحبا بالعالم» broken and reversed; khatt draws it joined and vocalized, then braille art of «خط» in a terminal, Arabic video subtitles, and pip install khatt">
+</p>
+
+Try it without installing anything:
+
+```bash
+uvx khatt "مرحبا"
+```
+
+Or install it: `pip install khatt` (add `[video]` for moviepy subtitles).
+
+It started as **the Arabic FIGlet that FIGlet can't be**, Arabic as Unicode art in the terminal:
 
 ```text
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣾⡄
