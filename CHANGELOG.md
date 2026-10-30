@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-30
+
+### Added
+
+- Fallback fonts: `fallback_fonts=[...]` on `render`, `render_image`,
+  `draw_text`, `text_bbox`, `overlay`, `caption_image`,
+  `khatt.video.TextClip` and `missing_characters`. A character the font has
+  no glyph for is drawn from the first fallback that has one, instead of
+  being skipped, so Arabic mixed with Chinese, Hebrew or Cyrillic keeps
+  every script. Marks stay in their base letter's font, spaces and
+  punctuation in the font of the text before them, and line spacing and
+  anchors follow `font`. Text the font covers draws exactly as before.
+
 ## [0.3.0] - 2026-10-20
 
 ### Added
@@ -181,7 +194,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   83-test suite at ≥85% enforced coverage on a 3.10–3.13 × Ubuntu/Windows
   CI matrix.
 
-[Unreleased]: https://github.com/DrEssam97/khatt/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/DrEssam97/khatt/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/DrEssam97/khatt/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/DrEssam97/khatt/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/DrEssam97/khatt/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/DrEssam97/khatt/releases/tag/v0.1.0

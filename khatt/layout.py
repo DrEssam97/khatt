@@ -22,7 +22,7 @@ per em, wraps to a width in pixels, and keeps its baselines evenly spaced
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -93,10 +93,22 @@ class _Lines:
 
 
 def _ink_width(
-    text: str, path: Path, direction: str, keep_tashkeel: bool, ppem: int | None = None
+    text: str,
+    path: Path,
+    direction: str,
+    keep_tashkeel: bool,
+    ppem: int | None = None,
+    fallbacks: Sequence[Path] = (),
 ) -> int:
     """Ink width in render pixels, or estimated at ``ppem`` for drawing on images."""
-    glyphs = shape(text, path, keep_tashkeel=keep_tashkeel, direction=direction, warn=False)
+    glyphs = shape(
+        text,
+        path,
+        keep_tashkeel=keep_tashkeel,
+        direction=direction,
+        warn=False,
+        fallback_fonts=fallbacks,
+    )
     box = measure(glyphs, path) if ppem is None else estimate(glyphs, path, ppem=ppem)
     return 0 if box is None else box[2] - box[0]
 
@@ -108,11 +120,13 @@ def _shape_lines(
     max_width: float | None = None,
     ppem: int | None = None,
     warn: bool = True,
+    fallbacks: Sequence[Path] = (),
 ) -> _Lines:
     """Shape every paragraph, wrapping it to ``max_width`` pixels if given.
 
     Widths are measured in render pixels, or at ``ppem`` when given.
-    ``warn=False`` skips unsupported characters silently.
+    ``warn=False`` skips unsupported characters silently. ``fallbacks`` are
+    fonts for characters ``path`` has no glyph for.
     """
     lines = _Lines()
     for paragraph in paragraphs(text):
@@ -121,20 +135,30 @@ def _shape_lines(
         if max_width is not None:
 
             def fits(candidate: str, direction: str = direction, limit: float = max_width) -> bool:
-                return _ink_width(candidate, path, direction, keep_tashkeel, ppem) <= limit
+                width = _ink_width(candidate, path, direction, keep_tashkeel, ppem, fallbacks)
+                return width <= limit
 
             pieces = wrap(paragraph, fits)
         for piece in pieces:
             lines.add(
-                shape(piece, path, keep_tashkeel=keep_tashkeel, direction=direction, warn=warn),
+                shape(
+                    piece,
+                    path,
+                    keep_tashkeel=keep_tashkeel,
+                    direction=direction,
+                    warn=warn,
+                    fallback_fonts=fallbacks,
+                ),
                 direction,
             )
     return lines
 
 
-def _longest_word(text: str, path: Path, keep_tashkeel: bool) -> int:
+def _longest_word(
+    text: str, path: Path, keep_tashkeel: bool, fallbacks: Sequence[Path] = ()
+) -> int:
     widths = [
-        _ink_width(word, path, base_direction(paragraph), keep_tashkeel)
+        _ink_width(word, path, base_direction(paragraph), keep_tashkeel, None, fallbacks)
         for paragraph in paragraphs(text)
         for word in paragraph.split()
     ]
@@ -155,6 +179,7 @@ def render_grids(
     width: int | None,
     size: int | None,
     keep_tashkeel: bool,
+    fallbacks: Sequence[Path] = (),
 ) -> list[Image.Image]:
     """Lay out ``text`` and downsample it to character grid images, one per line.
 
@@ -166,7 +191,7 @@ def render_grids(
     if size is None:
         if width is None:
             raise ValueError("fit mode (size=None) needs a width")
-        lines = _shape_lines(text, path, keep_tashkeel)
+        lines = _shape_lines(text, path, keep_tashkeel, fallbacks=fallbacks)
         bands = compose_lines(lines.glyphs, path, align=lines.align, tight=True)
         if bands is None:
             return []
@@ -176,12 +201,12 @@ def render_grids(
     col_px = row_px * CELL_ASPECT
     max_width = None
     if width is not None:
-        longest = _longest_word(text, path, keep_tashkeel)
+        longest = _longest_word(text, path, keep_tashkeel, fallbacks)
         if longest > width * col_px:
             col_px = longest / width
             row_px = col_px / CELL_ASPECT
         max_width = width * col_px
-    lines = _shape_lines(text, path, keep_tashkeel, max_width)
+    lines = _shape_lines(text, path, keep_tashkeel, max_width, fallbacks=fallbacks)
     bands = compose_lines(lines.glyphs, path, align=lines.align, tight=True)
     if bands is None:
         return []
@@ -194,9 +219,11 @@ def render_grids(
     ]
 
 
-def render_ink(text: str, path: Path, *, keep_tashkeel: bool) -> Image.Image | None:
+def render_ink(
+    text: str, path: Path, *, keep_tashkeel: bool, fallbacks: Sequence[Path] = ()
+) -> Image.Image | None:
     """Render ``text`` at full resolution (no wrapping), white ink on black."""
-    lines = _shape_lines(text, path, keep_tashkeel)
+    lines = _shape_lines(text, path, keep_tashkeel, fallbacks=fallbacks)
     return compose(lines.glyphs, path, align=lines.align, line_gap=IMAGE_LINE_GAP)
 
 
@@ -272,6 +299,7 @@ def estimate_block(
     keep_tashkeel: bool,
     spacing: float | None = None,
     stroke_width: float = 0,
+    fallbacks: Sequence[Path] = (),
 ) -> tuple[Box, int] | None:
     """Ink box of :func:`layout_block`'s text, and its line count, without rendering.
 
@@ -282,7 +310,9 @@ def estimate_block(
     search over sizes doesn't repeat their warnings. ``None`` means there
     is nothing to draw.
     """
-    lines = _shape_lines(text, path, keep_tashkeel, max_width, ppem=size_px, warn=False)
+    lines = _shape_lines(
+        text, path, keep_tashkeel, max_width, ppem=size_px, warn=False, fallbacks=fallbacks
+    )
     pitch = line_pitch(
         path,
         size_px=size_px,
@@ -317,6 +347,7 @@ def measure_block(
     keep_tashkeel: bool,
     spacing: float | None = None,
     stroke_width: float = 0,
+    fallbacks: Sequence[Path] = (),
 ) -> tuple[int, int] | None:
     """Ink ``(width, height)`` of :func:`layout_block`'s output, without rendering.
 
@@ -331,6 +362,7 @@ def measure_block(
         keep_tashkeel=keep_tashkeel,
         spacing=spacing,
         stroke_width=stroke_width,
+        fallbacks=fallbacks,
     )
     if estimated is None:
         return None
@@ -397,6 +429,7 @@ def layout_block(
     width: int | None = None,
     stroke_width: float = 0,
     spacing: float | None = None,
+    fallbacks: Sequence[Path] = (),
 ) -> TextBlock | None:
     """Lay out and draw ``text`` at ``size_px`` pixels per em for an image.
 
@@ -406,10 +439,12 @@ def layout_block(
     ``"center"``; ``None``: by each paragraph's direction) within ``width``
     pixels or the widest line. ``stroke_width`` (pixels) also draws an
     outline stroke around the text (see :func:`khatt.raster.compose_block`).
+    Characters ``path`` has no glyph for are drawn from the first of
+    ``fallbacks`` that has one; line spacing still follows ``path``.
 
     Returns ``None`` when there is nothing to draw.
     """
-    lines = _shape_lines(text, path, keep_tashkeel, max_width, ppem=size_px)
+    lines = _shape_lines(text, path, keep_tashkeel, max_width, ppem=size_px, fallbacks=fallbacks)
     alignments = lines.align if align is None else [align] * len(lines.align)
     pitch = line_pitch(
         path,

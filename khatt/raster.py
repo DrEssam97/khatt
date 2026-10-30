@@ -175,6 +175,11 @@ def _outline_box(path: str, gid: int) -> tuple[int, int, int, int] | None:
         return box.xMin, box.yMin, box.xMax, box.yMax
 
 
+def _font(glyph: ShapedGlyph, path: str) -> str:
+    """The font file ``glyph`` is drawn from: its fallback font, or the line's."""
+    return glyph.font or path
+
+
 def _pen(
     glyphs: Sequence[ShapedGlyph], path: str, ppem: int, subpixel: bool
 ) -> list[tuple[ShapedGlyph, int, int, int]]:
@@ -184,10 +189,10 @@ def _pen(
     ``shift`` is the remaining horizontal fraction in 1/64 px, always 0
     unless ``subpixel``.
     """
-    scale = ppem / units_per_em(path)
     positions = []
     pen_x = 0.0
     for glyph in glyphs:
+        scale = ppem / units_per_em(_font(glyph, path))
         exact = pen_x + glyph.x_offset * scale
         if subpixel:
             x, phase = divmod(math.floor(exact * SUBPIXEL_STEPS + 0.5), SUBPIXEL_STEPS)
@@ -209,7 +214,7 @@ def _place(
     """Position each inked glyph bitmap (or its ``stroke``) relative to the pen origin."""
     placed: list[_Placed] = []
     for glyph, x, shift, y in _pen(glyphs, path, ppem, subpixel):
-        rendered = _glyph(path, glyph.gid, ppem, shift, stroke)
+        rendered = _glyph(_font(glyph, path), glyph.gid, ppem, shift, stroke)
         if rendered.image is not None:
             placed.append(_Placed(rendered.image, x + rendered.left, y - rendered.top))
     return placed
@@ -243,13 +248,13 @@ def estimate(glyphs: Sequence[ShapedGlyph], font_path: str | Path, *, ppem: int)
     each side. ``None`` means the line has no ink.
     """
     path = str(font_path)
-    scale = ppem / units_per_em(path)
     margin = 1 / 64  # FreeType scales outlines in 26.6 fixed point
     boxes = []
     for glyph, x, shift, y in _pen(glyphs, path, ppem, subpixel=True):
-        outline = _outline_box(path, glyph.gid)
+        outline = _outline_box(_font(glyph, path), glyph.gid)
         if outline is None:
             continue
+        scale = ppem / units_per_em(_font(glyph, path))
         x_min, y_min, x_max, y_max = outline
         boxes.append(
             (

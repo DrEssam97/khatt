@@ -236,7 +236,7 @@ has and warns about that double-shaping trap:
 
 ```text
 $ khatt --doctor
-khatt 0.3.0 (Python 3.13.15)
+khatt 0.4.0 (Python 3.13.15)
 Pillow 12.3.0: no Raqm, so ImageDraw.text cannot shape Arabic
 matplotlib: not installed
 arabic_reshaper: not installed
@@ -326,6 +326,17 @@ font = "brand/Tajawal-Bold.ttf"
 if khatt.missing_characters(text, font):  # e.g. ["ے", "ٹ"]
     font = "amiri"  # also covers Persian and Urdu letters
 ```
+
+Or keep your font and name fallbacks for what it can't draw. Every function that
+takes a `font` also takes `fallback_fonts`, tried in order for each character the
+font has no glyph for, such as Chinese inside an Arabic subtitle:
+
+```python
+khatt.draw_text(image, (40, 40), "مرحبا بالعالم 中文测试",
+                font="fonts/NotoSansSC-Regular.ttf", fallback_fonts=["noto-naskh"])
+```
+
+Arabic stays joined within its own font, and line spacing follows `font`.
 
 | Style | Ramp | Notes |
 |---|---|---|
