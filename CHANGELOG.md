@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-30
+
 ### Added
 
 - Fallback fonts: `fallback_fonts=[...]` on `render`, `render_image`,
@@ -192,7 +194,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   83-test suite at ≥85% enforced coverage on a 3.10–3.13 × Ubuntu/Windows
   CI matrix.
 
-[Unreleased]: https://github.com/DrEssam97/khatt/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/DrEssam97/khatt/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/DrEssam97/khatt/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/DrEssam97/khatt/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/DrEssam97/khatt/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/DrEssam97/khatt/releases/tag/v0.1.0
