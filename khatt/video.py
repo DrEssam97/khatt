@@ -40,7 +40,9 @@ class TextClip(ImageClip):
     * ``text_align`` defaults to ``None``: right-to-left paragraphs align
       right and left-to-right ones left;
     * ``filename`` is read as UTF-8 whatever the system locale;
-    * ``keep_tashkeel`` (keyword only) can strip Arabic diacritics.
+    * ``keep_tashkeel`` (keyword only) can strip Arabic diacritics;
+    * ``fallback_fonts`` (keyword only) are fonts for characters ``font``
+      has no glyph for (see :func:`khatt.caption.caption_image`).
 
     Like moviepy's, it sets ``text``, ``color`` and ``stroke_color``.
     """
@@ -66,6 +68,7 @@ class TextClip(ImageClip):
         duration: float | None = None,
         *,
         keep_tashkeel: bool = True,
+        fallback_fonts: Font | Sequence[Font] = (),
     ) -> None:
         if filename is not None:
             text = Path(filename).read_text(encoding="utf-8").rstrip()
@@ -88,6 +91,7 @@ class TextClip(ImageClip):
             interline=interline,
             transparent=transparent,
             keep_tashkeel=keep_tashkeel,
+            fallback_fonts=fallback_fonts,
         )
         # A writeable copy, as moviepy's: effects may edit frames in place.
         super().__init__(np.array(image), transparent=transparent, duration=duration)

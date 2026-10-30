@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Fallback fonts: `fallback_fonts=[...]` on `render`, `render_image`,
+  `draw_text`, `text_bbox`, `overlay`, `caption_image`,
+  `khatt.video.TextClip` and `missing_characters`. A character the font has
+  no glyph for is drawn from the first fallback that has one, instead of
+  being skipped, so Arabic mixed with Chinese, Hebrew or Cyrillic keeps
+  every script. Marks stay in their base letter's font, spaces and
+  punctuation in the font of the text before them, and line spacing and
+  anchors follow `font`. Text the font covers draws exactly as before.
+
 ## [0.3.0] - 2026-10-20
 
 ### Added

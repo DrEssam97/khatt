@@ -12,13 +12,15 @@ coverage onto character ramps, or composites it onto Pillow images.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from PIL import Image, ImageOps
 
 from khatt.art_image import art_to_image
 from khatt.caption import caption_image
 from khatt.doctor import doctor
 from khatt.draw import TextOverflowWarning, draw_text, overlay, text_bbox
-from khatt.fonts import Font, font_path
+from khatt.fonts import Font, font_path, font_paths
 from khatt.fonts import available_fonts as list_fonts
 from khatt.layout import DEFAULT_SIZE, paragraphs, render_grids, render_ink
 from khatt.mapper import available_styles as list_styles
@@ -56,6 +58,7 @@ def render(
     *,
     size: int | None = DEFAULT_SIZE,
     keep_tashkeel: bool = False,
+    fallback_fonts: Font | Sequence[Font] = (),
 ) -> str:
     """Render Arabic (or mixed-direction) text as text art.
 
@@ -77,6 +80,8 @@ def render(
             exactly ``width`` columns, without wrapping.
         keep_tashkeel: Keep Arabic diacritics instead of stripping them
             (they are usually illegible at character-grid resolution).
+        fallback_fonts: Fonts tried in order (bundled names or file paths)
+            for characters ``font`` has no glyph for.
 
     Returns:
         The rendered art, ``\\n``-separated, or an empty string when the
@@ -100,13 +105,18 @@ def render(
         width=width,
         size=size,
         keep_tashkeel=keep_tashkeel,
+        fallbacks=font_paths(fallback_fonts),
     )
     # One blank line between text lines keeps them apart in any font.
     return "\n\n".join(map_image(grid, resolved_style.name, threshold) for grid in grids)
 
 
 def render_image(
-    text: str, font: Font = "amiri", *, keep_tashkeel: bool = True
+    text: str,
+    font: Font = "amiri",
+    *,
+    keep_tashkeel: bool = True,
+    fallback_fonts: Font | Sequence[Font] = (),
 ) -> Image.Image | None:
     """Render text as a high-resolution grayscale image, black on white.
 
@@ -121,17 +131,27 @@ def render_image(
         keep_tashkeel: Keep Arabic diacritics (the default, unlike
             :func:`render`: images have the resolution to show them).
             Pass ``False`` to strip them.
+        fallback_fonts: Fonts for characters ``font`` has no glyph for, as
+            in :func:`render`.
 
     Returns:
         A Pillow image in mode ``"L"``, or ``None`` when the input contains
         nothing renderable. Unsupported characters are skipped with an
         :class:`UnsupportedCharacterWarning`.
     """
-    image = render_ink(text, font_path(font), keep_tashkeel=keep_tashkeel)
+    image = render_ink(
+        text, font_path(font), keep_tashkeel=keep_tashkeel, fallbacks=font_paths(fallback_fonts)
+    )
     return None if image is None else ImageOps.invert(image)
 
 
-def missing_characters(text: str, font: Font = "amiri", *, keep_tashkeel: bool = True) -> list[str]:
+def missing_characters(
+    text: str,
+    font: Font = "amiri",
+    *,
+    keep_tashkeel: bool = True,
+    fallback_fonts: Font | Sequence[Font] = (),
+) -> list[str]:
     """The characters of ``text`` that ``font`` has no glyph for.
 
     Check before drawing, e.g. to fall back to another font: khatt skips
@@ -147,15 +167,21 @@ def missing_characters(text: str, font: Font = "amiri", *, keep_tashkeel: bool =
         keep_tashkeel: Count Arabic diacritics, as drawing on images does by
             default. Pass ``False`` to match ``keep_tashkeel=False`` and
             :func:`render`, which strip them.
+        fallback_fonts: Fonts that draw what ``font`` cannot, as in
+            :func:`draw_text`: then only the characters none of them has
+            are missing.
 
     Returns:
         Each missing character once, in the order they first appear; an
         empty list when the font covers the whole text.
     """
-    path = font_path(font)
+    path, fallbacks = font_path(font), font_paths(fallback_fonts)
     if not keep_tashkeel:
         text = strip_tashkeel(text)
     missing = set().union(
-        *(_missing_in_line(line, path, direction=base_direction(line)) for line in paragraphs(text))
+        *(
+            _missing_in_line(line, path, direction=base_direction(line), fallback_fonts=fallbacks)
+            for line in paragraphs(text)
+        )
     )
     return [ch for ch in dict.fromkeys(text) if ch in missing]

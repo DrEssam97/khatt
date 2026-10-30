@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import io
 import os
+from collections.abc import Sequence
 from functools import lru_cache
 from pathlib import Path
 
@@ -78,6 +79,13 @@ def font_path(font: Font) -> Path:
     path = path.resolve()
     _check_font_file(str(path))
     return path
+
+
+def font_paths(fonts: Font | Sequence[Font]) -> tuple[Path, ...]:
+    """Resolve fallback fonts with :func:`font_path`; a single font is a list of one."""
+    if isinstance(fonts, (str, os.PathLike)):
+        fonts = [fonts]
+    return tuple(font_path(font) for font in fonts)
 
 
 def available_fonts() -> list[str]:

@@ -17,7 +17,7 @@ from pathlib import Path
 
 from PIL import Image, ImageChops, ImageColor
 
-from khatt.fonts import Font, font_path
+from khatt.fonts import Font, font_path, font_paths
 from khatt.layout import largest_size, layout_block, measure_block, smallest_spaced_size
 from khatt.raster import Block, Box
 
@@ -185,6 +185,7 @@ def _place_text(
     spacing: float | None,
     keep_tashkeel: bool,
     stroke_width: float,
+    fallback_fonts: Font | Sequence[Font],
 ) -> tuple[Block, tuple[int, int]] | None:
     """Lay out text as :func:`draw_text` draws it: the block, and where its mask's corner goes.
 
@@ -207,6 +208,7 @@ def _place_text(
         spacing=spacing,
         keep_tashkeel=keep_tashkeel,
         stroke_width=stroke_width,
+        fallbacks=font_paths(fallback_fonts),
     )
     if laid_out is None:
         return None
@@ -240,6 +242,7 @@ def draw_text(
     keep_tashkeel: bool = True,
     stroke_width: float = 0,
     stroke_fill: Fill | None = None,
+    fallback_fonts: Font | Sequence[Font] = (),
 ) -> Image.Image:
     """Draw shaped text onto ``image`` (in place) and return it.
 
@@ -282,6 +285,10 @@ def draw_text(
             move apart by twice the width, as in Pillow).
         stroke_fill: Outline colour, in the same formats as ``fill``;
             default: ``fill`` (which makes the text bolder).
+        fallback_fonts: Fonts tried in order (bundled names or file paths)
+            for characters ``font`` has no glyph for, such as a CJK font
+            for Chinese inside Arabic text. Line spacing and anchors still
+            follow ``font``.
 
     Returns:
         ``image``, drawn on. Characters the font does not cover are skipped
@@ -303,6 +310,7 @@ def draw_text(
         spacing=spacing,
         keep_tashkeel=keep_tashkeel,
         stroke_width=stroke_width,
+        fallback_fonts=fallback_fonts,
     )
     if placed is not None:
         _paint_text(image, *placed, color, stroke_color)
@@ -322,6 +330,7 @@ def text_bbox(
     spacing: float | None = None,
     keep_tashkeel: bool = True,
     stroke_width: float = 0,
+    fallback_fonts: Font | Sequence[Font] = (),
 ) -> Box:
     """The box :func:`draw_text` would draw ``text`` in, without drawing it.
 
@@ -347,6 +356,7 @@ def text_bbox(
         spacing=spacing,
         keep_tashkeel=keep_tashkeel,
         stroke_width=stroke_width,
+        fallback_fonts=fallback_fonts,
     )
     if placed is None:
         x, y = _round(xy[0]), _round(xy[1])
@@ -364,6 +374,7 @@ def _largest_fitting(
     keep_tashkeel: bool,
     spacing: float | None = None,
     stroke_width: float = 0,
+    fallbacks: Sequence[Path] = (),
 ) -> int:
     """The largest size in ``sizes`` whose wrapped text fits ``box``.
 
@@ -381,6 +392,7 @@ def _largest_fitting(
             keep_tashkeel=keep_tashkeel,
             spacing=spacing,
             stroke_width=stroke_width,
+            fallbacks=fallbacks,
         )
         return extent is None or (extent[0] <= width and extent[1] <= height)
 
@@ -413,6 +425,7 @@ def overlay(
     keep_tashkeel: bool = True,
     stroke_width: float = 0,
     stroke_fill: Fill | None = None,
+    fallback_fonts: Font | Sequence[Font] = (),
 ) -> Image.Image:
     """Place shaped text inside ``box`` on ``image`` (in place) and return it.
 
@@ -446,6 +459,10 @@ def overlay(
             :func:`draw_text`. The outline counts as part of the text: it is
             fitted inside the padding too.
         stroke_fill: Outline colour; default: ``fill``.
+        fallback_fonts: Fonts tried in order (bundled names or file paths)
+            for characters ``font`` has no glyph for, such as a CJK font
+            for Chinese inside Arabic text. Line spacing and anchors still
+            follow ``font``.
 
     Returns:
         ``image``, drawn on. Nothing is ever drawn outside ``box``: text that
@@ -479,7 +496,7 @@ def overlay(
     size = inner_height if max_size_px is None else max_size_px
     line_spacing = _check_layout(size, line_spacing, spacing, align)
 
-    path = font_path(font)
+    path, fallbacks = font_path(font), font_paths(fallback_fonts)
     if fit == "shrink":
         if min_size_px > size:
             raise ValueError(f"min_size_px ({min_size_px}) is larger than the size ({size})")
@@ -492,6 +509,7 @@ def overlay(
             keep_tashkeel=keep_tashkeel,
             spacing=spacing,
             stroke_width=stroke_width,
+            fallbacks=fallbacks,
         )
     laid_out = layout_block(
         text,
@@ -504,6 +522,7 @@ def overlay(
         keep_tashkeel=keep_tashkeel,
         width=inner_width,
         stroke_width=stroke_width,
+        fallbacks=fallbacks,
     )
     if laid_out is None:
         return image

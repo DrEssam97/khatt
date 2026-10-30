@@ -32,7 +32,7 @@ from khatt.draw import (
     _paint_text,
     _rgba,
 )
-from khatt.fonts import Font, font_path
+from khatt.fonts import Font, font_path, font_paths
 from khatt.layout import (
     TextBlock,
     _ascender_px,
@@ -83,6 +83,7 @@ def _measure(
     interline: float,
     stroke_width: float,
     keep_tashkeel: bool,
+    fallbacks: Sequence[Path] = (),
 ) -> _Measured:
     laid_out = layout_block(
         text,
@@ -94,6 +95,7 @@ def _measure(
         spacing=interline,
         keep_tashkeel=keep_tashkeel,
         stroke_width=stroke_width,
+        fallbacks=fallbacks,
     )
     stroke = math.ceil(stroke_width)
     if laid_out is None:
@@ -115,6 +117,7 @@ def _estimate(
     interline: float,
     stroke_width: float,
     keep_tashkeel: bool,
+    fallbacks: Sequence[Path] = (),
 ) -> tuple[int, int]:
     """``(width, height)`` that :func:`_measure` would find, estimated without rendering.
 
@@ -133,6 +136,7 @@ def _estimate(
         keep_tashkeel=keep_tashkeel,
         spacing=interline,
         stroke_width=stroke_width,
+        fallbacks=fallbacks,
     )
     if estimated is None:
         return 0, descender - top
@@ -180,6 +184,7 @@ def caption_image(
     interline: float = 4,
     transparent: bool = True,
     keep_tashkeel: bool = True,
+    fallback_fonts: Font | Sequence[Font] = (),
 ) -> Image.Image:
     """Draw ``text`` as moviepy's ``TextClip`` would show it, shaped by khatt.
 
@@ -217,6 +222,10 @@ def caption_image(
             :func:`khatt.draw_text`).
         transparent: RGBA image (``True``) or RGB.
         keep_tashkeel: Keep Arabic diacritics (``False`` strips them).
+        fallback_fonts: Fonts tried in order (bundled names or file paths)
+            for characters ``font`` has no glyph for, such as a CJK font
+            for Chinese inside Arabic text. Line spacing and anchors still
+            follow ``font``.
 
     Returns:
         An RGBA image (RGB when ``transparent`` is ``False``). Characters
@@ -244,6 +253,7 @@ def caption_image(
     stroke_rgba = color_rgba if stroke_color is None else _rgba(stroke_color)
     background = _rgba(bg_color) if bg_color is not None else (0, 0, 0, 0 if transparent else 255)
     path = font_path("amiri" if font is None else font)
+    fallbacks = font_paths(fallback_fonts)
 
     wrap: int | None = None
     if method == "caption":
@@ -264,6 +274,7 @@ def caption_image(
             interline=interline,
             stroke_width=stroke_width,
             keep_tashkeel=keep_tashkeel,
+            fallbacks=fallbacks,
         )
 
     if font_size is None:
@@ -280,6 +291,7 @@ def caption_image(
                 interline=interline,
                 stroke_width=stroke_width,
                 keep_tashkeel=keep_tashkeel,
+                fallbacks=fallbacks,
             )
             return extent[0] <= area[0] and (area[1] is None or extent[1] <= area[1])
 

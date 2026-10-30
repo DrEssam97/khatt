@@ -75,6 +75,13 @@ def test_needs_text() -> None:
         TextClip(font_size=40)
 
 
+def test_passes_fallback_fonts_to_the_caption_image() -> None:
+    text = "مرحبا Жук"
+    clip = TextClip(text=text, font="amiri", font_size=40, fallback_fonts=["rubik"])
+    image = khatt.caption_image(text, font="amiri", font_size=40, fallback_fonts=["rubik"])
+    assert np.array_equal(clip.get_frame(0), np.asarray(image)[:, :, :3])
+
+
 def test_composites_into_a_video() -> None:
     background = moviepy.ColorClip((640, 360), color=(30, 30, 30), duration=1)
     caption = (

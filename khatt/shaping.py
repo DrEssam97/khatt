@@ -16,7 +16,8 @@ from __future__ import annotations
 
 import unicodedata
 import warnings
-from dataclasses import dataclass
+from collections.abc import Sequence
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import Path
 
@@ -65,6 +66,9 @@ class ShapedGlyph:
     y_advance: int
     x_offset: int
     y_offset: int
+    font: str | None = None
+    """The fallback font file the glyph comes from, or ``None`` for the line's
+    own font. The glyph's distances are in that font's units."""
 
 
 def strip_tashkeel(text: str) -> str:
@@ -203,6 +207,70 @@ def _shape_segment(
     return glyphs, missing
 
 
+def _font_runs(segment: str, fonts: Sequence[hb.Font]) -> list[tuple[int, int, int]]:
+    """Split a segment into ``(start, end, font index)`` runs, in logical order.
+
+    A letter or digit takes the first font that has a glyph for it. Other
+    characters stay in the previous character's font: marks and format
+    characters (ZWJ, variation selectors) always, so they are shaped with
+    their base; spaces, punctuation and symbols when that font has them.
+    Characters no font has stay in the first font, which reports them.
+    """
+    choices: list[int] = []
+    for ch in segment:
+        category = unicodedata.category(ch)[0]
+        has = [font.get_nominal_glyph(ord(ch)) is not None for font in fonts]
+        previous = choices[-1] if choices else None
+        if previous is not None and (category in "MC" or (category not in "LN" and has[previous])):
+            choices.append(previous)
+        else:
+            choices.append(has.index(True) if any(has) else 0)
+    runs: list[tuple[int, int, int]] = []
+    start = 0
+    for i in range(1, len(segment) + 1):
+        if i == len(segment) or choices[i] != choices[start]:
+            runs.append((start, i, choices[start]))
+            start = i
+    return runs
+
+
+def _shape_line(
+    text: str,
+    font_path: str | Path,
+    direction: str | None,
+    fallback_fonts: Sequence[str | Path],
+) -> tuple[list[ShapedGlyph], list[str]]:
+    """Shape one line with fallbacks: its glyphs, and the characters no font has."""
+    fonts = [_load_font(str(path)) for path in (font_path, *fallback_fonts)]
+    paths = [None, *(str(path) for path in fallback_fonts)]
+    glyphs: list[ShapedGlyph] = []
+    missing: list[str] = []
+    for segment, segment_direction in _visual_segments(text, direction):
+        shaped, absent = _shape_segment(fonts[0], segment, segment_direction)
+        runs = _font_runs(segment, fonts) if absent and len(fonts) > 1 else []
+        if any(index for _, _, index in runs):
+            # Shape each run with its own font; a segment the first font
+            # covers stays one run, exactly as without fallbacks.
+            pieces, absent = [], []
+            for start, end, index in runs:
+                run_glyphs, run_absent = _shape_segment(
+                    fonts[index], segment[start:end], segment_direction
+                )
+                pieces.append(
+                    [
+                        replace(glyph, cluster=glyph.cluster + start, font=paths[index])
+                        for glyph in run_glyphs
+                    ]
+                )
+                absent.extend(run_absent)
+            if segment_direction == "rtl":
+                pieces.reverse()  # runs are in logical order; glyphs go out visually
+            shaped = [glyph for piece in pieces for glyph in piece]
+        glyphs.extend(shaped)
+        missing.extend(absent)
+    return glyphs, missing
+
+
 def shape(
     text: str,
     font_path: str | Path,
@@ -210,6 +278,7 @@ def shape(
     keep_tashkeel: bool = False,
     direction: str | None = None,
     warn: bool = True,
+    fallback_fonts: Sequence[str | Path] = (),
 ) -> list[ShapedGlyph]:
     """Shape one line of ``text`` with the font at ``font_path``.
 
@@ -228,6 +297,9 @@ def shape(
 
     ``warn=False`` skips unsupported characters silently (used when shaping
     candidate lines just to measure them).
+
+    ``fallback_fonts`` are font files tried in order for characters the font
+    has no glyph for; their glyphs carry :attr:`ShapedGlyph.font`.
     """
     if direction is not None and direction not in _BIDI_BASE_DIR:
         raise ValueError(f"direction must be 'rtl' or 'ltr', got {direction!r}")
@@ -236,37 +308,32 @@ def shape(
     if not text:
         return []
 
-    font = _load_font(str(font_path))
-    glyphs: list[ShapedGlyph] = []
-    for segment, segment_direction in _visual_segments(text, direction):
-        shaped, missing = _shape_segment(font, segment, segment_direction)
-        glyphs.extend(shaped)
-        for offender in missing if warn else ():
-            warnings.warn(
-                f"character {offender!r} (U+{ord(offender):04X}) is not supported "
-                "by the selected font and was skipped",
-                UnsupportedCharacterWarning,
-                stacklevel=2,
-            )
+    glyphs, missing = _shape_line(text, font_path, direction, fallback_fonts)
+    for offender in missing if warn else ():
+        warnings.warn(
+            f"character {offender!r} (U+{ord(offender):04X}) is not supported "
+            "by the selected font and was skipped",
+            UnsupportedCharacterWarning,
+            stacklevel=2,
+        )
     return glyphs
 
 
 def missing_characters(
-    text: str, font_path: str | Path, *, direction: str | None = None
+    text: str,
+    font_path: str | Path,
+    *,
+    direction: str | None = None,
+    fallback_fonts: Sequence[str | Path] = (),
 ) -> set[str]:
     """Characters of one line of ``text`` that shaping with the font leaves out.
 
     These are the characters :func:`shape` skips with an
-    :class:`UnsupportedCharacterWarning` (given the same ``direction``).
-    Characters the font can still show (composed or decomposed by HarfBuzz)
-    and invisible ones such as ZWJ are not missing.
+    :class:`UnsupportedCharacterWarning` (given the same ``direction`` and
+    ``fallback_fonts``). Characters the font can still show (composed or
+    decomposed by HarfBuzz) and invisible ones such as ZWJ are not missing.
     """
-    font = _load_font(str(font_path))
-    return {
-        offender
-        for segment, segment_direction in _visual_segments(text, direction)
-        for offender in _shape_segment(font, segment, segment_direction)[1]
-    }
+    return set(_shape_line(text, font_path, direction, fallback_fonts)[1])
 
 
 def units_per_em(font_path: str | Path) -> int:
