@@ -23,6 +23,8 @@ uvx khatt "مرحبا"
 
 Or install it: `pip install khatt` (add `[video]` for moviepy subtitles).
 
+**Used by** [MoneyPrinterTurbo](https://github.com/harry0703/MoneyPrinterTurbo) to draw Arabic subtitles in the videos it generates.
+
 It started as **the Arabic FIGlet that FIGlet can't be**, Arabic as Unicode art in the terminal:
 
 ```text
