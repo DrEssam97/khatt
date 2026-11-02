@@ -6,6 +6,7 @@
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](pyproject.toml)
 [![Fonts: OFL](https://img.shields.io/badge/fonts-SIL%20OFL%201.1-lightgrey.svg)](khatt/fonts/LICENSES/)
 [![Total downloads](https://api.pepy.tech/badge/khatt)](https://pepy.tech/projects/khatt)
+
 **Correct Arabic text for Python — on images, in videos and in the terminal.**
 Joined letters, right-to-left order and vowel marks in place, the same on Windows,
 macOS and Linux, with no system libraries.
