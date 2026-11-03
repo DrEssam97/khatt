@@ -1,19 +1,22 @@
 [project]
 name = "khatt"
 version = "0.4.0"
-description = "Render Arabic text as ASCII/Unicode-block art — the Arabic FIGlet"
+description = "Correct Arabic text for Python: on images, in video subtitles and as terminal art, with no system libraries"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "Mohammed Essam", email = "mohammedessam613@gmail.com" }]
 requires-python = ">=3.10"
 keywords = [
     "arabic",
+    "rtl",
+    "text-rendering",
+    "text-shaping",
+    "harfbuzz",
+    "pillow",
+    "moviepy",
+    "subtitles",
     "ascii-art",
     "figlet",
-    "rtl",
-    "harfbuzz",
-    "text-art",
-    "unicode",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -28,7 +31,10 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Artistic Software",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Multimedia :: Video",
     "Topic :: Text Processing :: Fonts",
+    "Typing :: Typed",
 ]
 dependencies = [
     "freetype-py>=2.5.1",
@@ -48,9 +54,6 @@ Issues = "https://github.com/DrEssam97/khatt/issues"
 Changelog = "https://github.com/DrEssam97/khatt/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
-app = [
-    "gradio>=6.20.0",
-]
 video = [
     "moviepy>=2.2.1",
 ]
@@ -116,7 +119,7 @@ extend-immutable-calls = ["typer.Argument", "typer.Option"]
 
 [tool.mypy]
 # No python_version pin: numpy (a transitive dependency of the optional
-# gradio extra) ships stubs using py3.12+ `type` statements that hard-fail
+# video extra) ships stubs using py3.12+ `type` statements that hard-fail
 # mypy's py3.10 mode via Pillow's TYPE_CHECKING imports. Compatibility with
 # Python 3.10 is guarded by the CI test matrix instead.
 ignore_missing_imports = true

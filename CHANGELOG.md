@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- The Gradio demo app (`app.py`), its `app` extra and its deployment files
+  (`Dockerfile`, `render.yaml`, `requirements.txt`). khatt is a library and a
+  CLI; `uvx khatt "مرحبا"` is the quickest way to try it.
+
 ## [0.4.0] - 2026-10-30
 
 ### Added

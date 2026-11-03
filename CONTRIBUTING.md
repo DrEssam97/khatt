@@ -7,7 +7,7 @@ it that way.
 
 ```bash
 git clone https://github.com/DrEssam97/khatt.git && cd khatt
-uv sync --extra app       # runtime + dev + gradio
+uv sync                   # runtime + dev tools
 uv run pre-commit install
 ```
 
@@ -55,8 +55,8 @@ Bundled fonts must be OFL-licensed, with the complete license text added under
 hooks — license texts stay verbatim). Register new fonts in
 `khatt/fonts/__init__.py`.
 
-## Scope
+## Proposing features
 
-v0.1.x is Engine A (rasterize-then-map) only. Hand-drawn FIGlet-style connected
-Arabic fonts (Engine B), ANSI color, animation, and image-to-ASCII are out of scope —
-see [ROADMAP.md](ROADMAP.md) before proposing features.
+khatt shapes text with HarfBuzz and draws it with FreeType, for images, video and
+terminal art. Please [open an issue](https://github.com/DrEssam97/khatt/issues) to
+discuss a new feature before writing it, so we can agree on the API first.
