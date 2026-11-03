@@ -1,6 +1,6 @@
 # Contributing to Khatt
 
-Thanks for helping! This is a small project with strict hygiene — the rules below keep
+Thanks for helping! This is a small project with strict hygiene, and the rules below keep
 it that way.
 
 ## Setup
@@ -15,8 +15,8 @@ The `video` extra (moviepy) needs an older Pillow, so it has its own
 environment: `uv sync --extra video --no-group latest-pillow`, then
 `uv run --no-sync pytest` (plain `uv run` would sync back).
 
-Python 3.10–3.13 are supported; local development is pinned to 3.13 via
-`.python-version`. Everything runs through [uv](https://docs.astral.sh/uv/) — there is
+Python 3.10 to 3.13 are supported; local development is pinned to 3.13 via
+`.python-version`. Everything runs through [uv](https://docs.astral.sh/uv/): there is
 no `requirements-dev.txt` and no manual venv management.
 
 ## Workflow
@@ -38,11 +38,11 @@ no `requirements-dev.txt` and no manual venv management.
 ## Tests
 
 Write tests **with** the feature, not after. Shaping assertions are glyph-ID
-relational (the bundled font builds have no `post` name table) — see
+relational (the bundled font builds have no `post` name table); see
 `tests/test_shaping.py` for the pattern.
 
 If you intentionally change rendering output, regenerate the golden snapshots and
-commit the resulting diff — reviewers judge the art change from it:
+commit the resulting diff, so reviewers can judge the art change from it:
 
 ```bash
 uv run pytest --update-golden
@@ -52,7 +52,7 @@ uv run pytest --update-golden
 
 Bundled fonts must be OFL-licensed, with the complete license text added under
 `khatt/fonts/LICENSES/` (that directory is excluded from whitespace-normalization
-hooks — license texts stay verbatim). Register new fonts in
+hooks, so license texts stay verbatim). Register new fonts in
 `khatt/fonts/__init__.py`.
 
 ## Proposing features

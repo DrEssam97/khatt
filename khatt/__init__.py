@@ -1,4 +1,4 @@
-"""Khatt (خَطّ) — render Arabic text as ASCII/Unicode-block art and onto images.
+"""Khatt (خَطّ): render Arabic text as ASCII/Unicode-block art and onto images.
 
 FIGlet-style per-character fonts cannot express Arabic contextual shaping,
 mandatory ligatures or right-to-left layout, so khatt shapes text with

@@ -129,13 +129,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Breaking — default sizing.** Text now renders at a fixed font size
+- **Breaking: default sizing.** Text now renders at a fixed font size
   (`size`, in character rows per em, default 10) and wraps at spaces to fit
   `width`, like FIGlet. Before, `width` always stretched the whole text to
   fill it, so a short word came out huge and a sentence came out unreadably
   flat. Pass `size=None` (CLI: `--fit`) for the old behaviour; for single-line
   text its output is byte-identical to 0.1.0.
-- **Breaking — PNG output.** The CLI's `--output x.png` now saves the art
+- **Breaking: PNG output.** The CLI's `--output x.png` now saves the art
   itself as an image, in the chosen `--style`, with `--fg` / `--bg` colours
   (`--bg none` for transparent). `--png text` saves the plain high-resolution
   text instead, which was the only option in 0.1.0.
@@ -179,7 +179,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Engine A — rasterize-then-map rendering pipeline**: HarfBuzz shaping
+- **Engine A, the rasterize-then-map rendering pipeline**: HarfBuzz shaping
   (`uharfbuzz` + `python-bidi`) → FreeType rasterization (`freetype-py`) →
   density mapping to character ramps.
 - Correct Arabic shaping: positional forms, the mandatory لا ligature, mixed
@@ -197,7 +197,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Single-file Gradio app (`app.py`) with live preview, deployable unchanged
   to a Hugging Face Space (`[app]` extra).
 - Golden-file snapshot tests with a `pytest --update-golden` refresh flow;
-  83-test suite at ≥85% enforced coverage on a 3.10–3.13 × Ubuntu/Windows
+  83-test suite at ≥85% enforced coverage on a 3.10 to 3.13 × Ubuntu/Windows
   CI matrix.
 
 [Unreleased]: https://github.com/DrEssam97/khatt/compare/v0.4.0...HEAD
