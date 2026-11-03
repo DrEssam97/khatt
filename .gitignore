@@ -24,7 +24,3 @@ htmlcov/
 *.swp
 Thumbs.db
 .DS_Store
-
-# Gradio
-.gradio/
-flagged/

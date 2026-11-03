@@ -22,75 +22,32 @@ Try it without installing anything:
 uvx khatt "مرحبا"
 ```
 
-Or install it: `pip install khatt` (add `[video]` for moviepy subtitles).
+Or [install it](#install) with `pip install khatt`.
 
 **Used by** [MoneyPrinterTurbo](https://github.com/harry0703/MoneyPrinterTurbo) to draw Arabic subtitles in the videos it generates.
 
-It started as **the Arabic FIGlet that FIGlet can't be**, Arabic as Unicode art in the terminal:
+## Features
 
-```text
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣾⡄
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢺⣿⣿⣄
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⠟
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⣿⣿
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⣿⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣤⣄⡀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣾⣿⣿⣿⡗
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠛⢿⣿⠟
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⣿⣇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⣀⣠⣄⣀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⡏⠀⠀⠀⠀⣀⣤⣶⣿⣿⣿⣿⣿⣷⡄⠀⠀⠀⠀⣠⣶⣿⣿⣷⣶⣤⣄⣀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠇⠀⣀⣴⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀⠀⢠⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⣦⣤⣀⣀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣤⣾⣿⠟⠋⠉⠀⠀⠀⠀⠙⢿⣿⣿⡟⠀⠀⠘⠉⠉⠉⠉⠉⠉⠙⠛⠿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣶⣶⣶⣶⣶⡶
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⣿⠟⠋⠀⠀⠀⠀⠀⠀⣀⣠⣤⣶⣿⡿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣤⣽⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠁
-⣀⣀⣀⣀⡀⠀⣀⣀⣀⣴⣿⣿⣥⣤⣤⣤⣴⣶⣶⣿⣿⣿⣿⣿⣿⣋⣀⡀⠀⠀⣀⣀⣀⣀⣤⣤⣶⣾⣿⣿⣿⡿⠿⠛⠋⠉⠁⠀⠀⠀⠀⠀⠀⠈
-⠈⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠟⠋⠉
-⠀⠀⠙⠿⢿⣿⣿⣿⣿⣿⣿⣿⣿⠿⠿⠿⠿⠿⠛⠛⠉⠛⠛⠻⠿⠿⠿⠿⠿⠿⠿⠿⠟⠛⠉⠁
-```
-
-*(that's «خط» — "khatt", meaning line/script/calligraphy — Amiri font, `braille` style)*
-
-```text
-                              -%+.
-       :@.           =:       *+--  =@   *#                       =@
-       -@.           +:        +=   =@   #%                       +@
-   %+  -@.   =%   =**+***:     @#   =@   *%       -*****%+   -%.  +@
-   @*  -@.   +@         +@.    %*   =@   *%      -@-    @*   -@.  +@
-   @+  -@.   +@         .@-    %*   =@   *%      +@     @*   -@.  +@
-   @+  -@.   +@         :@-    %#   =@   #%      :@-    @*   -@.  +@
-   @*  :%****##**********%: +**%#***#%   +#       -*****%#**+*%   =%
-  .@=        :-                                             :- -.
-+*%+         -*                                             =+ *:
-```
-
-*(«ايه الأخبار» — "What's the news?" — Cairo font, `ascii` style)*
-
-## Why FIGlet can't do this
-
-FIGlet fonts map **one character to one fixed glyph**. Arabic doesn't work that way:
-
-- Every letter has up to four **positional forms** (isolated / initial / medial / final).
-- Some letter pairs form **mandatory ligatures** — ل + ا must become لا.
-- The script is **cursive**: letters connect, and the connections carry the word's shape.
-- Text runs **right-to-left**, and real text mixes RTL words with LTR numbers and names.
-
-Khatt sidesteps glyph tables entirely with a **rasterize-then-map** pipeline:
-
-```
-text ──► HarfBuzz shaping ──► FreeType rasterization ──► density mapping ──► art
-         (positional forms,    (real Arabic fonts,        (blocks / ascii /
-          ligatures, bidi)      hi-res grayscale)          braille ramps)
-```
-
-The result is genuine calligraphic letterforms — from real fonts — approximated in
-terminal characters.
+- **Draw on images.** `khatt.draw_text` is a drop-in for Pillow's `ImageDraw.text`, with
+  wrapping, alignment, outlines and translucent fills. `khatt.overlay` fits text into a
+  box and `khatt.text_bbox` measures it.
+- **Video captions.** `khatt.video.TextClip` is a drop-in for moviepy's `TextClip`.
+- **Terminal art.** Render Arabic as `blocks`, `ascii` or `braille` art, the Arabic
+  FIGlet, from Python or the `khatt` command.
+- **Any font.** Four bundled OFL fonts, or your own `.ttf`/`.otf`, with fallback fonts
+  for characters it has no glyph for.
+- **The same output everywhere.** khatt shapes text itself with HarfBuzz and draws it
+  with FreeType, so it doesn't depend on Raqm, FriBiDi or any other system library, and
+  it never shapes text twice. `khatt --doctor` shows what your environment has.
 
 ## Install
 
 ```bash
-pip install khatt        # or: uv add khatt
-pip install "khatt[video]"   # + moviepy captions (khatt.video)
+pip install khatt            # or: uv add khatt
+pip install "khatt[video]"   # adds moviepy, for khatt.video captions
 ```
+
+khatt supports Python 3.10 to 3.13 on Windows, macOS and Linux.
 
 From source:
 
@@ -99,77 +56,7 @@ git clone https://github.com/DrEssam97/khatt.git && cd khatt
 uv sync
 ```
 
-## Quickstart
-
-### Python API
-
-```python
-import khatt
-
-print(khatt.render("مرحبا"))                          # blocks style, size 10
-print(khatt.render("خط", style="braille", size=16))   # bigger, high effective resolution
-print(khatt.render("القاهرة", font="cairo", style="ascii", threshold=0.4))
-print(khatt.render("السلام عليكم ورحمة الله", width=60))  # wraps at 60 columns
-print(khatt.render("مرحبا\nKhatt 2026", font="rubik"))    # one art line per text line
-
-art = khatt.render("مرحبا", style="braille")
-khatt.art_to_image(art, fg="white", bg="#1e1e2e").save("art.png")  # the art as a picture
-
-image = khatt.render_image("مرحبا\nKhatt 2026")  # the plain text: Pillow image, black on white
-image.save("khatt.png")
-
-khatt.list_fonts()   # ['amiri', 'cairo', 'noto-naskh', 'rubik']
-khatt.list_styles()  # ['ascii', 'blocks', 'braille']
-```
-
-### CLI
-
-```bash
-khatt "مرحبا"                          # render to the terminal
-khatt "خط" --style braille --size 16
-khatt "القاهرة" -f cairo -s ascii -t 0.4
-khatt "خط" -f ./MyFont.ttf             # any .ttf/.otf font file
-echo "سلام" | khatt                    # stdin
-printf 'سطر أول\nسطر ثاني' | khatt     # multi-line input
-khatt "خط" --output art.txt            # save the art
-khatt "خط" -s braille -o art.png       # save the art as an image
-khatt "خط" -s ascii -o art.png --fg "#e5e5e5" --bg "#1e1e2e"   # terminal colours
-khatt "خط" -o logo.png --bg none       # transparent background
-khatt "خط" -o khatt.png --png text     # the plain high-resolution text instead
-khatt --list-fonts
-khatt --list-styles
-khatt --doctor                         # which Arabic shapers are installed
-```
-
-Arabic diacritics (tashkeel) are stripped from text art by default — they're
-illegible at character-grid resolution. Pass `--keep-tashkeel` (API:
-`render(..., keep_tashkeel=True)`) to render them. Plain-text images
-(`--png text`, `render_image`) keep them by default, since they have the
-resolution to show them: pass `--strip-tashkeel` (API:
-`render_image(..., keep_tashkeel=False)`) to remove them.
-
-In art images, braille dots and shade blocks are drawn as shapes, so they stay
-crisp at any size; ascii characters are drawn in a bold sans font. Each
-character gets a cell twice as tall as it is wide (12 × 24 px by default;
-API: `cell_width=`), matching the terminal the art was sized for.
-
-### Sizing and wrapping
-
-Like FIGlet, letters have a fixed size and long text wraps:
-
-- `size` (`--size`) is the font size in character rows per em (default 10). It
-  gives the same on-screen height in every style; `braille` just packs 4× the
-  dots into it.
-- `width` (`--width`) is the maximum width. Lines wrap at spaces; a single
-  word that can't fit on its own shrinks the whole render until it does. The
-  CLI defaults to your terminal's width, the API to 80 columns; `width=None`
-  turns wrapping off.
-- Line breaks in the input start new lines. Right-to-left paragraphs are
-  right-aligned, left-to-right ones left-aligned.
-- `--fit` (API: `size=None`) is the 0.1.0 behaviour: scale each line to fill
-  exactly `width` columns, without wrapping.
-
-### Drawing on images
+## Drawing on images
 
 `khatt.draw_text` draws correctly shaped Arabic, mixed Arabic/Latin and Arabizi
 onto an existing Pillow image. It's a drop-in for `ImageDraw.text`, and
@@ -246,7 +133,7 @@ arabic_reshaper: not installed
 khatt shapes text itself: its output is the same in every case above.
 ```
 
-### Video captions (moviepy)
+## Video captions (moviepy)
 
 `khatt.video.TextClip` is a drop-in for moviepy's `TextClip`: same arguments,
 same order, same clip sizes, but the text is shaped by khatt. moviepy's own
@@ -284,14 +171,146 @@ video.write_videofile("caption.mp4", fps=24)
 - Without moviepy, `khatt.caption_image(text, ...)` takes the same arguments
   and returns the frame as a Pillow image, e.g. for ffmpeg overlays.
 
-### Gradio app
+## Terminal art
 
-```bash
-uv sync --extra app
-uv run python app.py
+khatt started as **the Arabic FIGlet that FIGlet can't be**: Arabic as Unicode art in the terminal.
+
+```text
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣾⡄
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢺⣿⣿⣄
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⠟
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⣿⣿
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⣿⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣤⣄⡀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣾⣿⣿⣿⡗
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠛⢿⣿⠟
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⣿⣇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⣀⣠⣄⣀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⡏⠀⠀⠀⠀⣀⣤⣶⣿⣿⣿⣿⣿⣷⡄⠀⠀⠀⠀⣠⣶⣿⣿⣷⣶⣤⣄⣀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⠇⠀⣀⣴⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠀⠀⢠⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⣦⣤⣀⣀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣤⣾⣿⠟⠋⠉⠀⠀⠀⠀⠙⢿⣿⣿⡟⠀⠀⠘⠉⠉⠉⠉⠉⠉⠙⠛⠿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣶⣶⣶⣶⣶⡶
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣴⣿⠟⠋⠀⠀⠀⠀⠀⠀⣀⣠⣤⣶⣿⡿⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣤⣽⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠁
+⣀⣀⣀⣀⡀⠀⣀⣀⣀⣴⣿⣿⣥⣤⣤⣤⣴⣶⣶⣿⣿⣿⣿⣿⣿⣋⣀⡀⠀⠀⣀⣀⣀⣀⣤⣤⣶⣾⣿⣿⣿⡿⠿⠛⠋⠉⠁⠀⠀⠀⠀⠀⠀⠈
+⠈⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠟⠋⠉
+⠀⠀⠙⠿⢿⣿⣿⣿⣿⣿⣿⣿⣿⠿⠿⠿⠿⠿⠛⠛⠉⠛⠛⠻⠿⠿⠿⠿⠿⠿⠿⠿⠟⠛⠉⠁
 ```
 
-## Bundled fonts and styles
+*(that's «خط» — "khatt", meaning line/script/calligraphy — Amiri font, `braille` style)*
+
+```text
+                              -%+.
+       :@.           =:       *+--  =@   *#                       =@
+       -@.           +:        +=   =@   #%                       +@
+   %+  -@.   =%   =**+***:     @#   =@   *%       -*****%+   -%.  +@
+   @*  -@.   +@         +@.    %*   =@   *%      -@-    @*   -@.  +@
+   @+  -@.   +@         .@-    %*   =@   *%      +@     @*   -@.  +@
+   @+  -@.   +@         :@-    %#   =@   #%      :@-    @*   -@.  +@
+   @*  :%****##**********%: +**%#***#%   +#       -*****%#**+*%   =%
+  .@=        :-                                             :- -.
++*%+         -*                                             =+ *:
+```
+
+*(«ايه الأخبار» — "What's the news?" — Cairo font, `ascii` style)*
+
+### Python API
+
+```python
+import khatt
+
+print(khatt.render("مرحبا"))                          # blocks style, size 10
+print(khatt.render("خط", style="braille", size=16))   # bigger, high effective resolution
+print(khatt.render("القاهرة", font="cairo", style="ascii", threshold=0.4))
+print(khatt.render("السلام عليكم ورحمة الله", width=60))  # wraps at 60 columns
+print(khatt.render("مرحبا\nKhatt 2026", font="rubik"))    # one art line per text line
+
+art = khatt.render("مرحبا", style="braille")
+khatt.art_to_image(art, fg="white", bg="#1e1e2e").save("art.png")  # the art as a picture
+
+image = khatt.render_image("مرحبا\nKhatt 2026")  # the plain text: Pillow image, black on white
+image.save("khatt.png")
+
+khatt.list_fonts()   # ['amiri', 'cairo', 'noto-naskh', 'rubik']
+khatt.list_styles()  # ['ascii', 'blocks', 'braille']
+```
+
+### CLI
+
+```bash
+khatt "مرحبا"                          # render to the terminal
+khatt "خط" --style braille --size 16
+khatt "القاهرة" -f cairo -s ascii -t 0.4
+khatt "خط" -f ./MyFont.ttf             # any .ttf/.otf font file
+echo "سلام" | khatt                    # stdin
+printf 'سطر أول\nسطر ثاني' | khatt     # multi-line input
+khatt "خط" --output art.txt            # save the art
+khatt "خط" -s braille -o art.png       # save the art as an image
+khatt "خط" -s ascii -o art.png --fg "#e5e5e5" --bg "#1e1e2e"   # terminal colours
+khatt "خط" -o logo.png --bg none       # transparent background
+khatt "خط" -o khatt.png --png text     # the plain high-resolution text instead
+khatt --list-fonts
+khatt --list-styles
+khatt --doctor                         # which Arabic shapers are installed
+```
+
+Arabic diacritics (tashkeel) are stripped from text art by default — they're
+illegible at character-grid resolution. Pass `--keep-tashkeel` (API:
+`render(..., keep_tashkeel=True)`) to render them. Plain-text images
+(`--png text`, `render_image`) keep them by default, since they have the
+resolution to show them: pass `--strip-tashkeel` (API:
+`render_image(..., keep_tashkeel=False)`) to remove them.
+
+In art images, braille dots and shade blocks are drawn as shapes, so they stay
+crisp at any size; ascii characters are drawn in a bold sans font. Each
+character gets a cell twice as tall as it is wide (12 × 24 px by default;
+API: `cell_width=`), matching the terminal the art was sized for.
+
+### Sizing and wrapping
+
+Like FIGlet, letters have a fixed size and long text wraps:
+
+- `size` (`--size`) is the font size in character rows per em (default 10). It
+  gives the same on-screen height in every style; `braille` just packs 4× the
+  dots into it.
+- `width` (`--width`) is the maximum width. Lines wrap at spaces; a single
+  word that can't fit on its own shrinks the whole render until it does. The
+  CLI defaults to your terminal's width, the API to 80 columns; `width=None`
+  turns wrapping off.
+- Line breaks in the input start new lines. Right-to-left paragraphs are
+  right-aligned, left-to-right ones left-aligned.
+- `--fit` (API: `size=None`) is the 0.1.0 behaviour: scale each line to fill
+  exactly `width` columns, without wrapping.
+
+### Styles
+
+| Style | Ramp | Notes |
+|---|---|---|
+| `blocks` | `░ ▒ ▓ █` | Default; reads well at any size |
+| `ascii` | `. : - = + * # % @` | Pure ASCII, maximum compatibility |
+| `braille` | `⠁ … ⣿` | 2×4 dots per cell — 8× the effective resolution |
+
+### Why FIGlet can't do this
+
+FIGlet fonts map **one character to one fixed glyph**. Arabic doesn't work that way:
+
+- Every letter has up to four **positional forms** (isolated / initial / medial / final).
+- Some letter pairs form **mandatory ligatures** — ل + ا must become لا.
+- The script is **cursive**: letters connect, and the connections carry the word's shape.
+- Text runs **right-to-left**, and real text mixes RTL words with LTR numbers and names.
+
+khatt sidesteps glyph tables entirely with a **rasterize-then-map** pipeline:
+
+```text
+text ──► HarfBuzz shaping ──► FreeType rasterization ──► density mapping ──► art
+         (positional forms,    (real Arabic fonts,        (blocks / ascii /
+          ligatures, bidi)      hi-res grayscale)          braille ramps)
+```
+
+The result is genuine calligraphic letterforms — from real fonts — approximated in
+terminal characters.
+
+## Fonts
+
+khatt bundles four Arabic fonts:
 
 | Font | Family | Character |
 |---|---|---|
@@ -341,17 +360,14 @@ khatt.draw_text(image, (40, 40), "مرحبا بالعالم 中文测试",
 
 Arabic stays joined within its own font, and line spacing follows `font`.
 
-| Style | Ramp | Notes |
-|---|---|---|
-| `blocks` | `░ ▒ ▓ █` | Default; reads well at any size |
-| `ascii` | `. : - = + * # % @` | Pure ASCII, maximum compatibility |
-| `braille` | `⠁ … ⣿` | 2×4 dots per cell — 8× the effective resolution |
+## Contributing
 
-## Deploy the app to a Hugging Face Space
+Bug reports, fixes and new features are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md)
+for the setup and checks, and open an [issue](https://github.com/DrEssam97/khatt/issues)
+before starting on a larger change.
 
-`app.py` follows the Spaces convention (single file at the repo root), so the whole
-repository deploys unchanged with one command:
+## License
 
-```bash
-uv run --extra app gradio deploy
-```
+khatt is released under the [MIT License](LICENSE). The bundled fonts are licensed
+under the SIL Open Font License 1.1; see [NOTICE](NOTICE) and
+[`khatt/fonts/LICENSES/`](khatt/fonts/LICENSES/).

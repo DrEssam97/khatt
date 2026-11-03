@@ -49,8 +49,8 @@ SUBPIXEL_STEPS = 4
 _LOAD_FLAGS = freetype.FT_LOAD_RENDER | freetype.FT_LOAD_NO_HINTING
 _IDENTITY = freetype.Matrix(0x10000, 0, 0, 0x10000)
 
-# A FreeType face is not thread-safe, and the cached faces are shared (the
-# Gradio app renders from worker threads).
+# A FreeType face is not thread-safe, and the cached faces are shared across
+# threads (web servers and video renderers draw text from worker threads).
 _FACE_LOCK = threading.Lock()
 
 Box = tuple[int, int, int, int]
