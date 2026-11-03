@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Brackets in right-to-left text now face the right way. `(مرحبا)` was drawn
+  as `)مرحبا(`, and `سيارة (أجرة)` with its closing bracket reversed, because
+  a bracket at the start or end of an Arabic or Hebrew line was laid out left
+  to right. It now takes the line's direction and is mirrored. Brackets in
+  left-to-right lines are unchanged.
+
 ### Removed
 
 - The Gradio demo app (`app.py`), its `app` extra and its deployment files

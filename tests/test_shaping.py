@@ -70,6 +70,19 @@ class TestBidi:
         i = shaped.index(one_two[0])
         assert shaped[i : i + 2] == one_two
 
+    @pytest.mark.parametrize("text", ["(مرحبا)", "سيارة (أجرة)", "שלום (עולם)"])
+    def test_brackets_in_rtl_text_are_mirrored(self, text: str) -> None:
+        # Right to left, the closing bracket is drawn at the visual left and the
+        # opening one further right, so they must look like "(" and ")".
+        shaped = [g.gid for g in shape(text, font_path("rubik"))]
+        opening, closing = (g.gid for g in shape("()", font_path("rubik")))
+        assert shaped.index(opening) < shaped.index(closing)
+
+    def test_brackets_in_ltr_text_with_arabic_keep_their_shape(self) -> None:
+        shaped = [g.gid for g in shape("Taxi (أجرة)", font_path("rubik"))]
+        opening, closing = (g.gid for g in shape("()", font_path("rubik")))
+        assert shaped.index(opening) < shaped.index(closing)
+
 
 class TestTashkeel:
     def test_stripped_by_default(self) -> None:
