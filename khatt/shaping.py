@@ -191,7 +191,7 @@ def _shape_segment(
     glyphs: list[ShapedGlyph] = []
     missing: list[str] = []
     for info, pos in zip(buf.glyph_infos, buf.glyph_positions, strict=True):
-        if info.codepoint == 0:  # .notdef — the font has no glyph for this
+        if info.codepoint == 0:  # .notdef: the font has no glyph for this
             missing.append(segment[info.cluster])
             continue
         glyphs.append(

@@ -16,7 +16,7 @@ whole-pixel rounding visibly misplaces joined Arabic letters.
 
 Determinism: hinting is disabled, pen positions are rounded identically
 everywhere, the freetype-py wheel bundles its own libfreetype, and font files
-are bundled — so output is byte-identical across platforms for a locked
+are bundled, so output is byte-identical across platforms for a locked
 dependency set (this is what makes the golden-file tests portable).
 """
 

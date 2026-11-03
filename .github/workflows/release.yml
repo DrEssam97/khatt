@@ -1,4 +1,4 @@
-# PyPI release via trusted publishing (OIDC — no API tokens).
+# PyPI release via trusted publishing (OIDC, no API tokens).
 #
 # Fires when a v* tag is pushed, or on a manual dispatch from the Actions tab.
 # Requires a trusted publisher to be configured for the khatt project on PyPI

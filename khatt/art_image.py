@@ -5,8 +5,8 @@ any size and match the terminal art exactly. Any other character (the
 ``ascii`` ramp) is drawn with a bundled font, centred in its cell and
 condensed to fit when it is wider than the cell.
 
-Cells are ``cell_width`` pixels wide and twice as tall — the terminal cell
-aspect khatt renders for — so the art keeps its proportions.
+Cells are ``cell_width`` pixels wide and twice as tall (the terminal cell
+aspect khatt renders for), so the art keeps its proportions.
 """
 
 from __future__ import annotations

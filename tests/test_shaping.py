@@ -43,7 +43,7 @@ class TestPositionalForms:
 
     def test_initial_and_medial_meem_differ(self) -> None:
         # محمد is visually (left to right): dal.fina, meem.medi, hah.medi,
-        # meem.init — the two meems must resolve to different glyphs.
+        # meem.init: the two meems must resolve to different glyphs.
         word = gids("محمد")
         assert word[1] != word[3]
 

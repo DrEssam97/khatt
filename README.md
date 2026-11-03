@@ -1,4 +1,4 @@
-# خَطّ — Khatt
+# Khatt (خَطّ)
 
 [![PyPI](https://img.shields.io/pypi/v/khatt.svg)](https://pypi.org/project/khatt/)
 [![CI](https://github.com/DrEssam97/khatt/actions/workflows/ci.yml/badge.svg)](https://github.com/DrEssam97/khatt/actions/workflows/ci.yml)
@@ -7,7 +7,7 @@
 [![Fonts: OFL](https://img.shields.io/badge/fonts-SIL%20OFL%201.1-lightgrey.svg)](khatt/fonts/LICENSES/)
 [![Total downloads](https://api.pepy.tech/badge/khatt)](https://pepy.tech/projects/khatt)
 
-**Correct Arabic text for Python — on images, in videos and in the terminal.**
+**Correct Arabic text for Python: on images, in videos and in the terminal.**
 Joined letters, right-to-left order and vowel marks in place, the same on Windows,
 macOS and Linux, with no system libraries.
 
@@ -195,7 +195,7 @@ khatt started as **the Arabic FIGlet that FIGlet can't be**: Arabic as Unicode a
 ⠀⠀⠙⠿⢿⣿⣿⣿⣿⣿⣿⣿⣿⠿⠿⠿⠿⠿⠛⠛⠉⠛⠛⠻⠿⠿⠿⠿⠿⠿⠿⠿⠟⠛⠉⠁
 ```
 
-*(that's «خط» — "khatt", meaning line/script/calligraphy — Amiri font, `braille` style)*
+*(«خط», "khatt": line, script or calligraphy. Amiri font, `braille` style.)*
 
 ```text
                               -%+.
@@ -210,7 +210,7 @@ khatt started as **the Arabic FIGlet that FIGlet can't be**: Arabic as Unicode a
 +*%+         -*                                             =+ *:
 ```
 
-*(«ايه الأخبار» — "What's the news?" — Cairo font, `ascii` style)*
+*(«ايه الأخبار», "What's the news?". Cairo font, `ascii` style.)*
 
 ### Python API
 
@@ -252,7 +252,7 @@ khatt --list-styles
 khatt --doctor                         # which Arabic shapers are installed
 ```
 
-Arabic diacritics (tashkeel) are stripped from text art by default — they're
+Arabic diacritics (tashkeel) are stripped from text art by default, since they're
 illegible at character-grid resolution. Pass `--keep-tashkeel` (API:
 `render(..., keep_tashkeel=True)`) to render them. Plain-text images
 (`--png text`, `render_image`) keep them by default, since they have the
@@ -286,14 +286,14 @@ Like FIGlet, letters have a fixed size and long text wraps:
 |---|---|---|
 | `blocks` | `░ ▒ ▓ █` | Default; reads well at any size |
 | `ascii` | `. : - = + * # % @` | Pure ASCII, maximum compatibility |
-| `braille` | `⠁ … ⣿` | 2×4 dots per cell — 8× the effective resolution |
+| `braille` | `⠁ … ⣿` | 2×4 dots per cell, 8× the effective resolution |
 
 ### Why FIGlet can't do this
 
 FIGlet fonts map **one character to one fixed glyph**. Arabic doesn't work that way:
 
 - Every letter has up to four **positional forms** (isolated / initial / medial / final).
-- Some letter pairs form **mandatory ligatures** — ل + ا must become لا.
+- Some letter pairs form **mandatory ligatures**: ل + ا must become لا.
 - The script is **cursive**: letters connect, and the connections carry the word's shape.
 - Text runs **right-to-left**, and real text mixes RTL words with LTR numbers and names.
 
@@ -305,7 +305,7 @@ text ──► HarfBuzz shaping ──► FreeType rasterization ──► densi
           ligatures, bidi)      hi-res grayscale)          braille ramps)
 ```
 
-The result is genuine calligraphic letterforms — from real fonts — approximated in
+The result is genuine calligraphic letterforms from real fonts, approximated in
 terminal characters.
 
 ## Fonts
