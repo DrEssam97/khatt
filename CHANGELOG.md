@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-03
+
 ### Fixed
 
 - Brackets in right-to-left text now face the right way. `(مرحبا)` was drawn
@@ -208,7 +210,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   83-test suite at ≥85% enforced coverage on a 3.10 to 3.13 × Ubuntu/Windows
   CI matrix.
 
-[Unreleased]: https://github.com/DrEssam97/khatt/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/DrEssam97/khatt/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/DrEssam97/khatt/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/DrEssam97/khatt/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/DrEssam97/khatt/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/DrEssam97/khatt/compare/v0.1.0...v0.2.0
