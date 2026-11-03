@@ -117,12 +117,15 @@ def variations(font_path: str | Path) -> dict[str, float]:
     return _regular_variations(_load_font(str(font_path)).face)
 
 
-def _classify(visual: str) -> list[str]:
+def _classify(visual: str, base: str = "ltr") -> list[str]:
     """Tag each character of the visual string as ``rtl``, ``ltr`` or ``neutral``.
 
     Combining marks (NSM) and neutrals are resolved afterwards: marks join the
-    directional segment of their neighbours, neutral runs flanked by RTL on
-    both sides join the RTL segment, everything else defaults to LTR.
+    directional segment of their neighbours. Neutrals between two characters of
+    the same direction take that direction, and the paragraph's ``base``
+    direction otherwise, also at the start and end of the line (Unicode bidi
+    rules N1 and N2). Neutrals in RTL segments are shaped right-to-left, so
+    HarfBuzz mirrors brackets there.
     """
     kinds: list[str] = []
     for ch in visual:
@@ -145,7 +148,8 @@ def _classify(visual: str) -> list[str]:
             if kind == "mark":
                 resolved.append("rtl" if "rtl" in (prev, nxt) else "ltr")
             else:
-                resolved.append("rtl" if prev == "rtl" and nxt == "rtl" else "ltr")
+                before, after = prev or base, nxt or base
+                resolved.append(before if before == after else base)
         else:
             resolved.append(kind)
     return resolved
@@ -155,7 +159,7 @@ def _visual_segments(text: str, direction: str | None = None) -> list[tuple[str,
     """Split text into ``(logical_segment, direction)`` pairs in visual order."""
     base_dir = _BIDI_BASE_DIR[direction] if direction is not None else None
     visual = get_display(text, base_dir=base_dir)
-    kinds = _classify(visual)
+    kinds = _classify(visual, direction or base_direction(text))
 
     segments: list[tuple[str, str]] = []
     start = 0
