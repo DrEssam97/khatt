@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Sizes can be NumPy numbers or floats, as they often are when worked out from
+  an image. `size_px` in `draw_text` and `text_bbox`, `max_size_px`,
+  `min_size_px` and `padding` in `overlay`, and `size` in `caption_image`
+  raised `ctypes.ArgumentError` from FreeType unless that size had been drawn
+  before, so the same call could work or fail depending on what came first.
+  `overlay` could also hang on a fractional `max_size_px`, or on a size in a
+  small NumPy type such as `uint8`. Sizes now round to whole pixels, and NaN or
+  infinity raises `ValueError`.
+
 ## [0.4.1] - 2026-11-03
 
 ### Fixed
