@@ -15,6 +15,7 @@ from PIL import Image, ImageChops, ImageDraw, ImageFont, features
 import khatt
 from khatt.caption import _measure
 from khatt.fonts import font_path
+from khatt.raster import _glyph, size_metrics
 
 Box = tuple[int, int, int, int]
 VOCALIZED = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ"
@@ -350,6 +351,37 @@ def test_video_without_moviepy_says_how_to_install_it(monkeypatch: pytest.Monkey
     monkeypatch.delitem(sys.modules, "khatt.video", raising=False)
     with pytest.raises(ImportError, match=r"khatt\[video\]"):
         importlib.import_module("khatt.video")
+
+
+class TestSizeTypes:
+    """An area worked out from an image arrives as NumPy numbers or floats."""
+
+    @pytest.fixture(autouse=True)
+    def cold_caches(self) -> None:
+        # A size already cached never reaches FreeType, which hid the crash.
+        _glyph.cache_clear()
+        size_metrics.cache_clear()
+
+    def pixels(self, size: tuple[Any, Any], method: str = "label") -> bytes:
+        return khatt.caption_image("مرحبا بالعالم", method=method, size=size).tobytes()
+
+    @pytest.mark.parametrize("method", ["label", "caption"])
+    @pytest.mark.parametrize("dtype", ["int64", "uint16", "float64"])
+    def test_numpy_numbers(self, method: str, dtype: str) -> None:
+        number = getattr(pytest.importorskip("numpy"), dtype)
+        assert self.pixels((number(300), number(100)), method) == self.pixels((300, 100), method)
+
+    @pytest.mark.parametrize("method", ["label", "caption"])
+    def test_fractions_round(self, method: str) -> None:
+        assert self.pixels((299.6, 100.4), method) == self.pixels((300, 100), method)
+
+    def test_width_alone(self) -> None:
+        assert self.pixels((300.0, None)) == self.pixels((300, None))
+
+    @pytest.mark.parametrize("size", [(float("nan"), 100), (300, float("inf"))])
+    def test_not_a_size(self, size: tuple[float, float]) -> None:
+        with pytest.raises(ValueError, match="number of pixels"):
+            self.pixels(size)
 
 
 class TestErrors:

@@ -30,6 +30,7 @@ from khatt.draw import (
     _extent,
     _is_number,
     _paint_text,
+    _pixels,
     _rgba,
 )
 from khatt.fonts import Font, font_path, font_paths
@@ -248,6 +249,8 @@ def caption_image(
     for name, value in (("width", width), ("height", height)):
         if value is not None and value < 1:
             raise ValueError(f"size: the {name} must be at least 1, got {value}")
+    width = None if width is None else _pixels("size: the width", width)
+    height = None if height is None else _pixels("size: the height", height)
     left, top, right, bottom = _margins(margin)
     color_rgba = _rgba(color)
     stroke_rgba = color_rgba if stroke_color is None else _rgba(stroke_color)

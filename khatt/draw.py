@@ -54,6 +54,17 @@ def _is_number(value: object) -> bool:
     return isinstance(value, numbers.Real) and math.isfinite(value)
 
 
+def _pixels(name: str, value: float) -> int:
+    """``value`` in whole pixels, as a plain ``int``.
+
+    Sizes worked out from an image are often NumPy numbers or floats. FreeType
+    takes only ``int``, and a small NumPy type wraps around in a size search.
+    """
+    if not _is_number(value):
+        raise ValueError(f"{name} must be a number of pixels, got {value!r}")
+    return _round(value)
+
+
 def _check_layout(
     size_px: int, line_spacing: float | None, spacing: float | None, align: str | None
 ) -> float:
@@ -193,6 +204,7 @@ def _place_text(
     """
     _check_stroke(stroke_width)
     line_spacing = _check_layout(size_px, line_spacing, spacing, align)
+    size_px = _pixels("size_px", size_px)
     if len(anchor) != 2 or anchor[0] not in "lmr" or anchor[1] not in "atmsbd":
         raise ValueError(f"anchor must be one of l/m/r followed by a/t/m/s/b/d, got {anchor!r}")
     if max_width is not None and max_width < 1:
@@ -257,7 +269,8 @@ def draw_text(
             text comes out in the correct visual order.
         font: A bundled font name (see :func:`khatt.list_fonts`) or the path
             to a .ttf/.otf font file.
-        size_px: Font size in pixels per em, as in ``ImageFont.truetype``.
+        size_px: Font size in pixels per em, as in ``ImageFont.truetype``,
+            rounded to a whole number.
         fill: Text colour: a name, ``#rrggbb[aa]``, or an RGB(A) tuple. Its
             alpha makes the text translucent.
         align: ``"left"``, ``"right"`` or ``"center"`` alignment of lines
@@ -480,6 +493,7 @@ def overlay(
         raise ValueError(f"valign must be one of {', '.join(_VALIGNS)}, got {valign!r}")
     if padding < 0:
         raise ValueError(f"padding must not be negative, got {padding}")
+    padding = _pixels("padding", padding)
     left, top, right, bottom = (_round(edge) for edge in box)
     inner = (left + padding, top + padding, right - padding, bottom - padding)
     # The text itself goes inside the padding minus the outline, which then
@@ -493,7 +507,8 @@ def overlay(
     for name, value in (("max_size_px", max_size_px), ("min_size_px", min_size_px)):
         if value is not None and value < 1:
             raise ValueError(f"{name} must be at least 1, got {value}")
-    size = inner_height if max_size_px is None else max_size_px
+    min_size_px = _pixels("min_size_px", min_size_px)
+    size = inner_height if max_size_px is None else _pixels("max_size_px", max_size_px)
     line_spacing = _check_layout(size, line_spacing, spacing, align)
 
     path, fallbacks = font_path(font), font_paths(fallback_fonts)

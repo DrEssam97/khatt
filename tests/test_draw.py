@@ -13,7 +13,7 @@ import khatt
 from khatt.draw import _largest_fitting
 from khatt.fonts import font_path
 from khatt.layout import layout_block, line_pitch, measure_block
-from khatt.raster import compose_block, estimate
+from khatt.raster import _glyph, compose_block, estimate, size_metrics
 from khatt.shaping import shape, units_per_em, vertical_metrics
 
 WHITE = (255, 255, 255)
@@ -831,3 +831,62 @@ class TestSpacing:
             khatt.draw_text(blank(), (10, 10), "خط\nخط", **kwargs)
         with pytest.raises(ValueError, match=match):
             khatt.overlay(blank(), "خط\nخط", (10, 10, 300, 200), **kwargs)
+
+
+SIZED_TEXT = "خط جميل"
+SIZED_BOX = (10, 10, 400, 200)
+SIZED_CALLS: dict[str, Callable[[Any], Any]] = {
+    "draw_text": lambda size: khatt.draw_text(
+        blank(), (20, 20), SIZED_TEXT, size_px=size
+    ).tobytes(),
+    "text_bbox": lambda size: khatt.text_bbox(SIZED_TEXT, size_px=size),
+    "overlay_max": lambda size: khatt.overlay(
+        blank(), SIZED_TEXT, SIZED_BOX, max_size_px=size
+    ).tobytes(),
+    "overlay_wrap": lambda size: khatt.overlay(
+        blank(), SIZED_TEXT, SIZED_BOX, fit="wrap", max_size_px=size
+    ).tobytes(),
+    "overlay_none": lambda size: khatt.overlay(
+        blank(), SIZED_TEXT, SIZED_BOX, fit="none", max_size_px=size
+    ).tobytes(),
+    "overlay_min": lambda size: khatt.overlay(
+        blank(), SIZED_TEXT, SIZED_BOX, min_size_px=size
+    ).tobytes(),
+    "overlay_padding": lambda size: khatt.overlay(
+        blank(), SIZED_TEXT, SIZED_BOX, padding=size
+    ).tobytes(),
+}
+
+
+class TestSizeTypes:
+    """Sizes worked out from an image arrive as NumPy numbers or floats."""
+
+    @pytest.fixture(autouse=True)
+    def cold_caches(self) -> None:
+        # A size already cached never reaches FreeType, which hid the crash.
+        _glyph.cache_clear()
+        size_metrics.cache_clear()
+
+    @pytest.mark.parametrize("call", SIZED_CALLS)
+    @pytest.mark.parametrize("dtype", ["int64", "int32", "uint8", "float64", "float32"])
+    def test_numpy_numbers(self, call: str, dtype: str) -> None:
+        number = getattr(pytest.importorskip("numpy"), dtype)
+        draw = SIZED_CALLS[call]
+        assert draw(number(41)) == draw(41)
+
+    @pytest.mark.parametrize("call", SIZED_CALLS)
+    @pytest.mark.parametrize(("size", "whole"), [(41.0, 41), (40.6, 41), (41.4, 41)])
+    def test_fractions_round(self, call: str, size: float, whole: int) -> None:
+        draw = SIZED_CALLS[call]
+        assert draw(size) == draw(whole)
+
+    def test_small_numpy_type_does_not_wrap_around(self) -> None:
+        np = pytest.importorskip("numpy")
+        draw = SIZED_CALLS["overlay_max"]
+        assert draw(np.uint8(200)) == draw(200)
+
+    @pytest.mark.parametrize("call", SIZED_CALLS)
+    @pytest.mark.parametrize("size", [float("nan"), float("inf")])
+    def test_not_a_size(self, call: str, size: float) -> None:
+        with pytest.raises(ValueError, match="number of pixels"):
+            SIZED_CALLS[call](size)
