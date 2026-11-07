@@ -1,0 +1,30 @@
+[project]
+name = "khatt-fonts"
+version = "1.0.0"
+description = "22 more open Arabic fonts for khatt: Kufi, Naskh, Nastaliq, display and handwriting styles"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT AND OFL-1.1"
+license-files = ["LICENSE", "src/khatt_fonts/licenses/*"]
+authors = [{ name = "Mohammed Essam" }]
+keywords = ["arabic", "fonts", "calligraphy", "kufi", "naskh", "nastaliq", "khatt"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Natural Language :: Arabic",
+    "Programming Language :: Python :: 3",
+    "Topic :: Text Processing :: Fonts",
+]
+dependencies = ["khatt>=0.5.0"]
+
+[project.urls]
+Homepage = "https://github.com/DrEssam97/khatt"
+Repository = "https://github.com/DrEssam97/khatt"
+Issues = "https://github.com/DrEssam97/khatt/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/khatt_fonts"]

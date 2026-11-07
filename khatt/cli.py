@@ -14,6 +14,7 @@ from PIL import ImageColor, ImageOps
 import khatt
 from khatt.art_image import paint
 from khatt.doctor import format_report
+from khatt.draw import WORD_ART_FONT
 from khatt.fonts import available_fonts
 
 app = typer.Typer(add_completion=False)
@@ -74,6 +75,47 @@ def _save_png(
     image.save(target)
 
 
+def _save_word_art(
+    text: str,
+    *,
+    effect: str,
+    font: str,
+    size_px: int,
+    keep_tashkeel: bool,
+    background: str | None,
+    target: Path | None,
+) -> None:
+    """Save ``text`` as word art; a preset and a ``.png`` target are required."""
+    if target is None or target.suffix.lower() != ".png":
+        typer.secho(
+            "error: --effect draws an image; pass --output with a .png name",
+            err=True,
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(code=2)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        try:
+            image = khatt.word_art(
+                text,
+                effect=effect,
+                font=font,
+                size_px=size_px,
+                keep_tashkeel=keep_tashkeel,
+                background=background,
+            )
+        except (KeyError, ValueError) as exc:  # unknown effect or font, bad size
+            typer.secho(f"error: {exc.args[0]}", err=True, fg=typer.colors.RED)
+            raise typer.Exit(code=2) from exc
+    for warning in caught:
+        typer.secho(f"warning: {warning.message}", err=True, fg=typer.colors.YELLOW)
+    if image is None:
+        typer.secho("error: no renderable characters in input", err=True, fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    image.save(target)
+    typer.secho(f"wrote {target}", err=True)
+
+
 @app.command()
 def main(
     text: str | None = typer.Argument(
@@ -81,11 +123,12 @@ def main(
         help="Text to render. Omit (or pass '-') to read from stdin.",
         show_default=False,
     ),
-    font: str = typer.Option(
-        "amiri",
+    font: str | None = typer.Option(
+        None,
         "--font",
         "-f",
-        help="Bundled font name (see --list-fonts) or the path to a .ttf/.otf file.",
+        help="Font name (see --list-fonts), style name, or the path to a .ttf/.otf file. "
+        f"Default: amiri, or {WORD_ART_FONT} with --effect.",
     ),
     style: str = typer.Option("blocks", "--style", "-s", help="Output style."),
     width: int | None = typer.Option(
@@ -134,10 +177,23 @@ def main(
         "(in the chosen --style), 'text' the plain high-resolution text.",
     ),
     fg: str = typer.Option("black", "--fg", help="Ink colour of .png output (name or #rrggbb)."),
-    bg: str = typer.Option(
-        "white", "--bg", help="Background colour of .png output, or 'none' for transparent."
+    bg: str | None = typer.Option(
+        None,
+        "--bg",
+        help="Background colour of .png output, or 'none' for transparent. "
+        "Default: white, or transparent with --effect.",
     ),
-    list_fonts: bool = typer.Option(False, "--list-fonts", help="List bundled fonts and exit."),
+    effect: str | None = typer.Option(
+        None,
+        "--effect",
+        "-e",
+        help="Draw word art with this effect instead of text art; needs a .png --output.",
+    ),
+    size_px: int = typer.Option(
+        160, "--size-px", help="Font size of --effect output, in pixels.", min=1
+    ),
+    list_effects: bool = typer.Option(False, "--list-effects", help="List effects and exit."),
+    list_fonts: bool = typer.Option(False, "--list-fonts", help="List fonts and exit."),
     list_styles: bool = typer.Option(False, "--list-styles", help="List styles and exit."),
     doctor: bool = typer.Option(
         False,
@@ -165,11 +221,30 @@ def main(
             typer.echo(name)
         raise typer.Exit()
 
+    if list_effects:
+        for name in khatt.list_effects():
+            typer.echo(name)
+        raise typer.Exit()
+
     ink = _color(fg)
-    background = None if bg.strip().lower() in ("none", "transparent") else _color(bg)
+    backdrop = bg if bg is not None else ("none" if effect is not None else "white")
+    background = None if backdrop.strip().lower() in ("none", "transparent") else _color(backdrop)
     if text is None or text == "-":
         text = sys.stdin.read()
     text = text.rstrip("\n")
+
+    if effect is not None:
+        _save_word_art(
+            text,
+            effect=effect,
+            font=WORD_ART_FONT if font is None else font,
+            size_px=size_px,
+            keep_tashkeel=keep_tashkeel is not False,
+            background=background,
+            target=output,
+        )
+        raise typer.Exit()
+    font = "amiri" if font is None else font
 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")

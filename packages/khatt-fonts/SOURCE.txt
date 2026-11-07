@@ -1,0 +1,2 @@
+Fonts and licences are unmodified copies from https://github.com/google/fonts
+at commit 86aced91de05cd4f96a06838124cca45be337b2b, folder ofl/<family>/.

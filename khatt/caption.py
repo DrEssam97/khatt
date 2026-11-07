@@ -23,15 +23,14 @@ from pathlib import Path
 
 from PIL import Image
 
+from khatt.color import Fill, rgba
 from khatt.draw import (
-    Fill,
     TextOverflowWarning,
     _check_stroke,
     _extent,
     _is_number,
     _paint_text,
     _pixels,
-    _rgba,
 )
 from khatt.fonts import Font, font_path, font_paths
 from khatt.layout import (
@@ -252,9 +251,9 @@ def caption_image(
     width = None if width is None else _pixels("size: the width", width)
     height = None if height is None else _pixels("size: the height", height)
     left, top, right, bottom = _margins(margin)
-    color_rgba = _rgba(color)
-    stroke_rgba = color_rgba if stroke_color is None else _rgba(stroke_color)
-    background = _rgba(bg_color) if bg_color is not None else (0, 0, 0, 0 if transparent else 255)
+    color_rgba = rgba(color)
+    stroke_rgba = color_rgba if stroke_color is None else rgba(stroke_color)
+    background = rgba(bg_color) if bg_color is not None else (0, 0, 0, 0 if transparent else 255)
     path = font_path("amiri" if font is None else font)
     fallbacks = font_paths(fallback_fonts)
 

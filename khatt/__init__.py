@@ -19,7 +19,9 @@ from PIL import Image, ImageOps
 from khatt.art_image import art_to_image
 from khatt.caption import caption_image
 from khatt.doctor import doctor
-from khatt.draw import TextOverflowWarning, draw_text, overlay, text_bbox
+from khatt.draw import TextOverflowWarning, draw_text, overlay, text_bbox, word_art
+from khatt.effects import Effect, Extrude, Glow, Gradient, Shadow, get_effect
+from khatt.effects import available_effects as list_effects
 from khatt.fonts import Font, font_path, font_paths
 from khatt.fonts import available_fonts as list_fonts
 from khatt.layout import DEFAULT_SIZE, paragraphs, render_grids, render_ink
@@ -32,6 +34,11 @@ __version__ = "0.4.2"
 
 __all__ = [
     "DEFAULT_SIZE",
+    "Effect",
+    "Extrude",
+    "Glow",
+    "Gradient",
+    "Shadow",
     "TextOverflowWarning",
     "UnsupportedCharacterWarning",
     "__version__",
@@ -39,6 +46,8 @@ __all__ = [
     "caption_image",
     "doctor",
     "draw_text",
+    "get_effect",
+    "list_effects",
     "list_fonts",
     "list_styles",
     "missing_characters",
@@ -46,6 +55,7 @@ __all__ = [
     "render",
     "render_image",
     "text_bbox",
+    "word_art",
 ]
 
 

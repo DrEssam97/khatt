@@ -8,6 +8,7 @@ from pathlib import Path
 from PIL import Image
 from typer.testing import CliRunner
 
+import khatt
 from khatt.cli import app
 
 runner = CliRunner()
@@ -189,3 +190,53 @@ def test_art_strips_tashkeel_unless_kept() -> None:
     kept = runner.invoke(app, ["مَرْحَبًا", "-w", "60", "--keep-tashkeel"]).output
     assert voweled == plain
     assert kept != plain
+
+
+class TestEffect:
+    def test_writes_word_art(self, tmp_path: Path) -> None:
+        target = tmp_path / "gold.png"
+        result = runner.invoke(app, ["خط", "--effect", "gold", "-o", str(target)])
+        assert result.exit_code == 0
+        image = Image.open(target)
+        assert image.mode == "RGBA"
+        assert image.getpixel((0, 0))[3] == 0  # transparent unless --bg says otherwise
+
+    def test_size_and_background(self, tmp_path: Path) -> None:
+        small, large = tmp_path / "small.png", tmp_path / "large.png"
+        for target, size in ((small, "60"), (large, "120")):
+            result = runner.invoke(
+                app, ["خط", "-e", "gold", "--size-px", size, "--bg", "white", "-o", str(target)]
+            )
+            assert result.exit_code == 0
+        assert Image.open(large).width > Image.open(small).width * 1.8
+        assert Image.open(small).getpixel((0, 0)) == (255, 255, 255, 255)
+
+    def test_starts_with_a_heavy_font(self, tmp_path: Path) -> None:
+        target = tmp_path / "a.png"
+        assert runner.invoke(app, ["خط", "-e", "gold", "-o", str(target)]).exit_code == 0
+        expected = khatt.word_art("خط", effect="gold")
+        assert expected is not None
+        assert Image.open(target).tobytes() == expected.tobytes()
+
+    def test_text_art_keeps_its_default_font(self) -> None:
+        assert runner.invoke(app, ["خط"]).output == runner.invoke(app, ["خط", "-f", "amiri"]).output
+
+    def test_lists_effects(self) -> None:
+        result = runner.invoke(app, ["--list-effects"])
+        assert result.exit_code == 0
+        assert result.output.split() == khatt.list_effects()
+
+    def test_needs_a_png(self, tmp_path: Path) -> None:
+        for arguments in ([], ["-o", str(tmp_path / "art.txt")]):
+            result = runner.invoke(app, ["خط", "--effect", "gold", *arguments])
+            assert result.exit_code == 2
+            assert ".png" in result.output
+
+    def test_unknown_effect(self, tmp_path: Path) -> None:
+        result = runner.invoke(app, ["خط", "-e", "glitter", "-o", str(tmp_path / "a.png")])
+        assert result.exit_code == 2
+        assert "glitter" in result.output
+
+    def test_nothing_to_draw(self, tmp_path: Path) -> None:
+        result = runner.invoke(app, ["   ", "-e", "gold", "-o", str(tmp_path / "a.png")])
+        assert result.exit_code == 1
