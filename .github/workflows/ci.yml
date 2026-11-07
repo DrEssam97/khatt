@@ -41,7 +41,7 @@ jobs:
 
   font-pack:
     # khatt-fonts isn't part of the default environment, whose tests expect the
-    # four bundled fonts. --no-deps: it requires a khatt from PyPI, and this
+    # bundled fonts only. --no-deps: it requires a khatt from PyPI, and this
     # job tests it with the khatt in this checkout.
     name: font pack / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}

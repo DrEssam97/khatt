@@ -29,6 +29,9 @@ _ALIGNS = ("left", "right", "center")
 _VALIGNS = ("top", "middle", "bottom")
 _FITS = ("shrink", "wrap", "none")
 
+WORD_ART_FONT = "lalezar"
+"""Effects need strokes wide enough to show them, so word art starts heavy."""
+
 DEFAULT_LINE_SPACING = 1.2
 """Distance between baselines, in multiples of the size, unless told otherwise."""
 
@@ -362,7 +365,7 @@ def word_art(
     text: str,
     *,
     effect: str | Effect = "gold",
-    font: Font = "amiri",
+    font: Font = WORD_ART_FONT,
     size_px: int = 160,
     align: str | None = None,
     max_width: int | None = None,
@@ -383,7 +386,8 @@ def word_art(
         effect: A preset name (see :func:`khatt.list_effects`) or a
             :class:`khatt.Effect`.
         font: A bundled font name (see :func:`khatt.list_fonts`) or the path
-            to a .ttf/.otf font file.
+            to a .ttf/.otf font file. The default is the heavy ``"lalezar"``,
+            because effects show best on wide strokes.
         size_px: Font size in pixels per em.
         align: ``"left"``, ``"right"`` or ``"center"`` alignment of lines,
             as in :func:`draw_text`.

@@ -5,8 +5,8 @@ texts are preserved under ``LICENSES/``. The MIT license of the khatt code
 does not apply to these files.
 
 Wherever khatt takes a ``font``, it accepts a bundled font name or the path
-to a TrueType/OpenType font file of your own. The optional ``khatt-fonts``
-package adds more names, and calligraphy style names such as ``"kufi"``.
+to a TrueType/OpenType font file of your own, or a calligraphy style name
+such as ``"kufi"``. The optional ``khatt-fonts`` package adds more of both.
 """
 
 from __future__ import annotations
@@ -22,15 +22,28 @@ import uharfbuzz as hb
 
 _FONT_DIR = Path(__file__).resolve().parent
 
-# Cairo, Noto Naskh Arabic and Rubik are variable-font builds, rendered at
-# their Regular weight (khatt.shaping.REGULAR_WEIGHT) rather than their
-# default instance, which for Rubik is Light; Amiri is a static build.
+# Cairo, Noto Naskh Arabic, Reem Kufi and Rubik are variable-font builds,
+# rendered at their Regular weight (khatt.shaping.REGULAR_WEIGHT) rather than
+# their default instance, which for Rubik is Light; the rest are static builds.
 _REGISTRY: dict[str, str] = {
     "amiri": "Amiri-Regular.ttf",
+    "aref-ruqaa": "ArefRuqaa-Regular.ttf",
     "cairo": "Cairo-Regular.ttf",
+    "lalezar": "Lalezar-Regular.ttf",
     "noto-naskh": "NotoNaskhArabic-Regular.ttf",
+    "rakkas": "Rakkas-Regular.ttf",
+    "reem-kufi": "ReemKufi-Regular.ttf",
     "rubik": "Rubik-Regular.ttf",
 }
+
+_STYLES: dict[str, str] = {
+    "display": "lalezar",
+    "kufi": "reem-kufi",
+    "modern": "cairo",
+    "naskh": "amiri",
+    "ruqaa": "aref-ruqaa",
+}
+"""Calligraphy styles, and the bundled font each name draws with."""
 
 Font = str | os.PathLike[str]
 """A bundled font name (see :func:`available_fonts`) or a font file path."""
@@ -67,9 +80,9 @@ def _check_font_file(path: str) -> None:
 def font_path(font: Font) -> Path:
     """Resolve a font name or a font file path to a font file.
 
-    Names are case-insensitive and win over a file of the same name. With the
-    ``khatt-fonts`` package installed, its fonts have names too, and a style
-    name such as ``"kufi"`` means the first font of that style.
+    Names are case-insensitive and win over a file of the same name. A style
+    name such as ``"kufi"`` means a font of that style. With the ``khatt-fonts``
+    package installed, its fonts have names too, and so do its styles.
     Anything else is taken as the path to a TrueType or OpenType font
     (``.ttf``, ``.otf``, or the first font of a ``.ttc`` collection).
 
@@ -79,6 +92,7 @@ def font_path(font: Font) -> Path:
     """
     if isinstance(font, str):
         key = font.strip().lower()
+        key = _STYLES.get(key, key)
         if key in _REGISTRY:
             return _FONT_DIR / _REGISTRY[key]
         fonts, styles = _pack()
@@ -88,7 +102,7 @@ def font_path(font: Font) -> Path:
     path = Path(font).expanduser()
     if not path.is_file():
         available = ", ".join(available_fonts())
-        more = "" if _pack()[0] else "; `pip install khatt-fonts` adds 26 more"
+        more = "" if _pack()[0] else "; `pip install khatt-fonts` adds 22 more"
         raise KeyError(
             f"unknown font {os.fspath(font)!r}; available fonts: {available}, "
             f"or the path to a .ttf/.otf file{more}"

@@ -160,6 +160,7 @@ class TestFontFiles:
         ("amiri", {}),  # static font: nothing to set
         ("cairo", {"wght": REGULAR_WEIGHT}),
         ("noto-naskh", {"wght": REGULAR_WEIGHT}),
+        ("reem-kufi", {"wght": REGULAR_WEIGHT}),
         ("rubik", {"wght": REGULAR_WEIGHT}),  # its default instance is Light (300)
     ],
 )
@@ -234,6 +235,30 @@ class TestMissingCharacters:
             khatt.missing_characters("خط", "nope")
 
 
+class TestStyles:
+    @pytest.mark.parametrize(
+        ("style", "font"),
+        [
+            ("naskh", "amiri"),
+            ("ruqaa", "aref-ruqaa"),
+            ("kufi", "reem-kufi"),
+            ("display", "lalezar"),
+            ("modern", "cairo"),
+        ],
+    )
+    def test_a_style_means_a_bundled_font(self, style: str, font: str) -> None:
+        assert font_path(style) == font_path(font)
+
+    def test_styles_ignore_case(self) -> None:
+        assert font_path(" KUFI ") == font_path("reem-kufi")
+
+    def test_styles_are_not_listed_as_fonts(self) -> None:
+        assert "kufi" not in available_fonts()
+
+    def test_styles_work_where_a_font_is_taken(self) -> None:
+        assert khatt.render("خط", font="ruqaa").strip()
+
+
 class TestFontPack:
     """The hook into the optional khatt-fonts package, with a stand-in for it."""
 
@@ -242,21 +267,23 @@ class TestFontPack:
         path = font_path("amiri")
         stand_in = SimpleNamespace(
             fonts=lambda: {"demo": path, "other": path},
-            styles=lambda: {"fancy": ["other", "demo"]},
+            styles=lambda: {"fancy": ["other", "demo"], "kufi": ["demo"]},
         )
         monkeypatch.setitem(sys.modules, "khatt_fonts", stand_in)
         return path
 
     def test_fonts_are_listed_with_the_bundled_ones(self, pack: Path) -> None:
-        assert available_fonts() == sorted(
-            ["amiri", "cairo", "demo", "noto-naskh", "other", "rubik"]
-        )
+        assert {"amiri", "lalezar", "demo", "other"} <= set(available_fonts())
+        assert available_fonts() == sorted(available_fonts())
 
     def test_a_font_by_name(self, pack: Path) -> None:
         assert font_path(" DEMO ") == pack
 
-    def test_a_style_means_its_first_font(self, pack: Path) -> None:
+    def test_a_style_only_the_pack_has_means_its_first_font(self, pack: Path) -> None:
         assert font_path("fancy") == pack
+
+    def test_a_bundled_style_stays_bundled(self, pack: Path) -> None:
+        assert font_path("kufi").name == "ReemKufi-Regular.ttf"
 
     def test_styles_are_not_listed_as_fonts(self, pack: Path) -> None:
         assert "fancy" not in available_fonts()
@@ -270,6 +297,6 @@ class TestFontPack:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setitem(sys.modules, "khatt_fonts", None)  # import raises ImportError
-        assert available_fonts() == ["amiri", "cairo", "noto-naskh", "rubik"]
+        assert "demo" not in available_fonts()
         with pytest.raises(KeyError, match="pip install khatt-fonts"):
-            font_path("kufi")
+            font_path("nastaliq")

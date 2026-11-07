@@ -61,5 +61,14 @@ def test_render_unknown_style_raises() -> None:
 
 
 def test_list_fonts_and_styles() -> None:
-    assert khatt.list_fonts() == ["amiri", "cairo", "noto-naskh", "rubik"]
+    assert khatt.list_fonts() == [
+        "amiri",
+        "aref-ruqaa",
+        "cairo",
+        "lalezar",
+        "noto-naskh",
+        "rakkas",
+        "reem-kufi",
+        "rubik",
+    ]
     assert khatt.list_styles() == ["ascii", "blocks", "braille"]

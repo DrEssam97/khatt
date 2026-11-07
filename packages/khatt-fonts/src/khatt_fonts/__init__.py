@@ -2,8 +2,8 @@
 
 Installing this package is all it takes: khatt finds it on its own.
 
-    >>> khatt.word_art("خط جميل", effect="gold", font="lalezar")
-    >>> khatt.draw_text(image, (40, 40), "خط", font="ruqaa")
+    >>> khatt.word_art("خط جميل", effect="gold", font="jomhuria")
+    >>> khatt.draw_text(image, (40, 40), "خط", font="nastaliq")
 
 Every font is unmodified and keeps its own SIL Open Font License, in
 ``licenses/``. The MIT license of this package's code does not apply to them.
@@ -17,13 +17,10 @@ __version__ = "1.0.0"
 
 _FONT_DIR = Path(__file__).resolve().parent / "fonts"
 
-# The first font of each style is what the style's own name draws with.
+# khatt bundles a font for most styles. For the others, the first font here
+# is what the style's own name draws with.
 _STYLES: dict[str, dict[str, str]] = {
-    "ruqaa": {
-        "aref-ruqaa": "ArefRuqaa-Regular.ttf",
-    },
     "kufi": {
-        "reem-kufi": "ReemKufi[wght].ttf",
         "reem-kufi-fun": "ReemKufiFun[wght].ttf",
         "noto-kufi": "NotoKufiArabic[wght].ttf",
         "kufam": "Kufam[wght].ttf",
@@ -39,8 +36,6 @@ _STYLES: dict[str, dict[str, str]] = {
         "gulzar": "Gulzar-Regular.ttf",
     },
     "display": {
-        "lalezar": "Lalezar-Regular.ttf",
-        "rakkas": "Rakkas-Regular.ttf",
         "jomhuria": "Jomhuria-Regular.ttf",
         "lemonada": "Lemonada[wght].ttf",
         "marhey": "Marhey[wght].ttf",

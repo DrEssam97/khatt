@@ -15,9 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from `Gradient`, `Shadow`, `Glow`, `Extrude`, an outline and a bevel. Effects work on
   the finished text, so letters stay joined and marks stay in place. In the CLI:
   `khatt "خط" --effect gold -o gold.png`, with `--size-px` and `--list-effects`.
-- `khatt-fonts`, a new package with 26 open Arabic fonts in Ruqaa, Kufi, Naskh, Nastaliq,
-  display, handwriting and modern styles. Install it and khatt finds it on its own:
-  `font="lalezar"`, or a style name such as `font="kufi"` for that style's first font.
+- Four more bundled fonts: `aref-ruqaa`, `lalezar`, `rakkas` and `reem-kufi`. Style names
+  work as fonts too: `naskh`, `ruqaa`, `kufi`, `display` and `modern`.
+- `khatt-fonts`, a new package with 22 more open Arabic fonts in Kufi, Naskh, Nastaliq,
+  display, handwriting and modern styles. Install it and khatt finds it on its own.
 
 ## [0.4.2] - 2026-11-05
 

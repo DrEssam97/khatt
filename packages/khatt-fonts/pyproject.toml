@@ -1,13 +1,13 @@
 [project]
 name = "khatt-fonts"
 version = "1.0.0"
-description = "26 open Arabic fonts for khatt: Ruqaa, Kufi, Naskh, Nastaliq, display and handwriting styles"
+description = "22 more open Arabic fonts for khatt: Kufi, Naskh, Nastaliq, display and handwriting styles"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT AND OFL-1.1"
 license-files = ["LICENSE", "src/khatt_fonts/licenses/*"]
 authors = [{ name = "Mohammed Essam" }]
-keywords = ["arabic", "fonts", "calligraphy", "kufi", "ruqaa", "naskh", "khatt"]
+keywords = ["arabic", "fonts", "calligraphy", "kufi", "naskh", "nastaliq", "khatt"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",

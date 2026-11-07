@@ -211,6 +211,16 @@ class TestEffect:
         assert Image.open(large).width > Image.open(small).width * 1.8
         assert Image.open(small).getpixel((0, 0)) == (255, 255, 255, 255)
 
+    def test_starts_with_a_heavy_font(self, tmp_path: Path) -> None:
+        target = tmp_path / "a.png"
+        assert runner.invoke(app, ["خط", "-e", "gold", "-o", str(target)]).exit_code == 0
+        expected = khatt.word_art("خط", effect="gold")
+        assert expected is not None
+        assert Image.open(target).tobytes() == expected.tobytes()
+
+    def test_text_art_keeps_its_default_font(self) -> None:
+        assert runner.invoke(app, ["خط"]).output == runner.invoke(app, ["خط", "-f", "amiri"]).output
+
     def test_lists_effects(self) -> None:
         result = runner.invoke(app, ["--list-effects"])
         assert result.exit_code == 0

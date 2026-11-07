@@ -41,8 +41,8 @@ Or [install it](#install) with `pip install khatt`.
 - **Video captions.** `khatt.video.TextClip` is a drop-in for moviepy's `TextClip`.
 - **Terminal art.** Render Arabic as `blocks`, `ascii` or `braille` art, the Arabic
   FIGlet, from Python or the `khatt` command.
-- **Any font.** Four bundled OFL fonts, 26 more with `pip install khatt-fonts` (Ruqaa,
-  Kufi, Nastaliq, display and more), or your own `.ttf`/`.otf`, with fallback fonts for
+- **Any font.** Eight bundled OFL fonts in Naskh, Kufi, Ruqaa and display styles, 22 more
+  with `pip install khatt-fonts`, or your own `.ttf`/`.otf`, with fallback fonts for
   characters it has no glyph for.
 - **The same output everywhere.** khatt shapes text itself with HarfBuzz and draws it
   with FreeType, so it doesn't depend on Raqm, FriBiDi or any other system library, and
@@ -143,20 +143,23 @@ khatt shapes text itself: its output is the same in every case above.
 
 ## Word art
 
-![Arabic word art drawn with khatt and khatt-fonts: gold, neon, fire, 3D and more](docs/assets/khatt-effects.jpg)
+![Arabic word art drawn with khatt: gold, neon, fire, 3D and more](docs/assets/khatt-effects.jpg)
 
 ```python
 import khatt
 
 # A finished image, as big as the art, on a transparent background.
-khatt.word_art("خط جميل", effect="gold", font="cairo", size_px=200).save("gold.png")
+khatt.word_art("خط جميل", effect="gold", size_px=200).save("gold.png")
+
+# Any font works. Heavy ones show effects best, so word_art starts with lalezar.
+khatt.word_art("خط جميل", effect="neon", font="rakkas").save("neon.png")
 
 # Or straight onto your own image: draw_text and overlay both take an effect.
-khatt.overlay(poster, "عرض خاص", (60, 40, 1140, 300), font="cairo", effect="neon")
+khatt.overlay(poster, "عرض خاص", (60, 40, 1140, 300), font="lalezar", effect="fire")
 ```
 
 ```bash
-khatt "خط جميل" --effect gold --font cairo -o gold.png
+khatt "خط جميل" --effect gold -o gold.png
 ```
 
 The presets are `3d`, `fire`, `gold`, `ice`, `neon`, `retro`, `silver` and `sticker`.
@@ -358,36 +361,41 @@ terminal characters.
 
 ## Fonts
 
-khatt bundles four Arabic fonts:
+khatt bundles eight Arabic fonts:
 
 | Font | Family | Character |
 |---|---|---|
 | `amiri` (default) | Amiri | Classical naskh, rich calligraphic detail |
+| `aref-ruqaa` | Aref Ruqaa | Ruqaa, the everyday handwritten style |
 | `cairo` | Cairo | Geometric, modern, bold strokes |
+| `lalezar` | Lalezar | Heavy display letters, the default for word art |
 | `noto-naskh` | Noto Naskh Arabic | Clean, highly legible naskh |
+| `rakkas` | Rakkas | Bold, brushy display letters |
+| `reem-kufi` | Reem Kufi | Modern Kufi, geometric and upright |
 | `rubik` | Rubik | Strong Latin + Arabic pairing for mixed text |
+
+A style name works as a font too: `naskh`, `ruqaa`, `kufi`, `display` and `modern`.
 
 All fonts are licensed under the SIL Open Font License 1.1, preserved verbatim in
 [`khatt/fonts/LICENSES/`](khatt/fonts/LICENSES/).
 
-**More fonts.** `pip install khatt-fonts` adds 26 open Arabic fonts in their own
-package, so khatt itself stays small. khatt finds them on its own. Use a font by name, or
-a style by name for its first font:
+**More fonts.** `pip install khatt-fonts` adds 22 more open Arabic fonts in their own
+package, so khatt itself stays small. khatt finds them on its own, and they are used by
+name, like the bundled ones:
 
 ![Arabic fonts from khatt-fonts](docs/assets/khatt-fonts.jpg)
 
 ```python
-khatt.word_art("خط جميل", effect="gold", font="lalezar").save("gold.png")
-khatt.draw_text(image, (40, 40), "مرحبا", font="ruqaa")
+khatt.word_art("خط جميل", effect="gold", font="jomhuria").save("gold.png")
+khatt.draw_text(image, (40, 40), "مرحبا", font="gulzar")
 ```
 
 | Style | Fonts |
 |---|---|
-| `ruqaa` | `aref-ruqaa` |
-| `kufi` | `reem-kufi`, `reem-kufi-fun`, `noto-kufi`, `kufam`, `qahiri` |
+| `kufi` | `reem-kufi-fun`, `noto-kufi`, `kufam`, `qahiri` |
 | `naskh` | `scheherazade`, `lateef`, `markazi`, `amiri-quran` |
 | `nastaliq` | `gulzar` |
-| `display` | `lalezar`, `rakkas`, `jomhuria`, `lemonada`, `marhey`, `blaka`, `blaka-hollow`, `katibeh`, `mirza`, `el-messiri`, `changa` |
+| `display` | `jomhuria`, `lemonada`, `marhey`, `blaka`, `blaka-hollow`, `katibeh`, `mirza`, `el-messiri`, `changa` |
 | `handwriting` | `playpen` |
 | `modern` | `tajawal`, `almarai`, `alexandria` |
 

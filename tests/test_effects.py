@@ -300,6 +300,12 @@ class TestWordArt:
         image = art(khatt.Effect(), padding=4, background="#112233")
         assert image.getpixel((0, 0)) == (0x11, 0x22, 0x33, 255)
 
+    def test_starts_with_a_heavy_font(self) -> None:
+        plain = khatt.word_art(TEXT)
+        heavy = khatt.word_art(TEXT, effect="gold", font="lalezar", size_px=160)
+        assert plain is not None and heavy is not None
+        assert plain.tobytes() == heavy.tobytes()
+
     def test_nothing_to_draw(self) -> None:
         assert khatt.word_art("") is None
         assert khatt.word_art("   ") is None
