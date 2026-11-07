@@ -13,16 +13,16 @@ import math
 import numbers
 import warnings
 from collections.abc import Sequence
+from dataclasses import replace
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageColor
+from PIL import Image, ImageChops
 
+from khatt.color import Fill, rgba
+from khatt.effects import Effect, compose, get_effect
 from khatt.fonts import Font, font_path, font_paths
 from khatt.layout import largest_size, layout_block, measure_block, smallest_spaced_size
 from khatt.raster import Block, Box
-
-Fill = str | tuple[int, int, int] | tuple[int, int, int, int]
-"""A colour name or ``#rrggbb[aa]`` string, or an RGB / RGBA tuple."""
 
 _MODES = ("RGB", "RGBA")
 _ALIGNS = ("left", "right", "center")
@@ -134,23 +134,6 @@ def _extent(block: Block, xy: tuple[int, int]) -> Box:
     )
 
 
-def _rgba(fill: Fill) -> tuple[int, int, int, int]:
-    if isinstance(fill, str):
-        color = ImageColor.getcolor(fill, "RGBA")  # raises ValueError if unknown
-    elif isinstance(fill, (tuple, list)) and len(fill) in (3, 4):
-        color = (*fill, 255)[:4]
-    else:
-        color = ()
-    if not (
-        isinstance(color, tuple)
-        and len(color) == 4
-        and all(isinstance(c, int) and 0 <= c <= 255 for c in color)
-    ):
-        raise ValueError(f"fill must be a colour string or an RGB(A) tuple of 0-255, got {fill!r}")
-    red, green, blue, alpha = color
-    return red, green, blue, alpha
-
-
 def _paint(
     image: Image.Image,
     mask: Image.Image,
@@ -181,6 +164,42 @@ def _paint(
         image.alpha_composite(layer, (x0, y0))
     else:
         image.paste(tuple(rgb), (x0, y0, x1, y1), alpha)
+
+
+def _paint_effect(
+    image: Image.Image,
+    block: Block,
+    xy: tuple[int, int],
+    effect: Effect,
+    size_px: int,
+    clip: tuple[int, int, int, int] | None = None,
+) -> None:
+    """Paint ``block`` with ``effect``, the text mask's corner at ``xy``.
+
+    Only the part inside ``clip`` (default: the whole image) is drawn.
+    """
+    layer, dx, dy = compose(block, effect, size_px)
+    x, y = xy[0] + dx, xy[1] + dy
+    left, top, right, bottom = clip if clip is not None else (0, 0, *image.size)
+    x0, y0 = max(x, left, 0), max(y, top, 0)
+    x1 = min(x + layer.size[0], right, image.size[0])
+    y1 = min(y + layer.size[1], bottom, image.size[1])
+    if x0 >= x1 or y0 >= y1:
+        return
+    part = layer.crop((x0 - x, y0 - y, x1 - x, y1 - y))
+    if image.mode == "RGBA":
+        image.alpha_composite(part, (x0, y0))
+    else:
+        image.paste(part.convert("RGB"), (x0, y0), part.getchannel("A"))
+
+
+def _resolve_effect(effect: str | Effect | None, stroke_width: float) -> Effect | None:
+    """The effect to paint with; it brings its own outline, so ``stroke_width`` can't join it."""
+    if effect is None:
+        return None
+    if stroke_width:
+        raise ValueError("an effect draws its own outline; pass effect or stroke_width, not both")
+    return get_effect(effect)
 
 
 def _place_text(
@@ -255,6 +274,7 @@ def draw_text(
     stroke_width: float = 0,
     stroke_fill: Fill | None = None,
     fallback_fonts: Font | Sequence[Font] = (),
+    effect: str | Effect | None = None,
 ) -> Image.Image:
     """Draw shaped text onto ``image`` (in place) and return it.
 
@@ -302,6 +322,10 @@ def draw_text(
             for characters ``font`` has no glyph for, such as a CJK font
             for Chinese inside Arabic text. Line spacing and anchors still
             follow ``font``.
+        effect: A preset name (see :func:`khatt.list_effects`) or a
+            :class:`khatt.Effect`. It decides the colours, so ``fill`` and
+            ``stroke_fill`` are not used, and it brings its own outline, so
+            it can't be combined with ``stroke_width``.
 
     Returns:
         ``image``, drawn on. Characters the font does not cover are skipped
@@ -309,8 +333,9 @@ def draw_text(
         :func:`khatt.missing_characters`).
     """
     _check_image(image)
-    color = _rgba(fill)
-    stroke_color = color if stroke_fill is None else _rgba(stroke_fill)
+    color = rgba(fill)
+    stroke_color = color if stroke_fill is None else rgba(stroke_fill)
+    style = _resolve_effect(effect, stroke_width)
     placed = _place_text(
         xy,
         text,
@@ -322,11 +347,82 @@ def draw_text(
         line_spacing=line_spacing,
         spacing=spacing,
         keep_tashkeel=keep_tashkeel,
-        stroke_width=stroke_width,
+        stroke_width=stroke_width if style is None else style.outline * size_px,
         fallback_fonts=fallback_fonts,
     )
     if placed is not None:
-        _paint_text(image, *placed, color, stroke_color)
+        if style is None:
+            _paint_text(image, *placed, color, stroke_color)
+        else:
+            _paint_effect(image, *placed, style, _pixels("size_px", size_px))
+    return image
+
+
+def word_art(
+    text: str,
+    *,
+    effect: str | Effect = "gold",
+    font: Font = "amiri",
+    size_px: int = 160,
+    align: str | None = None,
+    max_width: int | None = None,
+    line_spacing: float | None = None,
+    spacing: float | None = None,
+    keep_tashkeel: bool = True,
+    padding: int = 0,
+    background: Fill | None = None,
+    fallback_fonts: Font | Sequence[Font] = (),
+) -> Image.Image | None:
+    """Draw ``text`` as a finished piece of word art, on its own image.
+
+    The image is as big as the text and its effect, glow and shadow included,
+    so it can be saved as it is or pasted onto something else.
+
+    Args:
+        text: The text, as typed.
+        effect: A preset name (see :func:`khatt.list_effects`) or a
+            :class:`khatt.Effect`.
+        font: A bundled font name (see :func:`khatt.list_fonts`) or the path
+            to a .ttf/.otf font file.
+        size_px: Font size in pixels per em.
+        align: ``"left"``, ``"right"`` or ``"center"`` alignment of lines,
+            as in :func:`draw_text`.
+        max_width: Wrap at spaces to this width in pixels.
+        line_spacing: Distance between baselines, in multiples of ``size_px``.
+        spacing: Pixels between lines, as Pillow's ``spacing``.
+        keep_tashkeel: Keep Arabic diacritics (``False`` strips them).
+        padding: Empty pixels around the art.
+        background: A colour behind the art; default: transparent.
+        fallback_fonts: Fonts for characters ``font`` has no glyph for.
+
+    Returns:
+        An RGBA image, or ``None`` when ``text`` has nothing to draw.
+    """
+    style = get_effect(effect)
+    if padding < 0:
+        raise ValueError(f"padding must not be negative, got {padding}")
+    padding = _pixels("padding", padding)
+    backdrop = (0, 0, 0, 0) if background is None else rgba(background)
+    placed = _place_text(
+        (0, 0),
+        text,
+        font=font,
+        size_px=size_px,
+        align=align,
+        anchor="la",
+        max_width=max_width,
+        line_spacing=line_spacing,
+        spacing=spacing,
+        keep_tashkeel=keep_tashkeel,
+        stroke_width=style.outline * size_px,
+        fallback_fonts=fallback_fonts,
+    )
+    if placed is None:
+        return None
+    layer = compose(placed[0], style, _pixels("size_px", size_px))[0]
+    art = layer.crop(layer.getbbox())
+    image = Image.new("RGBA", (art.size[0] + 2 * padding, art.size[1] + 2 * padding), backdrop)
+    image.alpha_composite(art, (padding, padding))
     return image
 
 
@@ -439,6 +535,7 @@ def overlay(
     stroke_width: float = 0,
     stroke_fill: Fill | None = None,
     fallback_fonts: Font | Sequence[Font] = (),
+    effect: str | Effect | None = None,
 ) -> Image.Image:
     """Place shaped text inside ``box`` on ``image`` (in place) and return it.
 
@@ -477,16 +574,24 @@ def overlay(
             for Chinese inside Arabic text. Line spacing and anchors still
             follow ``font``.
 
+        effect: A preset name (see :func:`khatt.list_effects`) or a
+            :class:`khatt.Effect`. It decides the colours, so ``fill`` and
+            ``stroke_fill`` are not used, and it brings its own outline, so
+            it can't be combined with ``stroke_width``. The text is fitted to
+            the box, and the effect's outline, glow and shadow may reach past
+            it.
+
     Returns:
-        ``image``, drawn on. Nothing is ever drawn outside ``box``: text that
-        does not fit inside the padding (with ``"shrink"``, not even at
-        ``min_size_px``) raises a :class:`TextOverflowWarning` and is clipped
-        to the box.
+        ``image``, drawn on. Nothing but an effect is ever drawn outside
+        ``box``: text that does not fit inside the padding (with
+        ``"shrink"``, not even at ``min_size_px``) raises a
+        :class:`TextOverflowWarning` and is clipped to the box.
     """
     _check_image(image)
-    color = _rgba(fill)
-    stroke_color = color if stroke_fill is None else _rgba(stroke_fill)
+    color = rgba(fill)
+    stroke_color = color if stroke_fill is None else rgba(stroke_fill)
     _check_stroke(stroke_width)
+    style = _resolve_effect(effect, stroke_width)
     if fit not in _FITS:
         raise ValueError(f"fit must be one of {', '.join(_FITS)}, got {fit!r}")
     if valign not in _VALIGNS:
@@ -536,7 +641,7 @@ def overlay(
         spacing=spacing,
         keep_tashkeel=keep_tashkeel,
         width=inner_width,
-        stroke_width=stroke_width,
+        stroke_width=stroke_width if style is None else style.outline * size,
         fallbacks=fallbacks,
     )
     if laid_out is None:
@@ -551,13 +656,19 @@ def overlay(
         "middle": text_area[1] + (inner_height - height) // 2,
         "bottom": text_area[3] - height,
     }[valign]
-    # What has to fit is everything drawn: the outline too.
-    x0, y0, x1, y1 = _extent(block, (x, y))
-    if x0 < inner[0] or y0 < inner[1] or x1 > inner[2] or y1 > inner[3]:
+    # What has to fit is everything drawn: the outline too. An effect's outline,
+    # glow and shadow are decoration around the fitted text and may leave the box.
+    x0, y0, x1, y1 = _extent(block if style is None else replace(block, stroke=None), (x, y))
+    overflows = x0 < inner[0] or y0 < inner[1] or x1 > inner[2] or y1 > inner[3]
+    if overflows:
         warnings.warn(
             f"text does not fit inside the box at {size}px; anything outside the box is clipped",
             TextOverflowWarning,
             stacklevel=2,
         )
-    _paint_text(image, block, (x, y), color, stroke_color, clip=(left, top, right, bottom))
+    clip = (left, top, right, bottom)
+    if style is None:
+        _paint_text(image, block, (x, y), color, stroke_color, clip=clip)
+    else:
+        _paint_effect(image, block, (x, y), style, size, clip=clip if overflows else None)
     return image

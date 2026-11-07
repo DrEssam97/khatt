@@ -1,0 +1,35 @@
+# PyPI release of khatt-fonts via trusted publishing (OIDC, no API tokens).
+#
+# Fires when a fonts-v* tag is pushed, or on a manual dispatch from the Actions
+# tab. Requires a trusted publisher for the khatt-fonts project on PyPI
+# (Account → Publishing): owner DrEssam97, repo khatt, workflow
+# release-fonts.yml, environment pypi. Publish khatt first: khatt-fonts needs
+# khatt 0.5.0.
+
+name: Release fonts
+
+on:
+  push:
+    tags: ["fonts-v*"]
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # trusted publishing (OIDC), no API token needed
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Build wheel and sdist
+        run: uv build packages/khatt-fonts --out-dir dist
+
+      - name: Check distribution metadata
+        run: uvx twine check dist/*
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

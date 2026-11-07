@@ -36,11 +36,14 @@ Or [install it](#install) with `pip install khatt`.
 - **Draw on images.** `khatt.draw_text` is a drop-in for Pillow's `ImageDraw.text`, with
   wrapping, alignment, outlines and translucent fills. `khatt.overlay` fits text into a
   box and `khatt.text_bbox` measures it.
+- **Word art.** Gold, neon, fire, 3D and more in one line with `khatt.word_art`, or build
+  your own from gradients, glows, shadows, depth and bevels.
 - **Video captions.** `khatt.video.TextClip` is a drop-in for moviepy's `TextClip`.
 - **Terminal art.** Render Arabic as `blocks`, `ascii` or `braille` art, the Arabic
   FIGlet, from Python or the `khatt` command.
-- **Any font.** Four bundled OFL fonts, or your own `.ttf`/`.otf`, with fallback fonts
-  for characters it has no glyph for.
+- **Any font.** Four bundled OFL fonts, 26 more with `pip install khatt-fonts` (Ruqaa,
+  Kufi, Nastaliq, display and more), or your own `.ttf`/`.otf`, with fallback fonts for
+  characters it has no glyph for.
 - **The same output everywhere.** khatt shapes text itself with HarfBuzz and draws it
   with FreeType, so it doesn't depend on Raqm, FriBiDi or any other system library, and
   it never shapes text twice. `khatt --doctor` shows what your environment has.
@@ -137,6 +140,46 @@ matplotlib: not installed
 arabic_reshaper: not installed
 khatt shapes text itself: its output is the same in every case above.
 ```
+
+## Word art
+
+![Arabic word art drawn with khatt and khatt-fonts: gold, neon, fire, 3D and more](docs/assets/khatt-effects.jpg)
+
+```python
+import khatt
+
+# A finished image, as big as the art, on a transparent background.
+khatt.word_art("خط جميل", effect="gold", font="cairo", size_px=200).save("gold.png")
+
+# Or straight onto your own image: draw_text and overlay both take an effect.
+khatt.overlay(poster, "عرض خاص", (60, 40, 1140, 300), font="cairo", effect="neon")
+```
+
+```bash
+khatt "خط جميل" --effect gold --font cairo -o gold.png
+```
+
+The presets are `3d`, `fire`, `gold`, `ice`, `neon`, `retro`, `silver` and `sticker`.
+`khatt.list_effects()` lists them.
+
+Effects work on the finished text, never on single letters, so Arabic stays joined and
+tashkeel stays in place. To make your own, combine the parts. Lengths are fractions of
+the font size, so an effect looks the same at any size:
+
+```python
+style = khatt.Effect(
+    fill=khatt.Gradient(["#ffe14d", "#ff2975"]),    # or any colour; angle=0 runs left to right
+    outline=0.02, outline_fill="navy",
+    shadow=khatt.Shadow(offset=(0.05, 0.06), blur=0.03),
+    glows=khatt.Glow(radius=0.12, color="#ff2975"),  # one glow, or several
+    extrude=khatt.Extrude(depth=0.1, angle=45, color="#333"),
+    bevel=0.03,
+)
+khatt.draw_text(image, (40, 40), "خط", size_px=120, effect=style)
+```
+
+Presets are plain `Effect` objects, so a variation is one line:
+`dataclasses.replace(khatt.get_effect("3d"), fill="#2563eb")`.
 
 ## Video captions (moviepy)
 
@@ -326,6 +369,27 @@ khatt bundles four Arabic fonts:
 
 All fonts are licensed under the SIL Open Font License 1.1, preserved verbatim in
 [`khatt/fonts/LICENSES/`](khatt/fonts/LICENSES/).
+
+**More fonts.** `pip install khatt-fonts` adds 26 open Arabic fonts in their own
+package, so khatt itself stays small. khatt finds them on its own. Use a font by name, or
+a style by name for its first font:
+
+![Arabic fonts from khatt-fonts](docs/assets/khatt-fonts.jpg)
+
+```python
+khatt.word_art("خط جميل", effect="gold", font="lalezar").save("gold.png")
+khatt.draw_text(image, (40, 40), "مرحبا", font="ruqaa")
+```
+
+| Style | Fonts |
+|---|---|
+| `ruqaa` | `aref-ruqaa` |
+| `kufi` | `reem-kufi`, `reem-kufi-fun`, `noto-kufi`, `kufam`, `qahiri` |
+| `naskh` | `scheherazade`, `lateef`, `markazi`, `amiri-quran` |
+| `nastaliq` | `gulzar` |
+| `display` | `lalezar`, `rakkas`, `jomhuria`, `lemonada`, `marhey`, `blaka`, `blaka-hollow`, `katibeh`, `mirza`, `el-messiri`, `changa` |
+| `handwriting` | `playpen` |
+| `modern` | `tajawal`, `almarai`, `alexandria` |
 
 **Your own fonts.** Anywhere khatt takes a `font` (`render`, `render_image`,
 `draw_text`, `overlay`, the CLI's `--font`), you can pass the path to a TrueType or

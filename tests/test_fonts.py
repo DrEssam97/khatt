@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import shutil
 import struct
+import sys
 import warnings
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from PIL import Image
@@ -230,3 +232,44 @@ class TestMissingCharacters:
     def test_unknown_font(self) -> None:
         with pytest.raises(KeyError):
             khatt.missing_characters("خط", "nope")
+
+
+class TestFontPack:
+    """The hook into the optional khatt-fonts package, with a stand-in for it."""
+
+    @pytest.fixture
+    def pack(self, monkeypatch: pytest.MonkeyPatch) -> Path:
+        path = font_path("amiri")
+        stand_in = SimpleNamespace(
+            fonts=lambda: {"demo": path, "other": path},
+            styles=lambda: {"fancy": ["other", "demo"]},
+        )
+        monkeypatch.setitem(sys.modules, "khatt_fonts", stand_in)
+        return path
+
+    def test_fonts_are_listed_with_the_bundled_ones(self, pack: Path) -> None:
+        assert available_fonts() == sorted(
+            ["amiri", "cairo", "demo", "noto-naskh", "other", "rubik"]
+        )
+
+    def test_a_font_by_name(self, pack: Path) -> None:
+        assert font_path(" DEMO ") == pack
+
+    def test_a_style_means_its_first_font(self, pack: Path) -> None:
+        assert font_path("fancy") == pack
+
+    def test_styles_are_not_listed_as_fonts(self, pack: Path) -> None:
+        assert "fancy" not in available_fonts()
+
+    def test_unknown_names_list_the_pack(self, pack: Path) -> None:
+        with pytest.raises(KeyError, match="demo") as caught:
+            font_path("nope")
+        assert "khatt-fonts" not in str(caught.value)
+
+    def test_without_the_pack_the_error_says_where_to_get_it(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setitem(sys.modules, "khatt_fonts", None)  # import raises ImportError
+        assert available_fonts() == ["amiri", "cairo", "noto-naskh", "rubik"]
+        with pytest.raises(KeyError, match="pip install khatt-fonts"):
+            font_path("kufi")

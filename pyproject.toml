@@ -66,8 +66,9 @@ build-backend = "hatchling.build"
 packages = ["khatt"]
 
 [tool.hatch.build.targets.sdist]
-# README media is served from GitHub; keep it out of the source package.
-exclude = ["docs/assets"]
+# README media is served from GitHub, and khatt-fonts is a package of its own;
+# keep both out of the source package.
+exclude = ["docs/assets", "packages"]
 
 [dependency-groups]
 # The newest Pillow, which moviepy (the video extra) holds below 12: see

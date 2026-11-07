@@ -23,7 +23,7 @@ except ImportError as error:
     raise ImportError('khatt.video needs moviepy: pip install "khatt[video]"') from error
 
 from khatt.caption import caption_image
-from khatt.draw import Fill
+from khatt.color import Fill
 from khatt.fonts import Font
 
 __all__ = ["TextClip"]

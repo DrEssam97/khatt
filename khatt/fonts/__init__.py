@@ -5,7 +5,8 @@ texts are preserved under ``LICENSES/``. The MIT license of the khatt code
 does not apply to these files.
 
 Wherever khatt takes a ``font``, it accepts a bundled font name or the path
-to a TrueType/OpenType font file of your own.
+to a TrueType/OpenType font file of your own. The optional ``khatt-fonts``
+package adds more names, and calligraphy style names such as ``"kufi"``.
 """
 
 from __future__ import annotations
@@ -35,6 +36,15 @@ Font = str | os.PathLike[str]
 """A bundled font name (see :func:`available_fonts`) or a font file path."""
 
 
+def _pack() -> tuple[dict[str, Path], dict[str, list[str]]]:
+    """The ``khatt-fonts`` package, if installed: fonts by name, and names by style."""
+    try:
+        import khatt_fonts
+    except ImportError:
+        return {}, {}
+    return khatt_fonts.fonts(), khatt_fonts.styles()
+
+
 @lru_cache(maxsize=32)
 def _check_font_file(path: str) -> None:
     """Raise ``ValueError`` unless both FreeType and HarfBuzz can use the font."""
@@ -55,26 +65,33 @@ def _check_font_file(path: str) -> None:
 
 
 def font_path(font: Font) -> Path:
-    """Resolve a bundled font name or a font file path to a font file.
+    """Resolve a font name or a font file path to a font file.
 
-    Bundled names are case-insensitive and win over a file of the same name.
+    Names are case-insensitive and win over a file of the same name. With the
+    ``khatt-fonts`` package installed, its fonts have names too, and a style
+    name such as ``"kufi"`` means the first font of that style.
     Anything else is taken as the path to a TrueType or OpenType font
     (``.ttf``, ``.otf``, or the first font of a ``.ttc`` collection).
 
     Raises:
-        KeyError: ``font`` is neither a bundled font name nor an existing file.
+        KeyError: ``font`` is neither a font name nor an existing file.
         ValueError: the file is not a font khatt can shape and render.
     """
     if isinstance(font, str):
         key = font.strip().lower()
         if key in _REGISTRY:
             return _FONT_DIR / _REGISTRY[key]
+        fonts, styles = _pack()
+        key = styles[key][0] if key in styles else key
+        if key in fonts:
+            return fonts[key]
     path = Path(font).expanduser()
     if not path.is_file():
-        available = ", ".join(sorted(_REGISTRY))
+        available = ", ".join(available_fonts())
+        more = "" if _pack()[0] else "; `pip install khatt-fonts` adds 26 more"
         raise KeyError(
             f"unknown font {os.fspath(font)!r}; available fonts: {available}, "
-            "or the path to a .ttf/.otf file"
+            f"or the path to a .ttf/.otf file{more}"
         )
     path = path.resolve()
     _check_font_file(str(path))
@@ -89,5 +106,5 @@ def font_paths(fonts: Font | Sequence[Font]) -> tuple[Path, ...]:
 
 
 def available_fonts() -> list[str]:
-    """Return the sorted names of all bundled fonts."""
-    return sorted(_REGISTRY)
+    """Return the sorted names of all fonts: bundled, and from ``khatt-fonts`` if installed."""
+    return sorted({*_REGISTRY, *_pack()[0]})
