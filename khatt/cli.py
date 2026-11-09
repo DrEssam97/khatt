@@ -9,7 +9,7 @@ from enum import Enum
 from pathlib import Path
 
 import typer
-from PIL import ImageColor, ImageOps
+from PIL import Image, ImageColor, ImageOps
 
 import khatt
 from khatt.art_image import paint
@@ -75,10 +75,68 @@ def _save_png(
     image.save(target)
 
 
+def _save_calligram(
+    text: str,
+    *,
+    shape: str,
+    effect: str | None,
+    font: str,
+    size_px: int | None,
+    repeat: bool,
+    fill: str,
+    keep_tashkeel: bool,
+    background: str | None,
+    target: Path | None,
+) -> None:
+    """Save ``text`` flowing inside ``shape``: a preset name or an image file."""
+    if target is None or target.suffix.lower() != ".png":
+        typer.secho(
+            "error: --shape draws an image; pass --output with a .png name",
+            err=True,
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(code=2)
+    outline: str | Image.Image = shape
+    if Path(shape).expanduser().is_file():
+        try:
+            outline = Image.open(Path(shape).expanduser())
+            outline.load()
+        except OSError as exc:
+            typer.secho(
+                f"error: cannot read the shape image {shape}", err=True, fg=typer.colors.RED
+            )
+            raise typer.Exit(code=2) from exc
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        try:
+            image = khatt.calligram(
+                text,
+                outline,
+                font=font,
+                size_px=size_px,
+                repeat=repeat,
+                fill=fill,
+                effect=effect,
+                keep_tashkeel=keep_tashkeel,
+                background=background,
+            )
+        except (KeyError, ValueError) as exc:  # unknown name, unusable shape image
+            typer.secho(f"error: {exc.args[0]}", err=True, fg=typer.colors.RED)
+            raise typer.Exit(code=2) from exc
+    for warning in caught:
+        typer.secho(f"warning: {warning.message}", err=True, fg=typer.colors.YELLOW)
+    if image is None:
+        typer.secho("error: no renderable characters in input", err=True, fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+    image.save(target)
+    typer.secho(f"wrote {target}", err=True)
+
+
 def _save_word_art(
     text: str,
     *,
     effect: str,
+    curve: str | None,
     font: str,
     size_px: int,
     keep_tashkeel: bool,
@@ -88,7 +146,7 @@ def _save_word_art(
     """Save ``text`` as word art; a preset and a ``.png`` target are required."""
     if target is None or target.suffix.lower() != ".png":
         typer.secho(
-            "error: --effect draws an image; pass --output with a .png name",
+            "error: --effect and --curve draw an image; pass --output with a .png name",
             err=True,
             fg=typer.colors.RED,
         )
@@ -99,12 +157,13 @@ def _save_word_art(
             image = khatt.word_art(
                 text,
                 effect=effect,
+                curve=curve,
                 font=font,
                 size_px=size_px,
                 keep_tashkeel=keep_tashkeel,
                 background=background,
             )
-        except (KeyError, ValueError) as exc:  # unknown effect or font, bad size
+        except (KeyError, ValueError) as exc:  # unknown name, bad size, text too short to bend
             typer.secho(f"error: {exc.args[0]}", err=True, fg=typer.colors.RED)
             raise typer.Exit(code=2) from exc
     for warning in caught:
@@ -189,9 +248,32 @@ def main(
         "-e",
         help="Draw word art with this effect instead of text art; needs a .png --output.",
     ),
-    size_px: int = typer.Option(
-        160, "--size-px", help="Font size of --effect output, in pixels.", min=1
+    curve: str | None = typer.Option(
+        None,
+        "--curve",
+        help="Bend word art along this curve, with the gold effect unless --effect says "
+        "otherwise; needs a .png --output.",
     ),
+    shape: str | None = typer.Option(
+        None,
+        "--shape",
+        help="Flow the text inside a shape: a preset (see --list-shapes) or an image file whose "
+        "dark or opaque pixels are the inside. Needs a .png --output.",
+    ),
+    repeat: bool = typer.Option(
+        True,
+        "--repeat/--no-repeat",
+        help="With --shape: repeat the text until the shape is full, or fit it in once.",
+    ),
+    size_px: int | None = typer.Option(
+        None,
+        "--size-px",
+        help="Font size of word art (default 160) or of --shape text (default: to suit the "
+        "shape), in pixels.",
+        min=1,
+    ),
+    list_curves: bool = typer.Option(False, "--list-curves", help="List curves and exit."),
+    list_shapes: bool = typer.Option(False, "--list-shapes", help="List shapes and exit."),
     list_effects: bool = typer.Option(False, "--list-effects", help="List effects and exit."),
     list_fonts: bool = typer.Option(False, "--list-fonts", help="List fonts and exit."),
     list_styles: bool = typer.Option(False, "--list-styles", help="List styles and exit."),
@@ -225,20 +307,47 @@ def main(
         for name in khatt.list_effects():
             typer.echo(name)
         raise typer.Exit()
+    if list_curves:
+        for name in khatt.list_curves():
+            typer.echo(name)
+        raise typer.Exit()
+    if list_shapes:
+        for name in khatt.list_shapes():
+            typer.echo(name)
+        raise typer.Exit()
+    if shape is not None and curve is not None:
+        typer.secho("error: pass --shape or --curve, not both", err=True, fg=typer.colors.RED)
+        raise typer.Exit(code=2)
 
+    word_art = effect is not None or curve is not None or shape is not None
     ink = _color(fg)
-    backdrop = bg if bg is not None else ("none" if effect is not None else "white")
+    backdrop = bg if bg is not None else ("none" if word_art else "white")
     background = None if backdrop.strip().lower() in ("none", "transparent") else _color(backdrop)
     if text is None or text == "-":
         text = sys.stdin.read()
     text = text.rstrip("\n")
 
-    if effect is not None:
+    if shape is not None:
+        _save_calligram(
+            text,
+            shape=shape,
+            effect=effect,
+            font="amiri" if font is None else font,
+            size_px=size_px,
+            repeat=repeat,
+            fill=ink,
+            keep_tashkeel=keep_tashkeel is not False,
+            background=background,
+            target=output,
+        )
+        raise typer.Exit()
+    if word_art:
         _save_word_art(
             text,
-            effect=effect,
+            effect="gold" if effect is None else effect,
+            curve=curve,
             font=WORD_ART_FONT if font is None else font,
-            size_px=size_px,
+            size_px=160 if size_px is None else size_px,
             keep_tashkeel=keep_tashkeel is not False,
             background=background,
             target=output,

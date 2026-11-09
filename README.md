@@ -38,6 +38,8 @@ Or [install it](#install) with `pip install khatt`.
   box and `khatt.text_bbox` measures it.
 - **Word art.** Gold, neon, fire, 3D and more in one line with `khatt.word_art`, or build
   your own from gradients, glows, shadows, depth and bevels.
+- **Calligrams.** `khatt.calligram` flows text inside a heart, a circle or any image of
+  your own, with Arabic lines stretched by kashida.
 - **Video captions.** `khatt.video.TextClip` is a drop-in for moviepy's `TextClip`.
 - **Terminal art.** Render Arabic as `blocks`, `ascii` or `braille` art, the Arabic
   FIGlet, from Python or the `khatt` command.
@@ -183,6 +185,57 @@ khatt.draw_text(image, (40, 40), "خط", size_px=120, effect=style)
 
 Presets are plain `Effect` objects, so a variation is one line:
 `dataclasses.replace(khatt.get_effect("3d"), fill="#2563eb")`.
+
+### Text on curves
+
+![Arabic text on arcs, a ring and a wave, drawn with khatt](docs/assets/khatt-curves.jpg)
+
+```python
+khatt.word_art("خط جميل", effect="gold", curve="arc").save("arc.png")
+khatt.word_art("مرحبا بكم في القاهرة", effect="neon", curve="ring").save("ring.png")
+
+# Make your own: how much of a circle, or how tall and how many waves.
+khatt.word_art("خط جميل", curve=khatt.Arc(angle=200))
+khatt.word_art("خط جميل", curve=khatt.Wave(height=0.3, waves=2))
+```
+
+```bash
+khatt "خط جميل" --effect fire --curve wave -o wave.png
+```
+
+The presets are `arc`, `smile`, `ring` and `wave`. Placing letters one by one along a
+curve is what breaks Arabic, because rotated neighbours stop meeting. khatt bends the
+whole line as one sheet instead, so joins and tashkeel move with it. Text that is too
+short for a tight curve raises a `ValueError`, because its letters would meet in the
+middle; use a smaller angle or longer text.
+
+## Calligrams: text inside a shape
+
+![Arabic calligrams drawn with khatt: a heart, a circle, a diamond and a mosque](docs/assets/khatt-calligrams.jpg)
+
+```python
+khatt.calligram("أحبك", shape="heart", effect="sticker", font="lalezar").save("heart.png")
+
+# Your own shape: any image, whose dark or opaque pixels are the inside.
+from PIL import Image
+khatt.calligram("الله أكبر ولله الحمد", shape=Image.open("mosque.png")).save("mosque.png")
+```
+
+```bash
+khatt "أحبك" --shape heart -o heart.png
+khatt "إذا الشعب يوما أراد الحياة" --shape circle --no-repeat -o circle.png
+```
+
+The presets are `arch` (a pointed arch, as in a mihrab), `circle`, `crescent`, `diamond`
+and `heart`. Lines run from the
+top of the shape to the bottom, each as wide as the shape at that height, and never cut
+a letter at the edge. The text repeats until the shape is full; `repeat=False` fits it
+in once, as big as it goes. Arabic lines are stretched to their full width with kashida
+(`ـ`), the way a calligrapher would, rather than with wider gaps, and never inside
+lam-alef. A line that would have to grow by more than 30% is centred instead.
+
+Shapes show best with several words a line, so parts thinner than a line of text, like
+the points of a star, stay empty unless the text is small: pass `size_px` to choose.
 
 ## Video captions (moviepy)
 

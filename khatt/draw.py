@@ -19,6 +19,7 @@ from pathlib import Path
 from PIL import Image, ImageChops
 
 from khatt.color import Fill, rgba
+from khatt.curves import Curve, bend, get_curve
 from khatt.effects import Effect, compose, get_effect
 from khatt.fonts import Font, font_path, font_paths
 from khatt.layout import largest_size, layout_block, measure_block, smallest_spaced_size
@@ -31,6 +32,9 @@ _FITS = ("shrink", "wrap", "none")
 
 WORD_ART_FONT = "lalezar"
 """Effects need strokes wide enough to show them, so word art starts heavy."""
+
+_BEND_SCALE = 2
+"""Curved text is laid out this many times too big, so that its edges stay sharp."""
 
 DEFAULT_LINE_SPACING = 1.2
 """Distance between baselines, in multiples of the size, unless told otherwise."""
@@ -375,6 +379,7 @@ def word_art(
     padding: int = 0,
     background: Fill | None = None,
     fallback_fonts: Font | Sequence[Font] = (),
+    curve: str | Curve | None = None,
 ) -> Image.Image | None:
     """Draw ``text`` as a finished piece of word art, on its own image.
 
@@ -398,32 +403,44 @@ def word_art(
         padding: Empty pixels around the art.
         background: A colour behind the art; default: transparent.
         fallback_fonts: Fonts for characters ``font`` has no glyph for.
+        curve: A preset name (see :func:`khatt.list_curves`), a
+            :class:`khatt.Arc` or a :class:`khatt.Wave`. The whole line bends,
+            so letters stay joined; the effect is then drawn on the bent text.
 
     Returns:
         An RGBA image, or ``None`` when ``text`` has nothing to draw.
+
+    Raises:
+        ValueError: the text is too short for ``curve``.
     """
     style = get_effect(effect)
+    shape = None if curve is None else get_curve(curve)
     if padding < 0:
         raise ValueError(f"padding must not be negative, got {padding}")
     padding = _pixels("padding", padding)
     backdrop = (0, 0, 0, 0) if background is None else rgba(background)
+    size = _pixels("size_px", size_px)
+    scale = 1 if shape is None else _BEND_SCALE
     placed = _place_text(
         (0, 0),
         text,
         font=font,
-        size_px=size_px,
+        size_px=size * scale,
         align=align,
         anchor="la",
-        max_width=max_width,
+        max_width=None if max_width is None else max_width * scale,
         line_spacing=line_spacing,
-        spacing=spacing,
+        spacing=None if spacing is None else spacing * scale,
         keep_tashkeel=keep_tashkeel,
-        stroke_width=style.outline * size_px,
+        stroke_width=style.outline * size * scale,
         fallback_fonts=fallback_fonts,
     )
     if placed is None:
         return None
-    layer = compose(placed[0], style, _pixels("size_px", size_px))[0]
+    block = placed[0]
+    if shape is not None:
+        block = bend(block, shape, size * scale, reduce=scale)
+    layer = compose(block, style, size)[0]
     art = layer.crop(layer.getbbox())
     image = Image.new("RGBA", (art.size[0] + 2 * padding, art.size[1] + 2 * padding), backdrop)
     image.alpha_composite(art, (padding, padding))

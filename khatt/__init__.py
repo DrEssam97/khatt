@@ -17,7 +17,11 @@ from collections.abc import Sequence
 from PIL import Image, ImageOps
 
 from khatt.art_image import art_to_image
+from khatt.calligram import available_shapes as list_shapes
+from khatt.calligram import calligram
 from khatt.caption import caption_image
+from khatt.curves import Arc, Wave
+from khatt.curves import available_curves as list_curves
 from khatt.doctor import doctor
 from khatt.draw import TextOverflowWarning, draw_text, overlay, text_bbox, word_art
 from khatt.effects import Effect, Extrude, Glow, Gradient, Shadow, get_effect
@@ -34,6 +38,7 @@ __version__ = "0.5.0"
 
 __all__ = [
     "DEFAULT_SIZE",
+    "Arc",
     "Effect",
     "Extrude",
     "Glow",
@@ -41,14 +46,18 @@ __all__ = [
     "Shadow",
     "TextOverflowWarning",
     "UnsupportedCharacterWarning",
+    "Wave",
     "__version__",
     "art_to_image",
+    "calligram",
     "caption_image",
     "doctor",
     "draw_text",
     "get_effect",
+    "list_curves",
     "list_effects",
     "list_fonts",
+    "list_shapes",
     "list_styles",
     "missing_characters",
     "overlay",
