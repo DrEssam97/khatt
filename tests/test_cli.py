@@ -240,3 +240,96 @@ class TestEffect:
     def test_nothing_to_draw(self, tmp_path: Path) -> None:
         result = runner.invoke(app, ["   ", "-e", "gold", "-o", str(tmp_path / "a.png")])
         assert result.exit_code == 1
+
+
+class TestCurve:
+    def test_writes_curved_word_art(self, tmp_path: Path) -> None:
+        target = tmp_path / "arc.png"
+        result = runner.invoke(app, ["خط جميل", "--curve", "arc", "-o", str(target)])
+        assert result.exit_code == 0
+        expected = khatt.word_art("خط جميل", effect="gold", curve="arc")
+        assert expected is not None
+        assert Image.open(target).tobytes() == expected.tobytes()
+
+    def test_with_an_effect(self, tmp_path: Path) -> None:
+        target = tmp_path / "wave.png"
+        result = runner.invoke(app, ["خط جميل", "-e", "neon", "--curve", "wave", "-o", str(target)])
+        assert result.exit_code == 0
+        assert target.is_file()
+
+    def test_lists_curves(self) -> None:
+        result = runner.invoke(app, ["--list-curves"])
+        assert result.exit_code == 0
+        assert result.output.split() == khatt.list_curves()
+
+    def test_needs_a_png(self) -> None:
+        result = runner.invoke(app, ["خط", "--curve", "arc"])
+        assert result.exit_code == 2
+        assert ".png" in result.output
+
+    def test_unknown_curve(self, tmp_path: Path) -> None:
+        result = runner.invoke(app, ["خط", "--curve", "zigzag", "-o", str(tmp_path / "a.png")])
+        assert result.exit_code == 2
+        assert "zigzag" in result.output
+
+    def test_text_too_short(self, tmp_path: Path) -> None:
+        result = runner.invoke(app, ["خط", "--curve", "ring", "-o", str(tmp_path / "a.png")])
+        assert result.exit_code == 2
+        assert "too short" in result.output
+
+
+class TestShape:
+    def test_writes_a_calligram(self, tmp_path: Path) -> None:
+        target = tmp_path / "heart.png"
+        result = runner.invoke(app, ["أحبك", "--shape", "heart", "-o", str(target)])
+        assert result.exit_code == 0
+        expected = khatt.calligram("أحبك", "heart")
+        assert expected is not None
+        assert Image.open(target).tobytes() == expected.tobytes()
+
+    def test_once_with_an_effect_and_colour(self, tmp_path: Path) -> None:
+        target = tmp_path / "circle.png"
+        result = runner.invoke(
+            app, ["خط جميل", "--shape", "circle", "--no-repeat", "-e", "gold", "-o", str(target)]
+        )
+        assert result.exit_code == 0
+        assert target.is_file()
+
+    def test_an_image_as_the_shape(self, tmp_path: Path) -> None:
+        silhouette = tmp_path / "shape.png"
+        image = Image.new("RGB", (200, 200), "white")
+        image.paste("black", (20, 20, 180, 180))
+        image.save(silhouette)
+        target = tmp_path / "out.png"
+        result = runner.invoke(app, ["أحبك", "--shape", str(silhouette), "-o", str(target)])
+        assert result.exit_code == 0
+        assert target.is_file()
+
+    def test_lists_shapes(self) -> None:
+        result = runner.invoke(app, ["--list-shapes"])
+        assert result.exit_code == 0
+        assert result.output.split() == khatt.list_shapes()
+
+    def test_needs_a_png(self) -> None:
+        result = runner.invoke(app, ["خط", "--shape", "heart"])
+        assert result.exit_code == 2
+        assert ".png" in result.output
+
+    def test_unknown_shape(self, tmp_path: Path) -> None:
+        result = runner.invoke(app, ["خط", "--shape", "triangle", "-o", str(tmp_path / "a.png")])
+        assert result.exit_code == 2
+        assert "triangle" in result.output
+
+    def test_shape_or_curve(self, tmp_path: Path) -> None:
+        result = runner.invoke(
+            app, ["خط", "--shape", "heart", "--curve", "arc", "-o", str(tmp_path / "a.png")]
+        )
+        assert result.exit_code == 2
+        assert "not both" in result.output
+
+    def test_an_unreadable_image(self, tmp_path: Path) -> None:
+        broken = tmp_path / "broken.png"
+        broken.write_bytes(b"not an image")
+        result = runner.invoke(app, ["خط", "--shape", str(broken), "-o", str(tmp_path / "a.png")])
+        assert result.exit_code == 2
+        assert "cannot read" in result.output

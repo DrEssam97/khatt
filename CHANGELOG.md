@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Text on curves: `khatt.word_art(text, curve="arc")`, with the presets `arc`, `smile`,
+  `ring` and `wave` (`khatt.list_curves()`), or `khatt.Arc` and `khatt.Wave` for your
+  own. The whole line bends as one sheet, so Arabic letters stay joined and marks stay in
+  place, and effects are drawn on the bent text. In the CLI: `--curve` and `--list-curves`.
+- Calligrams: `khatt.calligram(text, shape="heart")` flows text inside a shape, line by
+  line, without cutting a letter at the edge. The presets are `arch`, `circle`,
+  `crescent`, `diamond` and `heart` (`khatt.list_shapes()`), and any image works as a shape.
+  The text repeats until the shape is full, or fits in once with `repeat=False`, and Arabic
+  lines are stretched to their full width with kashida. Effects work too. In the CLI:
+  `--shape`, `--repeat/--no-repeat` and `--list-shapes`.
+
 ## [0.5.0] - 2026-11-07
 
 ### Added
