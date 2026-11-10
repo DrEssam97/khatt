@@ -40,6 +40,10 @@ Or [install it](#install) with `pip install khatt`.
   your own from gradients, glows, shadows, depth and bevels.
 - **Calligrams.** `khatt.calligram` flows text inside a heart, a circle or any image of
   your own, with Arabic lines stretched by kashida.
+- **Zakhrafa.** `khatt.zakhrafa` decorates names to copy and paste, without breaking a
+  single join.
+- **SVG.** `khatt.render_svg` gives the same text as vector outlines, for the web, design
+  tools and cutting machines.
 - **Video captions.** `khatt.video.TextClip` is a drop-in for moviepy's `TextClip`.
 - **Terminal art.** Render Arabic as `blocks`, `ascii` or `braille` art, the Arabic
   FIGlet, from Python or the `khatt` command.
@@ -236,6 +240,48 @@ lam-alef. A line that would have to grow by more than 30% is centred instead.
 
 Shapes show best with several words a line, so parts thinner than a line of text, like
 the points of a star, stay empty unless the text is small: pass `size_px` to choose.
+
+## SVG: vector outlines
+
+```python
+svg = khatt.render_svg("خط جميل", font="lalezar", size_px=120, fill="#0b5394")
+Path("khatt.svg").write_text(svg, encoding="utf-8")
+```
+
+```bash
+khatt "خط جميل" --font lalezar -o khatt.svg
+```
+
+The same shaping and layout as images, with each glyph's outline taken from the font, so
+the SVG matches `draw_text` and stays sharp at any size: for the web, design tools,
+printing, laser cutters and vinyl cutters. It takes `draw_text`'s options (`fill`,
+`align`, `max_width`, `line_spacing`, `spacing`, outlines with `stroke_width`,
+`fallback_fonts`) plus `padding` and `background`. Each glyph is its own path, so where
+Arabic letters join, their outlines overlap: for a cutting machine, weld them first
+(Cricut Design Space: Weld). Effects, curves and calligrams are images only for now.
+
+## Zakhrafa: decorated names
+
+```python
+khatt.zakhrafa("محمد")             # مـحـمـد
+khatt.zakhrafa("محمد", "long")     # مـــحـــمـــد
+khatt.zakhrafa("محمد", "royal")    # ꧁༺ مـ͜͡ـحـ͜͡ـمـ͜͡ـد ༻꧂
+khatt.zakhrafa("نور الهدى", "hearts")
+```
+
+```bash
+khatt "محمد" --zakhrafa all
+```
+
+Decorated text to copy and paste, for display names and bios. The styles are
+`brackets`, `crown`, `dots`, `flowers`, `hearts`, `long`, `royal`, `stars`, `tatweel` and
+`waves` (`khatt.list_zakhrafa()`). Unlike most zakhrafa sites, khatt only decorates where
+letters join, and never inside lam-alef, so the words stay joined and readable, and
+tashkeel stays with its letter. The `tatweel` and `long` styles also draw with
+`word_art`, for a stretched name in gold or neon.
+
+Screen readers and search engines struggle with decorated text, so keep it for names,
+not for text people need to find or hear.
 
 ## Video captions (moviepy)
 

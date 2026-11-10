@@ -274,6 +274,13 @@ def main(
     ),
     list_curves: bool = typer.Option(False, "--list-curves", help="List curves and exit."),
     list_shapes: bool = typer.Option(False, "--list-shapes", help="List shapes and exit."),
+    zakhrafa: str | None = typer.Option(
+        None,
+        "--zakhrafa",
+        "-z",
+        help="Print the text decorated in this zakhrafa style, to copy and paste, or 'all' "
+        "for every style.",
+    ),
     list_effects: bool = typer.Option(False, "--list-effects", help="List effects and exit."),
     list_fonts: bool = typer.Option(False, "--list-fonts", help="List fonts and exit."),
     list_styles: bool = typer.Option(False, "--list-styles", help="List styles and exit."),
@@ -314,6 +321,22 @@ def main(
     if list_shapes:
         for name in khatt.list_shapes():
             typer.echo(name)
+        raise typer.Exit()
+    if zakhrafa is not None:
+        if text is None or text == "-":
+            text = sys.stdin.read()
+        text = text.rstrip("\n")
+        name = zakhrafa.strip().lower()
+        try:
+            if name == "all":
+                width = max(len(style) for style in khatt.list_zakhrafa())
+                for style in khatt.list_zakhrafa():
+                    typer.echo(f"{style:<{width}}  {khatt.zakhrafa(text, style)}")
+            else:
+                typer.echo(khatt.zakhrafa(text, name))
+        except KeyError as exc:
+            typer.secho(f"error: {exc.args[0]}", err=True, fg=typer.colors.RED)
+            raise typer.Exit(code=2) from exc
         raise typer.Exit()
     if shape is not None and curve is not None:
         typer.secho("error: pass --shape or --curve, not both", err=True, fg=typer.colors.RED)
@@ -379,6 +402,21 @@ def main(
 
     if output is None:
         typer.echo(art)
+    elif output.suffix.lower() == ".svg":
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # already reported while rendering the art
+            svg = khatt.render_svg(
+                text,
+                font=font,
+                size_px=160 if size_px is None else size_px,
+                fill=ink,
+                keep_tashkeel=keep_tashkeel is not False,
+                background=None if bg is None else background,
+            )
+        if svg is None:  # unreachable normally: empty art exits earlier
+            raise typer.Exit(code=1)
+        output.write_text(svg, encoding="utf-8")
+        typer.secho(f"wrote {output}", err=True)
     elif output.suffix.lower() == ".png":
         _save_png(
             art,

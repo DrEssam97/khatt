@@ -33,6 +33,9 @@ from khatt.mapper import available_styles as list_styles
 from khatt.mapper import get_style, map_image
 from khatt.shaping import UnsupportedCharacterWarning, base_direction, strip_tashkeel
 from khatt.shaping import missing_characters as _missing_in_line
+from khatt.svg import render_svg
+from khatt.zakhrafa import available_zakhrafa as list_zakhrafa
+from khatt.zakhrafa import zakhrafa
 
 __version__ = "0.6.0"
 
@@ -59,12 +62,15 @@ __all__ = [
     "list_fonts",
     "list_shapes",
     "list_styles",
+    "list_zakhrafa",
     "missing_characters",
     "overlay",
     "render",
     "render_image",
+    "render_svg",
     "text_bbox",
     "word_art",
+    "zakhrafa",
 ]
 
 

@@ -11,7 +11,6 @@ calligrapher would, rather than with wider gaps between words.
 from __future__ import annotations
 
 import math
-import unicodedata
 import warnings
 from collections.abc import Sequence
 from pathlib import Path
@@ -22,16 +21,13 @@ from khatt.color import Fill, rgba
 from khatt.draw import TextOverflowWarning, _pixels, _place_text
 from khatt.effects import Effect, compose, get_effect
 from khatt.fonts import Font, font_path, font_paths
+from khatt.kashida import TATWEEL, stretch
 from khatt.layout import _ink_width, largest_size
 from khatt.raster import Block, size_metrics
 from khatt.shaping import base_direction
 
-TATWEEL = "ـ"
 _RLM = "‏"
 """Keeps a line of right-to-left text right-to-left when it starts with a Latin word."""
-
-_MOST_KASHIDA = 3
-"""Tatweels at any one point of a word; more looks drawn out rather than written."""
 
 _MOST_STRETCH = 0.3
 """How much kashida may widen a line; a line that needs more is centred instead."""
@@ -41,60 +37,6 @@ _NARROWEST = 1.6
 
 _INSET = 0.12
 """Room left between the text and the shape's edge, in font sizes."""
-
-# Letters that never join the letter after them, so no kashida can follow them.
-_NO_JOIN_AFTER = frozenset("ءآأؤإاةدذرزوٱژڈڑۀےۓ")
-_ALEFS = frozenset("آأإاٱ")
-
-
-def _is_letter(ch: str) -> bool:
-    return unicodedata.bidirectional(ch) == "AL" and unicodedata.category(ch) == "Lo"
-
-
-def kashida_points(word: str) -> list[int]:
-    """Where a tatweel can go in ``word``: positions to insert it before.
-
-    Only between two letters that join, after the first one's marks, and
-    never inside lam-alef, which a tatweel would break apart.
-    """
-    points = []
-    for index, ch in enumerate(word):
-        if not _is_letter(ch) or ch in _NO_JOIN_AFTER:
-            continue
-        after = index + 1
-        while after < len(word) and unicodedata.combining(word[after]):
-            after += 1
-        if after == len(word) or not _is_letter(word[after]):
-            continue
-        if ch == "ل" and word[after] in _ALEFS:
-            continue
-        points.append(after)
-    return points
-
-
-def stretch(line: str, count: int) -> str:
-    """``line`` with ``count`` tatweels spread evenly over its words.
-
-    Fewer are added when the words have too few places for them.
-    """
-    words = line.split(" ")
-    spots = [(n, point) for n, word in enumerate(words) for point in kashida_points(word)]
-    if not spots or count <= 0:
-        return line
-    count = min(count, len(spots) * _MOST_KASHIDA)
-    extra = {spot: count // len(spots) for spot in spots}
-    # The rest go to every few spots across the line, not all at its start.
-    rest = count % len(spots)
-    for n in range(rest):
-        extra[spots[n * len(spots) // rest]] += 1
-    stretched = []
-    for n, word in enumerate(words):
-        pieces, last = [], 0
-        for point in kashida_points(word):
-            pieces += [word[last:point], TATWEEL * extra[(n, point)]]
-            last = point
-        stretched.append("".join(pieces) + word[last:])
-    return " ".join(stretched)
 
 
 def _heart(size: int) -> list[tuple[float, float]]:

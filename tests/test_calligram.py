@@ -9,17 +9,9 @@ import pytest
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 import khatt
-from khatt.calligram import (
-    TATWEEL,
-    _draw_lines,
-    _flow,
-    _Measure,
-    _segments,
-    _shape_mask,
-    kashida_points,
-    stretch,
-)
+from khatt.calligram import _draw_lines, _flow, _Measure, _segments, _shape_mask
 from khatt.fonts import font_path
+from khatt.kashida import TATWEEL, kashida_points, stretch
 from khatt.raster import size_metrics
 from khatt.shaping import base_direction
 
