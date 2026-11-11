@@ -71,6 +71,8 @@ class _Placed:
     x: int
     y: int
     """Top edge relative to the baseline (negative above it)."""
+    source: int = -1
+    """Position of the glyph in its line."""
 
 
 @lru_cache(maxsize=8)
@@ -213,10 +215,10 @@ def _place(
 ) -> list[_Placed]:
     """Position each inked glyph bitmap (or its ``stroke``) relative to the pen origin."""
     placed: list[_Placed] = []
-    for glyph, x, shift, y in _pen(glyphs, path, ppem, subpixel):
+    for source, (glyph, x, shift, y) in enumerate(_pen(glyphs, path, ppem, subpixel)):
         rendered = _glyph(_font(glyph, path), glyph.gid, ppem, shift, stroke)
         if rendered.image is not None:
-            placed.append(_Placed(rendered.image, x + rendered.left, y - rendered.top))
+            placed.append(_Placed(rendered.image, x + rendered.left, y - rendered.top, source))
     return placed
 
 
@@ -412,6 +414,9 @@ class Block:
     """The outline stroke's coverage and its top-left corner, when stroked.
 
     It surrounds ``mask``: paint it first, then the text on top."""
+    parts: tuple[tuple[int, Image.Image, int, int], ...] | None = None
+    """When the glyphs were split into groups: each group's number, coverage
+    and top-left corner. Together they cover what ``mask`` covers."""
 
 
 def compose_block(
@@ -423,6 +428,7 @@ def compose_block(
     align: Sequence[str] | None = None,
     width: int | None = None,
     stroke: int = 0,
+    groups: Sequence[Sequence[int]] | None = None,
 ) -> Block | None:
     """Draw shaped lines at ``ppem`` pixels per em, baselines ``pitch`` pixels apart.
 
@@ -435,6 +441,9 @@ def compose_block(
     ``stroke`` (a radius in 1/64 px) also draws the text's outline stroke as
     ``Block.stroke``. It doesn't move the text: lines are laid out as without
     it, and the stroke grows around them.
+
+    ``groups`` gives each glyph of each line a group number; each group is
+    then also drawn on its own, as ``Block.parts``, in the same place.
 
     Returns ``None`` when there is nothing to draw.
     """
@@ -476,7 +485,21 @@ def compose_block(
     outline = None
     if stroke:
         outline = draw([_place(line, path, ppem, subpixel=True, stroke=stroke) for line in lines])
-    return Block(text[0], text[1], text[2], layout_width, outline)
+    parts = None
+    if groups is not None and any(group for line in groups for group in line):
+        parts = []
+        for group in sorted({group for line in groups for group in line}):
+            part = draw(
+                [
+                    [glyph for glyph in line if groups[index][glyph.source] == group]
+                    for index, line in enumerate(placed)
+                ]
+            )
+            if part is not None:
+                parts.append((group, *part))
+    return Block(
+        text[0], text[1], text[2], layout_width, outline, None if parts is None else tuple(parts)
+    )
 
 
 def rasterize(glyphs: Sequence[ShapedGlyph], font_path: str | Path) -> Image.Image | None:

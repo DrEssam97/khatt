@@ -13,7 +13,7 @@ import math
 import numbers
 import warnings
 from collections.abc import Sequence
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from PIL import Image, ImageChops
@@ -42,6 +42,50 @@ DEFAULT_LINE_SPACING = 1.2
 
 class TextOverflowWarning(UserWarning):
     """Text did not fit in the box given to :func:`overlay`; it was clipped to the box."""
+
+
+@dataclass(frozen=True)
+class Span:
+    """Part of the text drawn in its own colour.
+
+    ``start`` and ``end`` are positions in the text as passed (``end`` is
+    not included), so ``text[start:end]`` is the part, for example a word to
+    highlight. The text is shaped as one, so letters keep their joins where
+    the colour changes.
+    """
+
+    start: int
+    end: int
+    fill: Fill
+
+
+SpanLike = Span | tuple[int, int, Fill]
+"""A :class:`Span`, or the same as a ``(start, end, fill)`` tuple."""
+
+
+def _span_parts(
+    spans: Sequence[SpanLike], color: tuple[int, int, int, int]
+) -> tuple[list[tuple[int, int, int]], list[tuple[int, int, int, int]]]:
+    """Spans as ``(start, end, part)`` ranges, and each part's colour (part 0: ``color``)."""
+    colors = [color]
+    ranges: list[tuple[int, int, int]] = []
+    for span in spans:
+        if not isinstance(span, Span):
+            if not (isinstance(span, tuple) and len(span) == 3):
+                raise ValueError(f"a span is a Span or a (start, end, fill) tuple, got {span!r}")
+            span = Span(*span)
+        start, end = span.start, span.end
+        if not all(
+            isinstance(n, numbers.Integral) and not isinstance(n, bool) for n in (start, end)
+        ):
+            raise ValueError(f"span start and end must be whole numbers, got {start!r}, {end!r}")
+        if not 0 <= start <= end:
+            raise ValueError(f"a span needs 0 <= start <= end, got {start} and {end}")
+        span_color = rgba(span.fill)
+        if span_color not in colors:
+            colors.append(span_color)
+        ranges.append((int(start), int(end), colors.index(span_color)))
+    return ranges, colors
 
 
 def _round(value: float) -> int:
@@ -103,8 +147,31 @@ def _paint_text(
     color: tuple[int, int, int, int],
     stroke_color: tuple[int, int, int, int],
     clip: tuple[int, int, int, int] | None = None,
+    colors: Sequence[tuple[int, int, int, int]] = (),
 ) -> None:
-    """Paint ``block``'s stroke (if any) and then its text, the text mask's corner at ``xy``."""
+    """Paint ``block``'s stroke (if any) and then its text, the text mask's corner at ``xy``.
+
+    When the block has parts, each part is painted in its colour from ``colors``.
+    """
+    if block.parts is not None and colors:
+        if block.stroke is not None:
+            stroke, left, top = block.stroke
+            _paint(
+                image,
+                stroke,
+                (xy[0] + left - block.left, xy[1] + top - block.top),
+                stroke_color,
+                clip,
+            )
+        for part, mask, left, top in block.parts:
+            _paint(
+                image,
+                mask,
+                (xy[0] + left - block.left, xy[1] + top - block.top),
+                colors[part],
+                clip,
+            )
+        return
     if block.stroke is None:
         _paint(image, block.mask, xy, color, clip)
         return
@@ -223,6 +290,7 @@ def _place_text(
     keep_tashkeel: bool,
     stroke_width: float,
     fallback_fonts: Font | Sequence[Font],
+    spans: Sequence[tuple[int, int, int]] = (),
 ) -> tuple[Block, tuple[int, int]] | None:
     """Lay out text as :func:`draw_text` draws it: the block, and where its mask's corner goes.
 
@@ -247,6 +315,7 @@ def _place_text(
         keep_tashkeel=keep_tashkeel,
         stroke_width=stroke_width,
         fallbacks=font_paths(fallback_fonts),
+        spans=spans,
     )
     if laid_out is None:
         return None
@@ -282,6 +351,7 @@ def draw_text(
     stroke_fill: Fill | None = None,
     fallback_fonts: Font | Sequence[Font] = (),
     effect: str | Effect | None = None,
+    spans: Sequence[SpanLike] = (),
 ) -> Image.Image:
     """Draw shaped text onto ``image`` (in place) and return it.
 
@@ -333,6 +403,12 @@ def draw_text(
             :class:`khatt.Effect`. It decides the colours, so ``fill`` and
             ``stroke_fill`` are not used, and it brings its own outline, so
             it can't be combined with ``stroke_width``.
+        spans: Parts of the text in their own colour, each a
+            :class:`khatt.Span` or a ``(start, end, fill)`` tuple, such as
+            ``(0, 5, "gold")`` for the first five characters. Positions are
+            in ``text`` as passed; where spans overlap, the later one wins.
+            The text is laid out exactly as without them, and letters keep
+            their joins across a colour change. Not with ``effect``.
 
     Returns:
         ``image``, drawn on. Characters the font does not cover are skipped
@@ -343,6 +419,9 @@ def draw_text(
     color = rgba(fill)
     stroke_color = color if stroke_fill is None else rgba(stroke_fill)
     style = _resolve_effect(effect, stroke_width)
+    if spans and style is not None:
+        raise ValueError("spans colour the text, and an effect decides its colours; pass one")
+    ranges, colors = _span_parts(spans, color)
     placed = _place_text(
         xy,
         text,
@@ -356,10 +435,11 @@ def draw_text(
         keep_tashkeel=keep_tashkeel,
         stroke_width=stroke_width if style is None else style.outline * size_px,
         fallback_fonts=fallback_fonts,
+        spans=ranges,
     )
     if placed is not None:
         if style is None:
-            _paint_text(image, *placed, color, stroke_color)
+            _paint_text(image, *placed, color, stroke_color, colors=colors)
         else:
             _paint_effect(image, *placed, style, _pixels("size_px", size_px))
     return image

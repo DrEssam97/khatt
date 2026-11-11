@@ -37,6 +37,8 @@ Or [install it](#install) with `pip install khatt`.
 - **Draw on images.** `khatt.draw_text` is a drop-in for Pillow's `ImageDraw.text`, with
   wrapping, alignment, outlines and translucent fills. `khatt.overlay` fits text into a
   box and `khatt.text_bbox` measures it.
+- **Coloured words.** `spans` colours part of the text, such as the word being spoken in a
+  caption, without breaking a single join.
 - **Word art.** Gold, neon, fire, 3D and more in one line with `khatt.word_art`, or build
   your own from gradients, glows, shadows, depth and bevels.
 - **Calligrams.** `khatt.calligram` flows text inside a heart, a circle or any image of
@@ -127,6 +129,27 @@ left, top, right, bottom = khatt.text_bbox("مرحبا بالعالم", xy=(640,
   a caption.
 - RGB and RGBA images both work; on RGBA, a transparent background stays
   transparent around the text.
+
+### Colour part of the text
+
+`spans` draws parts of the text in their own colour, for example the word being spoken
+in a karaoke caption. The line is still shaped as one, so letters keep their joins where
+the colour changes, and the layout is exactly the same as without spans.
+
+```python
+text = "كل كلمة تضيء في وقتها"
+start = text.index("تضيء")
+khatt.draw_text(frame, (640, 650), text, size_px=64, anchor="md", fill="white",
+                stroke_width=4, stroke_fill="black",
+                spans=[(start, start + len("تضيء"), "gold")])
+```
+
+![A caption with one word in gold at a time, its letters joined](docs/assets/khatt-spans.jpg)
+
+- A span is `(start, end, fill)` or `khatt.Span(start, end, fill)`: positions in the
+  text as you pass it, so `text[start:end]` is the part, and any colour `fill` takes.
+  Where spans overlap, the later one wins.
+- `khatt.caption_image` takes `spans` too.
 
 **Why not just `ImageDraw.text`?** Pillow shapes Arabic only when it's built with
 Raqm, which most Windows installs aren't. The usual workaround,

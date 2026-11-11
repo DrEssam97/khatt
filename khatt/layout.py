@@ -23,7 +23,7 @@ per em, wraps to a width in pixels, and keeps its baselines evenly spaced
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from PIL import Image
@@ -80,6 +80,46 @@ def wrap(paragraph: str, fits: Callable[[str], bool]) -> list[str]:
     return lines
 
 
+def _piece_positions(paragraph: str, pieces: Sequence[str]) -> list[list[int]]:
+    """For each character of each wrapped piece, its position in ``paragraph``.
+
+    :func:`wrap` returns the paragraph itself, or its words rejoined with
+    single spaces; a joining space maps to the gap after the word before it.
+    """
+    if list(pieces) == [paragraph]:
+        return [list(range(len(paragraph)))]
+    words: list[tuple[int, int]] = []
+    start = None
+    for i, ch in enumerate(f"{paragraph} "):
+        if ch.isspace():
+            if start is not None:
+                words.append((start, i))
+                start = None
+        elif start is None:
+            start = i
+    positions: list[list[int]] = []
+    word = 0
+    for piece in pieces:
+        mapped: list[int] = []
+        for count, _ in enumerate(piece.split()):
+            if count:
+                mapped.append(words[word - 1][1])  # the joining space
+            begin, end = words[word]
+            mapped.extend(range(begin, end))
+            word += 1
+        positions.append(mapped)
+    return positions
+
+
+def _line_starts(text: str) -> list[int]:
+    """Where each of :func:`paragraphs`'s paragraphs starts in ``text``."""
+    starts, offset = [], 0
+    for line in text.replace("\t", " ").splitlines(keepends=True):
+        starts.append(offset)
+        offset += len(line)
+    return starts
+
+
 class _Lines:
     """Shaped, aligned lines ready for :func:`khatt.raster.compose`."""
 
@@ -121,15 +161,17 @@ def _shape_lines(
     ppem: int | None = None,
     warn: bool = True,
     fallbacks: Sequence[Path] = (),
+    track: bool = False,
 ) -> _Lines:
     """Shape every paragraph, wrapping it to ``max_width`` pixels if given.
 
     Widths are measured in render pixels, or at ``ppem`` when given.
     ``warn=False`` skips unsupported characters silently. ``fallbacks`` are
-    fonts for characters ``path`` has no glyph for.
+    fonts for characters ``path`` has no glyph for. ``track`` sets each
+    glyph's ``index`` to its character's position in ``text``.
     """
     lines = _Lines()
-    for paragraph in paragraphs(text):
+    for paragraph, paragraph_start in zip(paragraphs(text), _line_starts(text), strict=True):
         direction = base_direction(paragraph)
         pieces = [paragraph]
         if max_width is not None:
@@ -139,18 +181,25 @@ def _shape_lines(
                 return width <= limit
 
             pieces = wrap(paragraph, fits)
-        for piece in pieces:
-            lines.add(
-                shape(
-                    piece,
-                    path,
-                    keep_tashkeel=keep_tashkeel,
-                    direction=direction,
-                    warn=warn,
-                    fallback_fonts=fallbacks,
-                ),
-                direction,
+        positions = _piece_positions(paragraph, pieces) if track else None
+        for number, piece in enumerate(pieces):
+            glyphs = shape(
+                piece,
+                path,
+                keep_tashkeel=keep_tashkeel,
+                direction=direction,
+                warn=warn,
+                fallback_fonts=fallbacks,
+                track=track,
             )
+            if positions is not None:
+                glyphs = [
+                    replace(glyph, index=paragraph_start + positions[number][glyph.index])
+                    if glyph.index >= 0
+                    else glyph
+                    for glyph in glyphs
+                ]
+            lines.add(glyphs, direction)
     return lines
 
 
@@ -430,6 +479,7 @@ def layout_block(
     stroke_width: float = 0,
     spacing: float | None = None,
     fallbacks: Sequence[Path] = (),
+    spans: Sequence[tuple[int, int, int]] = (),
 ) -> TextBlock | None:
     """Lay out and draw ``text`` at ``size_px`` pixels per em for an image.
 
@@ -442,9 +492,34 @@ def layout_block(
     Characters ``path`` has no glyph for are drawn from the first of
     ``fallbacks`` that has one; line spacing still follows ``path``.
 
+    ``spans`` are ``(start, end, part)``: characters ``start`` to ``end``
+    of ``text`` (end excluded) go in mask part ``part`` (see
+    ``Block.parts``); the rest are part 0, and a later span wins where
+    spans overlap. The layout is the same with or without them.
+
     Returns ``None`` when there is nothing to draw.
     """
-    lines = _shape_lines(text, path, keep_tashkeel, max_width, ppem=size_px, fallbacks=fallbacks)
+    lines = _shape_lines(
+        text,
+        path,
+        keep_tashkeel,
+        max_width,
+        ppem=size_px,
+        fallbacks=fallbacks,
+        track=bool(spans),
+    )
+    groups = None
+    if spans:
+        groups = [
+            [
+                next(
+                    (part for start, end, part in reversed(spans) if start <= glyph.index < end),
+                    0,
+                )
+                for glyph in line
+            ]
+            for line in lines.glyphs
+        ]
     alignments = lines.align if align is None else [align] * len(lines.align)
     pitch = line_pitch(
         path,
@@ -462,6 +537,7 @@ def layout_block(
         align=alignments,
         width=width,
         stroke=round(stroke_width * 64),
+        groups=groups,
     )
     if block is None:
         return None

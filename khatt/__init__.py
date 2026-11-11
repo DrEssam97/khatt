@@ -23,7 +23,7 @@ from khatt.caption import caption_image
 from khatt.curves import Arc, Wave
 from khatt.curves import available_curves as list_curves
 from khatt.doctor import doctor
-from khatt.draw import TextOverflowWarning, draw_text, overlay, text_bbox, word_art
+from khatt.draw import Span, TextOverflowWarning, draw_text, overlay, text_bbox, word_art
 from khatt.effects import Effect, Extrude, Glow, Gradient, Shadow, get_effect
 from khatt.effects import available_effects as list_effects
 from khatt.fonts import Font, font_path, font_paths
@@ -47,6 +47,7 @@ __all__ = [
     "Glow",
     "Gradient",
     "Shadow",
+    "Span",
     "TextOverflowWarning",
     "UnsupportedCharacterWarning",
     "Wave",

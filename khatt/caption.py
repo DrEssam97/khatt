@@ -25,12 +25,14 @@ from PIL import Image
 
 from khatt.color import Fill, rgba
 from khatt.draw import (
+    SpanLike,
     TextOverflowWarning,
     _check_stroke,
     _extent,
     _is_number,
     _paint_text,
     _pixels,
+    _span_parts,
 )
 from khatt.fonts import Font, font_path, font_paths
 from khatt.layout import (
@@ -84,6 +86,7 @@ def _measure(
     stroke_width: float,
     keep_tashkeel: bool,
     fallbacks: Sequence[Path] = (),
+    spans: Sequence[tuple[int, int, int]] = (),
 ) -> _Measured:
     laid_out = layout_block(
         text,
@@ -96,6 +99,7 @@ def _measure(
         keep_tashkeel=keep_tashkeel,
         stroke_width=stroke_width,
         fallbacks=fallbacks,
+        spans=spans,
     )
     stroke = math.ceil(stroke_width)
     if laid_out is None:
@@ -185,6 +189,7 @@ def caption_image(
     transparent: bool = True,
     keep_tashkeel: bool = True,
     fallback_fonts: Font | Sequence[Font] = (),
+    spans: Sequence[SpanLike] = (),
 ) -> Image.Image:
     """Draw ``text`` as moviepy's ``TextClip`` would show it, shaped by khatt.
 
@@ -226,6 +231,9 @@ def caption_image(
             for characters ``font`` has no glyph for, such as a CJK font
             for Chinese inside Arabic text. Line spacing and anchors still
             follow ``font``.
+        spans: Parts of the text in their own colour, as in
+            :func:`khatt.draw_text`, such as ``[(0, 5, "gold")]`` to
+            highlight the first word of a caption.
 
     Returns:
         An RGBA image (RGB when ``transparent`` is ``False``). Characters
@@ -253,6 +261,7 @@ def caption_image(
     left, top, right, bottom = _margins(margin)
     color_rgba = rgba(color)
     stroke_rgba = color_rgba if stroke_color is None else rgba(stroke_color)
+    ranges, colors = _span_parts(spans, color_rgba)
     background = rgba(bg_color) if bg_color is not None else (0, 0, 0, 0 if transparent else 255)
     path = font_path("amiri" if font is None else font)
     fallbacks = font_paths(fallback_fonts)
@@ -266,7 +275,7 @@ def caption_image(
         # Wrap the text so that its outline fits the width too.
         wrap = max(1, width - 2 * math.ceil(stroke_width))
 
-    def measure(size_px: int) -> _Measured:
+    def measure(size_px: int, spans: Sequence[tuple[int, int, int]] = ()) -> _Measured:
         return _measure(
             text,
             path,
@@ -277,6 +286,7 @@ def caption_image(
             stroke_width=stroke_width,
             keep_tashkeel=keep_tashkeel,
             fallbacks=fallbacks,
+            spans=spans,
         )
 
     if font_size is None:
@@ -301,7 +311,7 @@ def caption_image(
             path, (1, width), line_spacing=1.0, spacing=interline, stroke_width=stroke_width
         )
         font_size = largest_size(fits, (low, width))
-    measured = measure(font_size)
+    measured = measure(font_size, ranges)
     area_width = width if width is not None else max(1, measured.width)
     area_height = height if height is not None else measured.height
     if measured.width > area_width or measured.height > area_height:
@@ -328,5 +338,5 @@ def caption_image(
     origin_x, origin_y = x - measured.ink[0], y - measured.top
     block = measured.laid_out.block
     corner = (origin_x + block.left, origin_y + block.top)
-    _paint_text(image, block, corner, color_rgba, stroke_rgba)
+    _paint_text(image, block, corner, color_rgba, stroke_rgba, colors=colors)
     return image
