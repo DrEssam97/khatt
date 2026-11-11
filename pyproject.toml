@@ -1,6 +1,6 @@
 [project]
 name = "khatt"
-version = "0.6.0"
+version = "0.7.0"
 description = "Correct Arabic text for Python: on images, in video subtitles and as terminal art, with no system libraries"
 readme = "README.md"
 license = { text = "MIT" }

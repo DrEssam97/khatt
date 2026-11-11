@@ -37,7 +37,7 @@ from khatt.svg import render_svg
 from khatt.zakhrafa import available_zakhrafa as list_zakhrafa
 from khatt.zakhrafa import zakhrafa
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 __all__ = [
     "DEFAULT_SIZE",
