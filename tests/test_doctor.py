@@ -7,14 +7,12 @@ from importlib import metadata
 from typing import Protocol
 
 import pytest
+from cli_runner import invoke
 from PIL import features
-from typer.testing import CliRunner
 
 import khatt
-from khatt.cli import app
+from khatt.cli import main
 from khatt.doctor import _at_least, format_report
-
-runner = CliRunner()
 
 
 class Environment(Protocol):
@@ -146,13 +144,13 @@ def test_format_report(environment: Environment) -> None:
 
 def test_cli_doctor_flag(environment: Environment) -> None:
     environment(raqm=False, matplotlib=None, reshaper=True)
-    result = runner.invoke(app, ["--doctor"])
+    result = invoke(main, ["--doctor"])
     assert result.exit_code == 0
     assert "Pillow" in result.output
     assert "warning: arabic_reshaper is installed" in result.output
 
 
 def test_cli_doctor_flag_wins_over_text() -> None:
-    result = runner.invoke(app, ["مرحبا", "--doctor"])
+    result = invoke(main, ["مرحبا", "--doctor"])
     assert result.exit_code == 0
     assert result.output.startswith("khatt ")

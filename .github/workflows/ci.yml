@@ -107,19 +107,19 @@ jobs:
           - name: minimum versions
             os: ubuntu-latest
             python-version: "3.11"
-            pins: pillow==10.1.0 typer==0.15.4
+            pins: pillow==10.1.0
           - name: MoneyPrinterTurbo pins
             os: ubuntu-latest
             python-version: "3.11"
-            pins: pillow==11.3.0 typer==0.26.5
+            pins: pillow==11.3.0
           - name: MoneyPrinterTurbo pins
             os: windows-latest
             python-version: "3.11"
-            pins: pillow==11.3.0 typer==0.26.5
+            pins: pillow==11.3.0
           - name: MoneyPrinterTurbo pins
             os: ubuntu-latest
             python-version: "3.13"
-            pins: pillow==11.3.0 typer==0.26.5
+            pins: pillow==11.3.0
     env:
       PYTHONUTF8: "1"
     steps:
@@ -134,7 +134,7 @@ jobs:
         run: |
           uv sync --locked
           uv pip install ${{ matrix.pins }}
-          uv run --no-sync python -c "import PIL, typer; print('Pillow', PIL.__version__, '| typer', typer.__version__)"
+          uv run --no-sync python -c "import PIL; print('Pillow', PIL.__version__)"
 
       - name: Tests (pytest)
         run: uv run --no-sync pytest
