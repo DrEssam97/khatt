@@ -10,12 +10,12 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from cli_runner import invoke
 from PIL import Image
-from typer.testing import CliRunner
 
 import khatt
 from khatt import fonts
-from khatt.cli import app
+from khatt.cli import main
 from khatt.fonts import available_fonts, font_path
 from khatt.raster import _face
 from khatt.shaping import REGULAR_WEIGHT, variations
@@ -141,15 +141,14 @@ class TestFontFiles:
             fonts._check_font_file.cache_clear()
 
     def test_cli_font_file(self, amiri_copy: Path, tmp_path: Path) -> None:
-        runner = CliRunner()
-        own = runner.invoke(app, ["خط", "-w", "40", "--font", str(amiri_copy)])
-        bundled = runner.invoke(app, ["خط", "-w", "40"])
+        own = invoke(main, ["خط", "-w", "40", "--font", str(amiri_copy)])
+        bundled = invoke(main, ["خط", "-w", "40"])
         assert own.exit_code == 0
         assert own.output == bundled.output
 
         bad = tmp_path / "bad.otf"
         bad.write_bytes(b"nope")
-        result = runner.invoke(app, ["خط", "--font", str(bad)])
+        result = invoke(main, ["خط", "--font", str(bad)])
         assert result.exit_code == 2
         assert "error: cannot load font file" in result.output
 

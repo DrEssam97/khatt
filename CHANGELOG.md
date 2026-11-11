@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- khatt is lighter: it no longer needs typer. The `khatt` command now runs on
+  Python's own argparse, with the same options and output. Installing khatt now
+  pulls in 4 packages (Pillow, uharfbuzz, freetype-py, python-bidi) instead of 17,
+  as typer brought pydantic, rich, Pygments and others with it.
 - Python 3.14 is tested and listed as supported. CI also runs the whole suite with
   Pillow's Raqm turned on, to prove khatt draws the same with or without it.
 
