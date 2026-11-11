@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Spans: `draw_text(..., spans=[(start, end, "gold")])` draws part of the text in its
+  own colour, such as the word being spoken in a caption. The line is still shaped as
+  one, so letters keep their joins where the colour changes, and the layout is the same
+  as without spans. `caption_image` takes `spans` too, and `khatt.Span` is the same as a
+  `(start, end, fill)` tuple.
+
 ## [0.7.1] - 2026-11-11
 
 ### Changed

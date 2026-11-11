@@ -14,6 +14,7 @@ control characters (LRE/RLE/…) are not given special treatment.
 
 from __future__ import annotations
 
+import re
 import unicodedata
 import warnings
 from collections.abc import Sequence
@@ -51,6 +52,13 @@ _LTR_BIDI_CLASSES = frozenset({"L", "EN", "AN"})
 
 _BIDI_BASE_DIR = {"ltr": "L", "rtl": "R"}
 
+# python-bidi's debug output lists the embedding level of every UTF-8 byte.
+_LEVELS = re.compile(r"levels:\s*\[(.*?)\]\s*,\s*paragraphs", re.DOTALL)
+_LEVEL = re.compile(r"Level\(\s*(\d+)")
+_PARAGRAPH_LEVEL = re.compile(r"ParagraphInfo\s*\{.*?level:\s*Level\(\s*(\d+)", re.DOTALL)
+# Characters that take the paragraph's level at the end of a line (rule L1).
+_TRAILING_BIDI_CLASSES = frozenset({"WS", "FSI", "LRI", "RLI", "PDI", "BN"})
+
 REGULAR_WEIGHT = 400
 """Weight variable fonts render at (clamped to the font's range). A variable
 font's default instance isn't always Regular: Rubik's is Light (300)."""
@@ -69,6 +77,9 @@ class ShapedGlyph:
     font: str | None = None
     """The fallback font file the glyph comes from, or ``None`` for the line's
     own font. The glyph's distances are in that font's units."""
+    index: int = -1
+    """Where the character this glyph draws sits in the text given to
+    :func:`shape`, when it was asked to ``track`` it; otherwise ``-1``."""
 
 
 def strip_tashkeel(text: str) -> str:
@@ -176,6 +187,73 @@ def _visual_segments(text: str, direction: str | None = None) -> list[tuple[str,
     return segments
 
 
+def _reorder(levels: Sequence[int]) -> list[int]:
+    """Visual order of characters with these embedding levels (rule L2)."""
+    order = list(range(len(levels)))
+    odd = [level for level in levels if level % 2]
+    if not odd:
+        return order
+    for level in range(max(levels), min(odd) - 1, -1):
+        i = 0
+        while i < len(order):
+            if levels[order[i]] < level:
+                i += 1
+                continue
+            j = i
+            while j < len(order) and levels[order[j]] >= level:
+                j += 1
+            order[i:j] = order[i:j][::-1]
+            i = j
+    return order
+
+
+def _logical_order(text: str, direction: str | None = None) -> list[int] | None:
+    """For each character of ``get_display(text)``, its position in ``text``.
+
+    The embedding levels come from python-bidi itself, so the order is the
+    one it displays; it is checked against that display, and ``None`` means
+    it could not be worked out.
+    """
+    if not text:
+        return []
+    base_dir = _BIDI_BASE_DIR[direction] if direction is not None else None
+    info = get_display(text, base_dir=base_dir, debug=True)
+    found = _LEVELS.search(info) if isinstance(info, str) else None
+    paragraph = _PARAGRAPH_LEVEL.search(info) if isinstance(info, str) else None
+    if found is None or paragraph is None:
+        return None
+    by_byte = [int(level) for level in _LEVEL.findall(found.group(1))]
+    if len(by_byte) != len(text.encode("utf-8")):
+        return None
+    levels, offset = [], 0
+    for ch in text:
+        levels.append(by_byte[offset])
+        offset += len(ch.encode("utf-8"))
+    base = int(paragraph.group(1))
+    kinds = [unicodedata.bidirectional(ch) for ch in text]
+    visual = get_display(text, base_dir=base_dir)
+    # Rule L1 resets trailing whitespace to the paragraph level. python-bidi
+    # treats a trailing zero-width joiner either way, so both are tried and
+    # the one that matches its display wins.
+    for reset_joiners in (True, False):
+        trial = list(levels)
+        for end in [len(text), *(k for k, kind in enumerate(kinds) if kind in ("S", "B"))]:
+            if end < len(text):
+                trial[end] = base
+            k = end
+            while k > 0 and kinds[k - 1] in _TRAILING_BIDI_CLASSES:
+                k -= 1
+                if reset_joiners or kinds[k] != "BN":
+                    trial[k] = base
+        order = _reorder(trial)
+        if len(order) == len(visual) and all(
+            shown == text[i] or (unicodedata.mirrored(shown) and unicodedata.mirrored(text[i]))
+            for shown, i in zip(visual, order, strict=True)
+        ):
+            return order
+    return None
+
+
 def _shape_segment(
     font: hb.Font, segment: str, direction: str
 ) -> tuple[list[ShapedGlyph], list[str]]:
@@ -243,12 +321,24 @@ def _shape_line(
     font_path: str | Path,
     direction: str | None,
     fallback_fonts: Sequence[str | Path],
+    track: bool = False,
 ) -> tuple[list[ShapedGlyph], list[str]]:
-    """Shape one line with fallbacks: its glyphs, and the characters no font has."""
+    """Shape one line with fallbacks: its glyphs, and the characters no font has.
+
+    ``track`` also sets each glyph's :attr:`ShapedGlyph.index`.
+    """
     fonts = [_load_font(str(path)) for path in (font_path, *fallback_fonts)]
     paths = [None, *(str(path) for path in fallback_fonts)]
+    order = _logical_order(text, direction) if track else None
+    if track and order is None:
+        warnings.warn(
+            f"could not tell where each character of {text!r} is drawn, "
+            "so its spans are drawn in the main colour",
+            stacklevel=4,
+        )
     glyphs: list[ShapedGlyph] = []
     missing: list[str] = []
+    shown = 0
     for segment, segment_direction in _visual_segments(text, direction):
         shaped, absent = _shape_segment(fonts[0], segment, segment_direction)
         runs = _font_runs(segment, fonts) if absent and len(fonts) > 1 else []
@@ -270,6 +360,12 @@ def _shape_line(
             if segment_direction == "rtl":
                 pieces.reverse()  # runs are in logical order; glyphs go out visually
             shaped = [glyph for piece in pieces for glyph in piece]
+        if order is not None:
+            positions = order[shown : shown + len(segment)]
+            if segment_direction == "rtl":
+                positions.reverse()  # the segment was turned back to logical order
+            shaped = [replace(glyph, index=positions[glyph.cluster]) for glyph in shaped]
+        shown += len(segment)
         glyphs.extend(shaped)
         missing.extend(absent)
     return glyphs, missing
@@ -283,6 +379,7 @@ def shape(
     direction: str | None = None,
     warn: bool = True,
     fallback_fonts: Sequence[str | Path] = (),
+    track: bool = False,
 ) -> list[ShapedGlyph]:
     """Shape one line of ``text`` with the font at ``font_path``.
 
@@ -304,15 +401,25 @@ def shape(
 
     ``fallback_fonts`` are font files tried in order for characters the font
     has no glyph for; their glyphs carry :attr:`ShapedGlyph.font`.
+
+    ``track=True`` records where in ``text`` each glyph's character is, as
+    :attr:`ShapedGlyph.index`, so parts of the text can be styled.
     """
     if direction is not None and direction not in _BIDI_BASE_DIR:
         raise ValueError(f"direction must be 'rtl' or 'ltr', got {direction!r}")
+    kept: Sequence[int] = range(len(text))
     if not keep_tashkeel:
+        kept = [i for i, ch in enumerate(text) if ch not in _TASHKEEL]
         text = strip_tashkeel(text)
     if not text:
         return []
 
-    glyphs, missing = _shape_line(text, font_path, direction, fallback_fonts)
+    glyphs, missing = _shape_line(text, font_path, direction, fallback_fonts, track)
+    if track and not keep_tashkeel:
+        glyphs = [
+            replace(glyph, index=kept[glyph.index]) if glyph.index >= 0 else glyph
+            for glyph in glyphs
+        ]
     for offender in missing if warn else ():
         warnings.warn(
             f"character {offender!r} (U+{ord(offender):04X}) is not supported "
