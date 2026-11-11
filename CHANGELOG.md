@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-11
+
 ### Added
 
 - Zakhrafa: `khatt.zakhrafa("محمد", "royal")` decorates text to copy and paste, in 10
@@ -263,7 +265,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   83-test suite at ≥85% enforced coverage on a 3.10 to 3.13 × Ubuntu/Windows
   CI matrix.
 
-[Unreleased]: https://github.com/DrEssam97/khatt/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/DrEssam97/khatt/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/DrEssam97/khatt/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/DrEssam97/khatt/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/DrEssam97/khatt/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/DrEssam97/khatt/compare/v0.4.1...v0.4.2
