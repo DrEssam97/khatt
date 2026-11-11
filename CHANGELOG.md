@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Python 3.14 is tested and listed as supported. CI also runs the whole suite with
+  Pillow's Raqm turned on, to prove khatt draws the same with or without it.
+
 ## [0.7.0] - 2026-11-11
 
 ### Added

@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     env:
       PYTHONUTF8: "1"
     steps:
@@ -66,6 +66,33 @@ jobs:
 
       - name: Tests (pytest)
         run: uv run --no-sync pytest tests/test_font_pack.py --no-cov
+
+  raqm:
+    # Pillow can shape text itself through Raqm when FriBiDi is installed, as
+    # in many Linux images. khatt must draw exactly the same either way, and
+    # must never shape twice, so the whole suite also runs with Raqm on.
+    name: Pillow with Raqm / ubuntu-latest
+    runs-on: ubuntu-latest
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install FriBiDi, which Pillow's Raqm needs
+        run: sudo apt-get update && sudo apt-get install -y libfribidi0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          uv sync --locked
+          uv run --no-sync python -c "from PIL import features; assert features.check('raqm'), 'Raqm did not load'; print('Raqm', features.version('raqm'))"
+
+      - name: Tests (pytest)
+        run: uv run --no-sync pytest
 
   compat:
     # The lockfile always tests the newest dependencies. These jobs prove khatt
