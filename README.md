@@ -27,9 +27,10 @@ Or [install it](#install) with `pip install khatt`.
 **Used by**
 
 - [MoneyPrinterTurbo](https://github.com/harry0703/MoneyPrinterTurbo) for Arabic subtitles in the videos it generates
-- [supervision](https://github.com/roboflow/supervision) for Arabic and Hebrew labels in `RichLabelAnnotator` (optional `rtl` extra)
+- [supervision](https://github.com/roboflow/supervision) for Arabic labels in `RichLabelAnnotator` (optional `rtl` extra)
 - [RapidOCR](https://github.com/RapidAI/RapidOCR) for Arabic text in its result images (optional `rtl` extra)
 - [ComfyUI LayerStyle](https://github.com/chflame163/ComfyUI_LayerStyle) for Arabic in its Simple Text Image node
+- [manga-image-translator](https://github.com/zyddnys/manga-image-translator) for Arabic in the translations it draws onto manga pages
 
 ## Features
 
