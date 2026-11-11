@@ -333,3 +333,39 @@ class TestShape:
         result = runner.invoke(app, ["خط", "--shape", str(broken), "-o", str(tmp_path / "a.png")])
         assert result.exit_code == 2
         assert "cannot read" in result.output
+
+
+class TestZakhrafa:
+    def test_one_style(self) -> None:
+        result = runner.invoke(app, ["محمد", "--zakhrafa", "royal"])
+        assert result.exit_code == 0
+        assert result.output.strip() == khatt.zakhrafa("محمد", "royal")
+
+    def test_all_styles(self) -> None:
+        result = runner.invoke(app, ["محمد", "-z", "all"])
+        assert result.exit_code == 0
+        lines = result.output.strip().split("\n")
+        assert [line.split()[0] for line in lines] == khatt.list_zakhrafa()
+
+    def test_unknown_style(self) -> None:
+        result = runner.invoke(app, ["محمد", "--zakhrafa", "sparkles"])
+        assert result.exit_code == 2
+        assert "sparkles" in result.output
+
+
+class TestSvg:
+    def test_writes_svg(self, tmp_path: Path) -> None:
+        target = tmp_path / "khatt.svg"
+        result = runner.invoke(app, ["خط جميل", "--font", "lalezar", "-o", str(target)])
+        assert result.exit_code == 0
+        svg = target.read_text(encoding="utf-8")
+        assert svg == khatt.render_svg("خط جميل", font="lalezar", size_px=160)
+
+    def test_colours(self, tmp_path: Path) -> None:
+        target = tmp_path / "khatt.svg"
+        result = runner.invoke(
+            app, ["خط", "--fg", "#ff0000", "--bg", "white", "--size-px", "60", "-o", str(target)]
+        )
+        assert result.exit_code == 0
+        svg = target.read_text(encoding="utf-8")
+        assert 'fill="#ff0000"' in svg and "<rect" in svg

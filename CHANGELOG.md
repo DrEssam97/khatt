@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Zakhrafa: `khatt.zakhrafa("محمد", "royal")` decorates text to copy and paste, in 10
+  styles (`khatt.list_zakhrafa()`). Decorations only go where letters join, never inside
+  lam-alef, so words stay joined and tashkeel stays with its letter. In the CLI:
+  `khatt "محمد" --zakhrafa all`.
+- SVG: `khatt.render_svg(text)` draws text as vector glyph outlines, shaped and laid out
+  exactly as for images, with `draw_text`'s options plus `padding` and `background`. In
+  the CLI, an `.svg` output: `khatt "خط" -o khatt.svg`.
+
 ## [0.6.0] - 2026-11-09
 
 ### Added
