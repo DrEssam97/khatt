@@ -39,6 +39,8 @@ Or [install it](#install) with `pip install khatt`.
   box and `khatt.text_bbox` measures it.
 - **Coloured words.** `spans` colours part of the text, such as the word being spoken in a
   caption, without breaking a single join.
+- **OpenCV and receipts.** `khatt.put_text` draws onto NumPy frames like `cv2.putText`,
+  and `khatt.receipt_image` lays out receipts for thermal printers.
 - **Word art.** Gold, neon, fire, 3D and more in one line with `khatt.word_art`, or build
   your own from gradients, glows, shadows, depth and bevels.
 - **Calligrams.** `khatt.calligram` flows text inside a heart, a circle or any image of
@@ -178,6 +180,48 @@ Give it your project, `khatt --doctor src/`, and it also lists every place that 
 pre-shapes Arabic with arabic_reshaper or `get_display`. Strings that were already
 reshaped can be turned back with `khatt.unreshape(text)`. See
 [Moving off arabic_reshaper](docs/arabic-reshaper.md).
+
+### OpenCV and NumPy arrays
+
+`cv2.putText` has no Arabic letters. `khatt.put_text` takes the same order of arguments
+and BGR colours, and draws into the frame in place:
+
+```python
+import cv2
+import khatt
+
+frame = cv2.imread("frame.png")
+khatt.put_text(frame, "مرحبا بالعالم", (40, 80), size_px=48, color=(0, 255, 255))
+```
+
+`org` is the left end of the baseline, as in OpenCV. Grayscale and BGRA frames work
+too, `channels="rgb"` takes RGB arrays, and only the part under the text is touched.
+NumPy is only needed when you call it. [More recipes](docs/recipes.md): pygame,
+Dear PyGui, Tkinter and Streamlit.
+
+### Receipts for thermal printers
+
+ESC/POS printers have no Arabic fonts, so receipts print as images. `khatt.receipt_image`
+lays one out at the printer's width, in black and white:
+
+```python
+from escpos.printer import Usb
+import khatt
+
+receipt = khatt.receipt_image(
+    [("قهوة عربية", "15.00"), ("كعكة", "12.50"), "---", ("المجموع", "27.50")],
+    title="مقهى الخط",
+    footer="شكرا لزيارتكم",
+)
+Usb(0x04B8, 0x0202).image(receipt)
+```
+
+- A row is a line of text, or a `(start, end)` pair: the item on the receipt's starting
+  side (the right, for Arabic) and the price on the other. A long item wraps without
+  running into its price; `"---"` draws a dividing line and `""` a blank one.
+- `width` is `"80mm"` (576 dots, the default), `"58mm"` (384) or a number of dots. Also
+  `font` (default `noto-naskh`), `size_px`, `title_size_px`, `line_spacing`, `margin`,
+  `direction` and `threshold`.
 
 ## Word art
 

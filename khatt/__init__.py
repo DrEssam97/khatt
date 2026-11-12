@@ -16,6 +16,7 @@ from collections.abc import Sequence
 
 from PIL import Image, ImageOps
 
+from khatt.arrays import put_text
 from khatt.art_image import art_to_image
 from khatt.calligram import available_shapes as list_shapes
 from khatt.calligram import calligram
@@ -31,6 +32,7 @@ from khatt.fonts import available_fonts as list_fonts
 from khatt.layout import DEFAULT_SIZE, paragraphs, render_grids, render_ink
 from khatt.mapper import available_styles as list_styles
 from khatt.mapper import get_style, map_image
+from khatt.receipt import PRINTER_WIDTHS, receipt_image
 from khatt.rescue import ReshapedTextWarning, is_reshaped, unreshape
 from khatt.shaping import UnsupportedCharacterWarning, base_direction, strip_tashkeel
 from khatt.shaping import missing_characters as _missing_in_line
@@ -50,6 +52,7 @@ __version__ = "0.9.0"
 
 __all__ = [
     "DEFAULT_SIZE",
+    "PRINTER_WIDTHS",
     "Arc",
     "CaptionStep",
     "Effect",
@@ -82,6 +85,8 @@ __all__ = [
     "list_zakhrafa",
     "missing_characters",
     "overlay",
+    "put_text",
+    "receipt_image",
     "render",
     "render_image",
     "render_svg",
