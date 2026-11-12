@@ -683,7 +683,7 @@ wheels = [
 
 [[package]]
 name = "khatt"
-version = "0.8.0"
+version = "0.9.0"
 source = { editable = "." }
 dependencies = [
     { name = "pillow", version = "11.3.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-5-khatt-video'" },
