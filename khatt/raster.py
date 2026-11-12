@@ -1,41 +1,38 @@
 """Rasterize shaped glyphs to grayscale bitmaps and character grids.
 
-Glyphs are rendered individually by FreeType at the pen positions computed by
-HarfBuzz, max-blended onto a high-resolution canvas (Arabic joins overlap, so
-plain pasting would clip strokes), cropped to the ink extents, and finally
-downsampled to the requested character grid.
+Glyphs are drawn individually by HarfBuzz's rasterizer at the pen positions
+computed by HarfBuzz's shaping, max-blended onto a canvas (Arabic joins
+overlap, so plain pasting would clip strokes), cropped to the ink extents,
+and finally downsampled to the requested character grid.
 
 Rendered glyph bitmaps are cached per (font, glyph ID, size, subpixel
-offset): text repeats the same few dozen glyphs, and reading a FreeType bitmap
-is the expensive step.
+offset): text repeats the same few dozen glyphs.
 
 The text-art path renders at :data:`RENDER_PPEM` with whole-pixel pen
 positions. Drawing onto images (:func:`compose_block`) renders at the target
 size instead, with pen positions quantized to a quarter pixel: at small sizes,
 whole-pixel rounding visibly misplaces joined Arabic letters.
 
-Determinism: hinting is disabled, pen positions are rounded identically
-everywhere, the freetype-py wheel bundles its own libfreetype, and font files
-are bundled, so output is byte-identical across platforms for a locked
+Determinism: there is no hinting, pen positions are rounded identically
+everywhere, the uharfbuzz wheel bundles its own HarfBuzz, and font files are
+bundled, so output is byte-identical across platforms for a locked
 dependency set (this is what makes the golden-file tests portable).
 """
 
 from __future__ import annotations
 
-import ctypes
-import io
 import math
-import threading
+import struct
 from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import lru_cache
+from itertools import pairwise
 from pathlib import Path
-from typing import Any
 
-import freetype
-from PIL import Image, ImageChops
+import uharfbuzz as hb
+from PIL import Image, ImageChops, ImageDraw
 
-from khatt.shaping import ShapedGlyph, units_per_em, variations
+from khatt.shaping import ShapedGlyph, _load_font, units_per_em
 
 RENDER_PPEM = 256
 """Pixels per em of the high-resolution render stage."""
@@ -46,12 +43,9 @@ CELL_ASPECT = 0.5
 SUBPIXEL_STEPS = 4
 """Horizontal pen positions per pixel when drawing onto images."""
 
-_LOAD_FLAGS = freetype.FT_LOAD_RENDER | freetype.FT_LOAD_NO_HINTING
-_IDENTITY = freetype.Matrix(0x10000, 0, 0, 0x10000)
-
-# A FreeType face is not thread-safe, and the cached faces are shared across
-# threads (web servers and video renderers draw text from worker threads).
-_FACE_LOCK = threading.Lock()
+_STROKE_SUPERSAMPLING = 8
+"""Outline strokes are drawn this many times too big each way, then reduced:
+64 levels of edge coverage."""
 
 Box = tuple[int, int, int, int]
 """``(x0, y0, x1, y1)`` in render pixels: pen origin on the baseline, y down."""
@@ -75,51 +69,181 @@ class _Placed:
     """Position of the glyph in its line."""
 
 
-@lru_cache(maxsize=8)
-def _face(path: str) -> freetype.Face:
-    # Load via a byte stream: freetype's own file handling can trip over
-    # non-ASCII paths on Windows.
-    face = freetype.Face(io.BytesIO(Path(path).read_bytes()))
-    settings = variations(path)
-    if settings:  # the same instance HarfBuzz shapes with
-        axes = face.get_variation_info().axes
-        face.set_var_design_coords([settings.get(axis.tag, axis.default) for axis in axes])
-    face.set_pixel_sizes(0, RENDER_PPEM)
-    return face
+@lru_cache(maxsize=32)
+def _vertical_units(path: str) -> tuple[int, int, int]:
+    """The font's ascender and descender (font units, descender negative) and units per em.
+
+    From ``hhea``, or ``OS/2`` when ``hhea`` has none: the values FreeType
+    and Pillow use.
+    """
+    face = _load_font(path).face
+    hhea = face.reference_table("hhea").data
+    ascender, descender = struct.unpack(">hh", bytes(hhea[4:8])) if len(hhea) >= 8 else (0, 0)
+    if ascender == 0 and descender == 0:
+        os2 = bytes(face.reference_table("OS/2").data)
+        if len(os2) >= 78:
+            ascender, descender = struct.unpack(">hh", os2[68:72])
+            if ascender == 0 and descender == 0:
+                win_ascent, win_descent = struct.unpack(">HH", os2[74:78])
+                ascender, descender = win_ascent, -win_descent
+    return ascender, descender, face.upem
 
 
 @lru_cache(maxsize=1024)
 def size_metrics(path: str, ppem: int) -> tuple[int, int]:
     """The font's ascent and descent at ``ppem``, in whole pixels.
 
-    FreeType's scaled metrics, exactly what Pillow's ``getmetrics`` reports,
-    so khatt's anchors and line spacing land where Pillow's do.
+    Worked out exactly as FreeType scales and rounds them, which is what
+    Pillow's ``getmetrics`` reports, so khatt's anchors and line spacing land
+    where Pillow's do.
     """
-    face = _face(path)
-    with _FACE_LOCK:
-        face.set_pixel_sizes(0, ppem)
-        ascender, descender = face.size.ascender, face.size.descender
-    return math.ceil(ascender / 64), math.ceil(-descender / 64)
+    ascender, descender, upem = _vertical_units(path)
+    scale = (ppem * 64 * 65536 + upem // 2) // upem  # 16.16 fixed point
+    ascent = (((ascender * scale + 0x8000) >> 16) + 63) & ~63  # 26.6, rounded up
+    descent = ((descender * scale + 0x8000) >> 16) & ~63  # 26.6, rounded down
+    return ascent // 64, -descent // 64
 
 
-def _bitmap_bytes(bitmap: Any) -> bytes:
-    pitch, rows = bitmap.pitch, bitmap.rows
-    if pitch > 0:
-        try:
-            # freetype-py's ``bitmap.buffer`` builds a Python list of every
-            # pixel; copying the raw buffer is orders of magnitude faster.
-            return ctypes.string_at(bitmap._FT_Bitmap.buffer, pitch * rows)
-        except (AttributeError, TypeError, ValueError):
-            pass
-    return bytes(bitmap.buffer)
+class _Polylines:
+    """A pen that flattens a glyph outline into closed polylines, in pixels (y up)."""
+
+    def __init__(self, scale: float, dx: float) -> None:
+        self.scale, self.dx = scale, dx
+        self.contours: list[list[tuple[float, float]]] = []
+        self._current: list[tuple[float, float]] = []
+
+    def _point(self, point: tuple[float, float]) -> tuple[float, float]:
+        return point[0] * self.scale + self.dx, point[1] * self.scale
+
+    @staticmethod
+    def _steps(points: Sequence[tuple[float, float]]) -> int:
+        length = sum(math.dist(a, b) for a, b in pairwise(points))
+        return max(2, min(64, math.ceil(math.sqrt(4 * length))))
+
+    def moveTo(self, point: tuple[float, float]) -> None:
+        self._current = [self._point(point)]
+
+    def lineTo(self, point: tuple[float, float]) -> None:
+        self._current.append(self._point(point))
+
+    def qCurveTo(self, *points: tuple[float, float]) -> None:
+        controls = [self._point(point) for point in points]
+        start = self._current[-1]
+        *offs, end = controls
+        for index, control in enumerate(offs):
+            # TrueType: an on-curve point is implied between two off-curve ones.
+            stop = end if index == len(offs) - 1 else _midpoint(control, offs[index + 1])
+            steps = self._steps([start, control, stop])
+            for step in range(1, steps + 1):
+                t = step / steps
+                u = 1 - t
+                self._current.append(
+                    (
+                        u * u * start[0] + 2 * u * t * control[0] + t * t * stop[0],
+                        u * u * start[1] + 2 * u * t * control[1] + t * t * stop[1],
+                    )
+                )
+            start = stop
+        if not offs:
+            self._current.append(end)
+
+    def curveTo(self, *points: tuple[float, float]) -> None:
+        first, second, end = (self._point(point) for point in points)
+        start = self._current[-1]
+        steps = self._steps([start, first, second, end])
+        for step in range(1, steps + 1):
+            t = step / steps
+            u = 1 - t
+            self._current.append(
+                (
+                    u**3 * start[0]
+                    + 3 * u * u * t * first[0]
+                    + 3 * u * t * t * second[0]
+                    + t**3 * end[0],
+                    u**3 * start[1]
+                    + 3 * u * u * t * first[1]
+                    + 3 * u * t * t * second[1]
+                    + t**3 * end[1],
+                )
+            )
+
+    def closePath(self) -> None:
+        if len(self._current) > 1:
+            self.contours.append(self._current)
+        self._current = []
+
+    endPath = closePath
 
 
-def _bitmap_to_image(bitmap: Any) -> Image.Image:
-    pitch, width, rows = bitmap.pitch, bitmap.width, bitmap.rows
-    data = _bitmap_bytes(bitmap)
-    if pitch != width:
-        data = b"".join(data[r * pitch : r * pitch + width] for r in range(rows))
-    return Image.frombytes("L", (width, rows), data)
+def _midpoint(a: tuple[float, float], b: tuple[float, float]) -> tuple[float, float]:
+    return (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
+
+
+def _fill(font: hb.Font, gid: int, scale: float, dx: float) -> _Glyph:
+    """The glyph filled, by HarfBuzz's rasterizer."""
+    drawer = hb.RasterDraw()
+    drawer.transform = (scale, 0.0, 0.0, scale, dx, 0.0)
+    if not drawer.draw_glyph_or_fail(font, gid):
+        return _Glyph(None, 0, 0)
+    raster = drawer.render()
+    extents = raster.extents if raster is not None else None
+    if extents is None or not (extents.width and extents.height):
+        return _Glyph(None, 0, 0)
+    stride = extents.stride or extents.width
+    # Rows come bottom to top.
+    image = Image.frombytes(
+        "L", (extents.width, extents.height), bytes(raster.buffer), "raw", "L", stride, -1
+    )
+    return _Glyph(image, extents.x_origin, extents.y_origin + extents.height)
+
+
+def _stroked(font: hb.Font, gid: int, scale: float, dx: float, radius: float) -> _Glyph:
+    """The glyph grown by ``radius`` pixels all round: filled, with round corners.
+
+    The outline swept by a disc of that radius, together with the glyph: what
+    Pillow's ``stroke_width`` draws. The sweep is drawn as a band along every
+    edge and a disc at every corner, supersampled.
+    """
+    pen = _Polylines(scale, dx)
+    font.draw_glyph_with_pen(gid, pen)
+    if not pen.contours:
+        return _Glyph(None, 0, 0)
+    xs = [x for contour in pen.contours for x, _ in contour]
+    ys = [y for contour in pen.contours for _, y in contour]
+    left, right = math.floor(min(xs) - radius) - 1, math.ceil(max(xs) + radius) + 1
+    bottom, top = math.floor(min(ys) - radius) - 1, math.ceil(max(ys) + radius) + 1
+    width, height = right - left, top - bottom
+    factor = max(1, min(_STROKE_SUPERSAMPLING, 4096 // max(width, height)))
+    canvas = Image.new("L", (width * factor, height * factor), 0)
+    draw = ImageDraw.Draw(canvas)
+    # Pillow fills a shape's edge pixels too; half a pixel less matches FreeType's stroker.
+    reach = max(0.0, radius * factor - 0.5)
+    for contour in pen.contours:
+        points = [((x - left) * factor, (top - y) * factor) for x, y in contour]
+        for (x0, y0), (x1, y1) in zip(points, points[1:] + points[:1], strict=True):
+            length = math.hypot(x1 - x0, y1 - y0)
+            if length:
+                nx, ny = -(y1 - y0) / length * reach, (x1 - x0) / length * reach
+                draw.polygon(
+                    [
+                        (x0 + nx, y0 + ny),
+                        (x1 + nx, y1 + ny),
+                        (x1 - nx, y1 - ny),
+                        (x0 - nx, y0 - ny),
+                    ],
+                    fill=255,
+                )
+            draw.ellipse((x0 - reach, y0 - reach, x0 + reach, y0 + reach), fill=255)
+    stroke = canvas.reduce(factor) if factor > 1 else canvas
+    filled = _fill(font, gid, scale, dx)
+    if filled.image is not None:
+        x, y = filled.left - left, top - filled.top
+        region = (x, y, x + filled.image.width, y + filled.image.height)
+        stroke.paste(ImageChops.lighter(stroke.crop(region), filled.image), region[:2])
+    ink = stroke.getbbox()
+    if ink is None:
+        return _Glyph(None, 0, 0)
+    return _Glyph(stroke.crop(ink), left + ink[0], top - ink[1])
 
 
 @lru_cache(maxsize=4096)
@@ -130,51 +254,21 @@ def _glyph(path: str, gid: int, ppem: int = RENDER_PPEM, shift: int = 0, stroke:
     stroke instead: the glyph grown by ``stroke`` all round, filled, with
     round caps and joins, the way Pillow's ``stroke_width`` draws.
     """
-    face = _face(path)
-    with _FACE_LOCK:
-        face.set_pixel_sizes(0, ppem)
-        face.set_transform(_IDENTITY, freetype.Vector(shift, 0))
-        if stroke:
-            face.load_glyph(gid, freetype.FT_LOAD_DEFAULT | freetype.FT_LOAD_NO_HINTING)
-            if not face.glyph.outline.n_points:
-                return _Glyph(None, 0, 0)
-            stroker = freetype.Stroker()
-            stroker.set(
-                stroke, freetype.FT_STROKER_LINECAP_ROUND, freetype.FT_STROKER_LINEJOIN_ROUND, 0
-            )
-            outline = face.glyph.get_glyph()
-            # The outside border only, filled (as Pillow's stroke_filled):
-            # a full stroke is a ring that a translucent fill shows through.
-            error = freetype.raw.FT_Glyph_StrokeBorder(
-                ctypes.byref(outline._FT_Glyph), stroker._FT_Stroker, False, True
-            )
-            if error:
-                raise freetype.FT_Exception(error)
-            rendered = outline.to_bitmap(
-                freetype.FT_RENDER_MODE_NORMAL, freetype.Vector(0, 0), True
-            )
-            bitmap, left, top = rendered.bitmap, rendered.left, rendered.top
-        else:
-            face.load_glyph(gid, _LOAD_FLAGS)
-            slot = face.glyph
-            bitmap, left, top = slot.bitmap, slot.bitmap_left, slot.bitmap_top
-        if not (bitmap.width and bitmap.rows):
-            return _Glyph(None, 0, 0)
-        return _Glyph(_bitmap_to_image(bitmap), left, top)
+    font = _load_font(path)
+    scale = ppem / font.face.upem
+    if stroke:
+        return _stroked(font, gid, scale, shift / 64, stroke / 64)
+    return _fill(font, gid, scale, shift / 64)
 
 
 @lru_cache(maxsize=4096)
 def _outline_box(path: str, gid: int) -> tuple[int, int, int, int] | None:
-    """Control box of a glyph outline in font units (y up), or ``None`` if it is empty."""
-    face = _face(path)
-    with _FACE_LOCK:
-        face.set_transform(_IDENTITY, freetype.Vector(0, 0))
-        face.load_glyph(gid, freetype.FT_LOAD_NO_SCALE | freetype.FT_LOAD_NO_HINTING)
-        outline = face.glyph.outline
-        if not outline.n_points:
-            return None
-        box = outline.get_cbox()
-        return box.xMin, box.yMin, box.xMax, box.yMax
+    """Bounding box of a glyph outline in font units (y up), or ``None`` if it is empty."""
+    extents = _load_font(path).get_glyph_extents(gid)
+    if extents is None or not (extents.width or extents.height):
+        return None
+    x_min, y_max = extents.x_bearing, extents.y_bearing
+    return x_min, y_max + extents.height, x_min + extents.width, y_max
 
 
 def _font(glyph: ShapedGlyph, path: str) -> str:
@@ -250,7 +344,7 @@ def estimate(glyphs: Sequence[ShapedGlyph], font_path: str | Path, *, ppem: int)
     each side. ``None`` means the line has no ink.
     """
     path = str(font_path)
-    margin = 1 / 64  # FreeType scales outlines in 26.6 fixed point
+    margin = 1 / 64  # room for rounding where outlines are scaled
     boxes = []
     for glyph, x, shift, y in _pen(glyphs, path, ppem, subpixel=True):
         outline = _outline_box(_font(glyph, path), glyph.gid)

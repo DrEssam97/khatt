@@ -2,7 +2,7 @@
 
 FIGlet-style per-character fonts cannot express Arabic contextual shaping,
 mandatory ligatures or right-to-left layout, so khatt shapes text with
-HarfBuzz, rasterizes it with a real Arabic font via FreeType, and maps pixel
+HarfBuzz, rasterizes it with a real Arabic font through HarfBuzz too, and maps pixel
 coverage onto character ramps, or composites it onto Pillow images.
 
     >>> import khatt

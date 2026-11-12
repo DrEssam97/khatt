@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import freetype
 import pytest
 from PIL import Image
 
 from khatt.fonts import available_fonts, font_path
-from khatt.raster import _bitmap_bytes, _face, _glyph, compose, measure, rasterize, to_grid
+from khatt.raster import _glyph, compose, measure, rasterize, size_metrics, to_grid
 from khatt.shaping import shape
 
 AMIRI = font_path("amiri")
@@ -65,12 +64,34 @@ class TestEmptyInput:
 
 
 class TestGlyphCache:
-    def test_fast_buffer_read_matches_freetype_py(self) -> None:
-        face = _face(str(AMIRI))
-        gid = shape("خ", AMIRI)[0].gid
-        face.load_glyph(gid, freetype.FT_LOAD_RENDER | freetype.FT_LOAD_NO_HINTING)
-        bitmap = face.glyph.bitmap
-        assert _bitmap_bytes(bitmap) == bytes(bitmap.buffer)
+    def test_upright(self) -> None:
+        # HarfBuzz hands rows bottom to top: an alef stands on the baseline.
+        alef = _glyph(str(AMIRI), shape("ا", AMIRI)[0].gid, 100)
+        assert alef.image is not None
+        width, height = alef.image.size
+        assert height > 2 * width
+        assert alef.top > 0  # above the baseline
+        assert alef.top - height < alef.top / 4  # its foot is near the baseline
+
+    def test_space_has_no_ink(self) -> None:
+        assert _glyph(str(AMIRI), shape(" ", AMIRI)[0].gid, 100).image is None
+
+    def test_outline_holds_the_glyph(self) -> None:
+        gid = shape("ه", AMIRI)[0].gid
+        plain = _glyph(str(AMIRI), gid, 80, 16)
+        outlined = _glyph(str(AMIRI), gid, 80, 16, stroke=4 * 64)
+        assert plain.image is not None and outlined.image is not None
+        assert outlined.image.width - plain.image.width in range(7, 10)  # 4 px each side
+        assert outlined.image.height - plain.image.height in range(7, 10)
+        x, y = plain.left - outlined.left, outlined.top - plain.top
+        under = outlined.image.crop((x, y, x + plain.image.width, y + plain.image.height))
+        lit = [a for a, b in zip(under.tobytes(), plain.image.tobytes(), strict=True) if a < b]
+        assert not lit  # every pixel of the glyph is covered by its outline
+
+    def test_size_metrics_round_like_freetype(self) -> None:
+        # Values FreeType gave for these fonts and sizes, including exact halves.
+        assert size_metrics(str(AMIRI), 48) == (54, 31)
+        assert size_metrics(str(AMIRI), 1) == (2, 1)
 
     def test_glyphs_are_cached(self) -> None:
         gid = shape("خ", AMIRI)[0].gid

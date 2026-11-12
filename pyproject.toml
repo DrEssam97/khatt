@@ -38,7 +38,6 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "freetype-py>=2.5.1",
     "pillow>=10.1.0",
     "python-bidi>=0.6.11",
     "uharfbuzz>=0.55.0",

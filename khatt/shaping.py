@@ -124,8 +124,8 @@ def _regular_variations(face: hb.Face) -> dict[str, float]:
 def variations(font_path: str | Path) -> dict[str, float]:
     """Variation-axis settings the font is rendered with; empty for static fonts.
 
-    Shaping (HarfBuzz) and rasterization (FreeType) must use the same
-    instance, or glyph advances and outlines would disagree.
+    Shaping and rasterization use the same HarfBuzz font, so glyph advances
+    and outlines always come from the same instance.
     """
     return _regular_variations(_load_font(str(font_path)).face)
 
