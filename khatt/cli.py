@@ -327,7 +327,8 @@ def _parser() -> argparse.ArgumentParser:
         "--doctor",
         action="store_true",
         help="Check which Arabic shaping engines are installed (and double-shaping risks), "
-        "then exit.",
+        "then exit. With a folder or .py file as the text, also list where it pre-shapes "
+        "Arabic with arabic_reshaper or get_display.",
     )
     return parser
 
@@ -357,7 +358,18 @@ def main(argv: Sequence[str] | None = None) -> None:
     _configure_utf8_output()
 
     if options.doctor:
-        for line in format_report(khatt.doctor()):
+        # Text that names a folder or file is scanned; any other text is ignored.
+        target = text if text and text != "-" else None
+        looks_like_a_path = target is not None and (
+            "/" in target or "\\" in target or target.endswith(".py")
+        )
+        if target is not None and not Path(target).exists() and not looks_like_a_path:
+            target = None
+        try:
+            report = khatt.doctor(target)
+        except FileNotFoundError as exc:
+            raise _fail(str(exc), 2) from exc
+        for line in format_report(report):
             _say(line, colour="yellow" if line.startswith("warning:") else None)
         return
     if options.list_fonts:

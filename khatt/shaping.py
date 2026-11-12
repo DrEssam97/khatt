@@ -25,6 +25,8 @@ from pathlib import Path
 import uharfbuzz as hb
 from bidi import get_display
 
+from khatt.rescue import ReshapedTextWarning, is_reshaped
+
 
 class UnsupportedCharacterWarning(UserWarning):
     """A character has no glyph in the requested font and was skipped."""
@@ -407,6 +409,14 @@ def shape(
     """
     if direction is not None and direction not in _BIDI_BASE_DIR:
         raise ValueError(f"direction must be 'rtl' or 'ltr', got {direction!r}")
+    if warn and is_reshaped(text):
+        warnings.warn(
+            "the text is already shaped, as arabic_reshaper writes it (Arabic "
+            "presentation forms): khatt shapes text itself, so pass the text as typed; "
+            "khatt.unreshape(text) turns it back",
+            ReshapedTextWarning,
+            stacklevel=2,
+        )
     kept: Sequence[int] = range(len(text))
     if not keep_tashkeel:
         kept = [i for i, ch in enumerate(text) if ch not in _TASHKEEL]

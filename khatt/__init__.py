@@ -22,7 +22,7 @@ from khatt.calligram import calligram
 from khatt.caption import caption_image
 from khatt.curves import Arc, Wave
 from khatt.curves import available_curves as list_curves
-from khatt.doctor import doctor
+from khatt.doctor import doctor, find_reshaping
 from khatt.draw import Span, TextOverflowWarning, draw_text, overlay, text_bbox, word_art
 from khatt.effects import Effect, Extrude, Glow, Gradient, Shadow, get_effect
 from khatt.effects import available_effects as list_effects
@@ -31,6 +31,7 @@ from khatt.fonts import available_fonts as list_fonts
 from khatt.layout import DEFAULT_SIZE, paragraphs, render_grids, render_ink
 from khatt.mapper import available_styles as list_styles
 from khatt.mapper import get_style, map_image
+from khatt.rescue import ReshapedTextWarning, is_reshaped, unreshape
 from khatt.shaping import UnsupportedCharacterWarning, base_direction, strip_tashkeel
 from khatt.shaping import missing_characters as _missing_in_line
 from khatt.svg import render_svg
@@ -55,6 +56,7 @@ __all__ = [
     "Extrude",
     "Glow",
     "Gradient",
+    "ReshapedTextWarning",
     "Shadow",
     "Span",
     "TextOverflowWarning",
@@ -68,8 +70,10 @@ __all__ = [
     "caption_steps",
     "doctor",
     "draw_text",
+    "find_reshaping",
     "get_effect",
     "group_words",
+    "is_reshaped",
     "list_curves",
     "list_effects",
     "list_fonts",
@@ -82,6 +86,7 @@ __all__ = [
     "render_image",
     "render_svg",
     "text_bbox",
+    "unreshape",
     "word_art",
     "words_from_quran",
     "words_from_whisper",

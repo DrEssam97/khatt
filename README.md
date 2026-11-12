@@ -57,7 +57,8 @@ Or [install it](#install) with `pip install khatt`.
   characters it has no glyph for.
 - **The same output everywhere.** khatt shapes text itself with HarfBuzz and draws it
   with FreeType, so it doesn't depend on Raqm, FriBiDi or any other system library, and
-  it never shapes text twice. `khatt --doctor` shows what your environment has.
+  it never shapes text twice. `khatt --doctor` shows what your environment has, and
+  finds code that still pre-shapes Arabic with arabic_reshaper.
 
 ## Install
 
@@ -172,6 +173,11 @@ matplotlib: not installed
 arabic_reshaper: not installed
 khatt shapes text itself: its output is the same in every case above.
 ```
+
+Give it your project, `khatt --doctor src/`, and it also lists every place that still
+pre-shapes Arabic with arabic_reshaper or `get_display`. Strings that were already
+reshaped can be turned back with `khatt.unreshape(text)`. See
+[Moving off arabic_reshaper](docs/arabic-reshaper.md).
 
 ## Word art
 

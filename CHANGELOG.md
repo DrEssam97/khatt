@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- A rescue kit for code that used arabic_reshaper, which Pillow with Raqm and
+  matplotlib 3.11+ now shape a second time. `khatt --doctor src/` (or
+  `khatt.find_reshaping`) lists every place a project still pre-shapes Arabic.
+  `khatt.unreshape(text)` turns reshaped text, also after `get_display`, back into
+  text as typed, and `khatt.is_reshaped` tells whether a string is reshaped. Drawing
+  reshaped text now gives a `khatt.ReshapedTextWarning`. The guide is
+  [Moving off arabic_reshaper](docs/arabic-reshaper.md).
+
 ## [0.8.0] - 2026-11-12
 
 ### Added
