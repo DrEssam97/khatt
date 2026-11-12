@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `khatt.put_text(frame, text, org)` draws shaped Arabic onto NumPy images, such as
+  OpenCV frames, whose `cv2.putText` has no Arabic letters. Same order of arguments and
+  BGR colours by default; grayscale, RGB and RGBA work too, and only the part under
+  the text is touched. NumPy is only needed when it is called.
+- `khatt.receipt_image(rows)` lays out a receipt for a thermal (ESC/POS) printer at its
+  width: lines, `(item, price)` rows, dividers, a centered title and footer, as a 1-bit
+  image for `printer.image()`.
+- [Recipes](docs/recipes.md) for OpenCV, pygame, Dear PyGui, Tkinter, Streamlit and
+  receipt printers.
+
 ## [0.9.0] - 2026-11-12
 
 ### Changed
