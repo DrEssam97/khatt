@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-12
+
 ### Added
 
 - Spans: `draw_text(..., spans=[(start, end, "gold")])` draws part of the text in its
@@ -291,7 +293,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   83-test suite at ≥85% enforced coverage on a 3.10 to 3.13 × Ubuntu/Windows
   CI matrix.
 
-[Unreleased]: https://github.com/DrEssam97/khatt/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/DrEssam97/khatt/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/DrEssam97/khatt/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/DrEssam97/khatt/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/DrEssam97/khatt/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/DrEssam97/khatt/compare/v0.5.0...v0.6.0
