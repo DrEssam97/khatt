@@ -55,9 +55,9 @@ Or [install it](#install) with `pip install khatt`.
 - **Any font.** Eight bundled OFL fonts in Naskh, Kufi, Ruqaa and display styles, 22 more
   with `pip install khatt-fonts`, or your own `.ttf`/`.otf`, with fallback fonts for
   characters it has no glyph for.
-- **The same output everywhere.** khatt shapes text itself with HarfBuzz and draws it
-  with FreeType, so it doesn't depend on Raqm, FriBiDi or any other system library, and
-  it never shapes text twice. `khatt --doctor` shows what your environment has, and
+- **The same output everywhere.** khatt shapes and draws text itself with HarfBuzz, so
+  it doesn't depend on Raqm, FriBiDi or any other system library, and it never shapes
+  text twice. `khatt --doctor` shows what your environment has, and
   finds code that still pre-shapes Arabic with arabic_reshaper.
 
 ## Install
@@ -159,8 +159,8 @@ Raqm, which most Windows installs aren't. The usual workaround,
 `arabic_reshaper` plus `get_display`, pre-shapes the text, so wherever native
 shaping *is* available (Pillow with Raqm, matplotlib 3.11+) the text gets shaped
 twice and comes out corrupted. khatt never hands text to another shaper: it
-shapes with HarfBuzz, rasterizes with FreeType and composites only the finished
-pixels, so the output is identical everywhere.
+shapes and rasterizes with HarfBuzz and composites only the finished pixels, so
+the output is identical everywhere.
 
 `khatt --doctor` (API: `khatt.doctor()`) shows which shapers your environment
 has and warns about that double-shaping trap:
@@ -553,7 +553,7 @@ FIGlet fonts map **one character to one fixed glyph**. Arabic doesn't work that 
 khatt sidesteps glyph tables entirely with a **rasterize-then-map** pipeline:
 
 ```text
-text ──► HarfBuzz shaping ──► FreeType rasterization ──► density mapping ──► art
+text ──► HarfBuzz shaping ──► HarfBuzz rasterization ──► density mapping ──► art
          (positional forms,    (real Arabic fonts,        (blocks / ascii /
           ligatures, bidi)      hi-res grayscale)          braille ramps)
 ```

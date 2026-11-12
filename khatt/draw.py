@@ -1,6 +1,6 @@
 """Draw correctly shaped text onto existing Pillow images.
 
-Text goes through khatt's own pipeline (HarfBuzz shaping, FreeType
+Text goes through khatt's own pipeline (HarfBuzz shaping and
 rasterization, khatt's line layout) and only the finished coverage mask is
 composited onto the image. Pillow's text layout (``ImageDraw.text``) is never
 used, so the output is identical whether or not Pillow was built with Raqm,
@@ -108,8 +108,8 @@ def _is_number(value: object) -> bool:
 def _pixels(name: str, value: float) -> int:
     """``value`` in whole pixels, as a plain ``int``.
 
-    Sizes worked out from an image are often NumPy numbers or floats. FreeType
-    takes only ``int``, and a small NumPy type wraps around in a size search.
+    Sizes worked out from an image are often NumPy numbers or floats. Glyphs
+    render at whole sizes, and a small NumPy type wraps around in a size search.
     """
     if not _is_number(value):
         raise ValueError(f"{name} must be a number of pixels, got {value!r}")

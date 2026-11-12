@@ -11,13 +11,11 @@ such as ``"kufi"``. The optional ``khatt-fonts`` package adds more of both.
 
 from __future__ import annotations
 
-import io
 import os
 from collections.abc import Sequence
 from functools import lru_cache
 from pathlib import Path
 
-import freetype
 import uharfbuzz as hb
 
 _FONT_DIR = Path(__file__).resolve().parent
@@ -60,21 +58,19 @@ def _pack() -> tuple[dict[str, Path], dict[str, list[str]]]:
 
 @lru_cache(maxsize=32)
 def _check_font_file(path: str) -> None:
-    """Raise ``ValueError`` unless both FreeType and HarfBuzz can use the font."""
+    """Raise ``ValueError`` unless HarfBuzz can shape and draw with the font."""
     data = Path(path).read_bytes()
-    try:
-        face = freetype.Face(io.BytesIO(data))
-    except freetype.FT_Exception as exc:
-        raise ValueError(f"cannot load font file {path}: not a TrueType or OpenType font") from exc
-    if not face.is_scalable:
-        raise ValueError(f"cannot use font file {path}: bitmap-only fonts are not supported")
-    # HarfBuzz reads only plain sfnt data: web fonts (WOFF, WOFF2) load in
-    # FreeType but would shape to nothing.
-    if hb.Face(data).glyph_count == 0:
+    # HarfBuzz reads only plain sfnt data, not web fonts (WOFF, WOFF2).
+    if data[:4] in (b"wOFF", b"wOF2"):
         raise ValueError(
             f"cannot shape text with font file {path}; if it is a web font "
             "(.woff/.woff2), use the .ttf or .otf version"
         )
+    face = hb.Face(data)
+    if face.glyph_count == 0:
+        raise ValueError(f"cannot load font file {path}: not a TrueType or OpenType font")
+    if not any(len(face.reference_table(tag).data) for tag in ("glyf", "CFF ", "CFF2")):
+        raise ValueError(f"cannot use font file {path}: bitmap-only fonts are not supported")
 
 
 def font_path(font: Font) -> Path:

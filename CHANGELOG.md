@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- khatt no longer needs freetype-py, which hasn't had a release since August 2024 and
+  has no Windows ARM64 wheel. Glyphs are now drawn by HarfBuzz's own rasterizer, which
+  uharfbuzz already includes, so khatt depends on 3 packages: Pillow, uharfbuzz and
+  python-bidi. Line spacing and anchors are unchanged (the font metrics are rounded
+  exactly as FreeType did); glyph edges can differ by a shade, and outlines
+  (`stroke_width`) are drawn to the same width.
+
 ### Added
 
 - A rescue kit for code that used arabic_reshaper, which Pillow with Raqm and

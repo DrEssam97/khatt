@@ -17,8 +17,8 @@ import khatt
 from khatt import fonts
 from khatt.cli import main
 from khatt.fonts import available_fonts, font_path
-from khatt.raster import _face
-from khatt.shaping import REGULAR_WEIGHT, variations
+from khatt.raster import _glyph
+from khatt.shaping import REGULAR_WEIGHT, _load_font, variations
 
 
 def test_all_registered_fonts_exist_on_disk() -> None:
@@ -126,13 +126,19 @@ class TestFontFiles:
             font_path(woff)
 
     def test_bitmap_only_font(self, amiri_copy: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        class BitmapFace:
-            is_scalable = False
+        class NoOutlines:
+            data = b""
 
-            def __init__(self, stream: object) -> None:
+        class BitmapFace:
+            glyph_count = 10
+
+            def __init__(self, data: bytes) -> None:
                 pass
 
-        monkeypatch.setattr(fonts.freetype, "Face", BitmapFace)
+            def reference_table(self, tag: str) -> NoOutlines:
+                return NoOutlines()
+
+        monkeypatch.setattr(fonts.hb, "Face", BitmapFace)
         fonts._check_font_file.cache_clear()
         try:
             with pytest.raises(ValueError, match="bitmap-only"):
@@ -167,21 +173,22 @@ def test_variable_fonts_render_at_regular_weight(name: str, expected: dict[str, 
     assert variations(font_path(name)) == expected
 
 
-def test_freetype_rasterizes_the_instance_harfbuzz_shapes() -> None:
-    for name in available_fonts():
-        path = str(font_path(name))
-        settings = variations(path)
-        if not settings:
-            continue
-        face = _face(path)
-        coords = dict(
-            zip(
-                (a.tag for a in face.get_variation_info().axes),
-                face.get_var_design_coords(),
-                strict=True,
-            )
-        )
-        assert coords["wght"] == settings["wght"], name
+def test_glyphs_are_drawn_at_the_instance_harfbuzz_shapes() -> None:
+    import uharfbuzz as hb
+
+    path = str(font_path("rubik"))  # its default instance is Light (300), drawn at 400
+    gid = khatt.shaping.shape("ب", path)[0].gid
+    regular = _glyph(path, gid, 120)
+    font = hb.Font(_load_font(path).face)  # the default instance
+    drawer = hb.RasterDraw()
+    scale = 120 / font.face.upem
+    drawer.transform = (scale, 0.0, 0.0, scale, 0.0, 0.0)
+    drawer.draw_glyph(font, gid)
+    light = drawer.render()
+    assert regular.image is not None
+    light_ink = bytes(light.buffer).count(0)
+    regular_ink = regular.image.tobytes().count(0)
+    assert regular_ink < light_ink  # more ink: fewer empty pixels at the heavier weight
 
 
 class TestMissingCharacters:
