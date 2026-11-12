@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   clip where each word lights up as it's said. `khatt.words_from_whisper` reads the
   word timings of openai-whisper, faster-whisper, whisperX and stable-ts, and
   `khatt.caption_steps` gives the same steps without moviepy, for any video tool.
+- Quran recitations: `khatt.words_from_quran(timings, verses)` pairs the word timings of
+  Quran.com or Tarteel QUL with the verses' text, and `khatt.video.quran_captions` lights
+  up each word one verse at a time, with the verse medallion and room for the marks.
 
 ## [0.7.1] - 2026-11-11
 

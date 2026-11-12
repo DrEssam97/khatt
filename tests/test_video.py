@@ -145,3 +145,40 @@ class TestWordCaptions:
 
         with pytest.raises(ValueError, match="no words"):
             word_captions([], (640, 360))
+
+
+QURAN_VERSES = {"1:1": "كلمة أولى ثانية", "1:2": "قول هنا ۛ ثم ذاك"}
+QURAN_TIMINGS = {
+    "1:1": {"segments": [[1, 0, 400], [2, 400, 900], [3, 900, 1500]]},
+    "1:2": {"segments": [[1, 1700, 2000], [2, 2000, 2600], [3, 2600, 3000], [4, 3000, 3500]]},
+}
+
+
+class TestQuranCaptions:
+    GOLD = (255, 200, 0)
+
+    def test_one_verse_at_a_time(self) -> None:
+        from khatt.video import quran_captions
+
+        words = khatt.words_from_quran(QURAN_TIMINGS, QURAN_VERSES)
+        clip = quran_captions(words, (640, 360), highlight_color=self.GOLD)
+        assert tuple(clip.size) == (640, 360)
+        assert clip.duration == pytest.approx(3.5 + 1.5)
+        for t in (0.2, 1.2, 2.2):
+            assert np.all(clip.get_frame(t) == self.GOLD, axis=-1).any(), t
+        # The first verse stays up, its medallion lit, until the second starts.
+        assert np.all(clip.get_frame(1.6) == self.GOLD, axis=-1).any()
+
+    def test_wraps_long_verses_with_room_for_marks(self) -> None:
+        from khatt.video import quran_captions, word_captions
+
+        verse = " ".join(["كَلِمَةٌ"] * 12)
+        words = khatt.words_from_quran(
+            {"1:1": {"segments": [[n + 1, n * 300, n * 300 + 250] for n in range(12)]}},
+            {"1:1": verse},
+            verse_numbers=False,
+        )
+        quran = quran_captions(words, (480, 600), font_size=40, max_chars=200)
+        plain = word_captions(words, (480, 600), font_size=40, max_chars=200)
+        ink = [np.nonzero(clip.mask.get_frame(0.1).max(axis=1))[0] for clip in (quran, plain)]
+        assert ink[0][-1] - ink[0][0] > ink[1][-1] - ink[1][0]  # wider line spacing
