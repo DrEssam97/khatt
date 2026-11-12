@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import math
 import numbers
+import warnings
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -30,6 +31,8 @@ _SENTENCE_ENDS = (".", "!", "?", "؟", "۔", "…")
 _END_OF_AYAH = "\u06dd"
 """Followed by the verse number, fonts such as Amiri draw the verse medallion."""
 _ARABIC_DIGITS = str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩")
+_BASMALA = ("بسم", "الله", "الرحمن", "الرحيم")
+"""The basmala's letters, without marks, tatweel or the wasla on its alefs."""
 
 
 @dataclass(frozen=True)
@@ -168,14 +171,44 @@ def _verse_timings(timings: Any) -> list[tuple[tuple[int, int], Any]]:
 
 
 def _tokens(verse: str) -> list[str]:
-    """A verse's words in order; marks standing alone (pause signs) join the word before."""
+    """A verse's words in order, as Quran.com counts them.
+
+    A sign standing alone joins a word: a pause sign such as ``ۛ`` the word
+    before it, and a sign that starts the verse, such as ``۞``, the word
+    after it.
+    """
     tokens: list[str] = []
+    leading = ""
     for token in verse.split():
-        if tokens and not any(ch.isalpha() for ch in token):
-            tokens[-1] = f"{tokens[-1]} {token}"
+        if not any(ch.isalpha() for ch in token):
+            if tokens:
+                tokens[-1] = f"{tokens[-1]} {token}"
+            else:
+                leading = f"{leading}{token} "
         else:
-            tokens.append(token)
+            tokens.append(f"{leading}{token}")
+            leading = ""
+    if leading:
+        tokens.append(leading.strip())
     return tokens
+
+
+def _skeleton(word: str) -> str:
+    """A word's letters alone: no marks or tatweel, and alef wasla as alef."""
+    return "".join(ch for ch in word if ch.isalpha() and ch != "\u0640").replace("\u0671", "\u0627")
+
+
+def _split_basmala(surah: int, ayah: int, tokens: list[str]) -> tuple[str | None, list[str]]:
+    """The basmala some editions put before a surah's first verse, and the verse's own words.
+
+    Tanzil's text starts the first verse of every surah but Al-Fatiha and
+    At-Tawbah with the basmala; Quran.com's word positions don't count it.
+    """
+    if ayah != 1 or surah in (1, 9) or len(tokens) <= len(_BASMALA):
+        return None, tokens
+    if tuple(_skeleton(token) for token in tokens[: len(_BASMALA)]) != _BASMALA:
+        return None, tokens
+    return " ".join(tokens[: len(_BASMALA)]), tokens[len(_BASMALA) :]
 
 
 def _verse_words(text: Any) -> dict[tuple[int, int], list[str]]:
@@ -217,10 +250,15 @@ def words_from_quran(timings: Any, text: Any, *, verse_numbers: bool = True) -> 
 
     The text comes from you, so it is always the edition you chose: a
     mapping of verse keys to verse text (``{"1:1": "بِسْمِ ٱللَّهِ ..."}``)
-    or to its words, or Quran.com's ``verses`` response with ``words``. A
-    pause sign standing alone, such as ``ۛ``, stays with the word before it,
-    as in Quran.com's word lists. Use the text edition the timings were made
-    for, so the word positions match.
+    or to its words, or Quran.com's ``verses`` response with ``words``.
+    Words are counted as Quran.com counts them: a pause sign standing alone,
+    such as ``ۛ``, stays with the word before it, and ``۞`` with the word
+    after it. Where the text starts a surah's first verse with the basmala,
+    as Tanzil's does, the basmala is shown before the verse, lit until its
+    first word, and not counted as one of its words. Editions still differ
+    in a few places (Quran.com counts ``بَعْدَ مَا`` in 2:181 as one word),
+    so with Quran.com timings its own ``verses`` response is the surest
+    text; a verse with more words than its timings cover gives a warning.
 
     Args:
         timings: Word timings, in one of the formats above.
@@ -249,12 +287,25 @@ def words_from_quran(timings: Any, text: Any, *, verse_numbers: bool = True) -> 
             if len(numbers_only) < 3 or None in numbers_only:
                 continue  # a placeholder such as [2], with no times
             position, start_ms, end_ms = (value or 0.0 for value in numbers_only)
-            if position > len(tokens):
-                raise ValueError(
-                    f"verse {surah}:{ayah} has {len(tokens)} words, but its timings go to "
-                    f"word {int(position)}: use the text edition the timings were made for"
-                )
             times.setdefault(int(position), (start_ms / 1000, end_ms / 1000))
+        basmala, own = _split_basmala(surah, ayah, tokens)
+        if basmala is not None and max(times, default=0) <= len(own):
+            # The timings count the verse's own words: the basmala before
+            # them is shown, lit until the verse's first word.
+            raw.append((basmala, None, None))
+            tokens = own
+        if times and max(times) > len(tokens):
+            raise ValueError(
+                f"verse {surah}:{ayah} has {len(tokens)} words, but its timings go to "
+                f"word {max(times)}: use the text edition the timings were made for"
+            )
+        if times and max(times) < len(tokens):
+            warnings.warn(
+                f"verse {surah}:{ayah} has {len(tokens)} words, but its timings stop at word "
+                f"{max(times)}; if the text is another edition, words may be lit at the wrong "
+                "time (with Quran.com timings, pass Quran.com's verses with words)",
+                stacklevel=2,
+            )
         for position, token in enumerate(tokens, start=1):
             start, end = times.get(position, (None, None))
             raw.append((token, start, end))

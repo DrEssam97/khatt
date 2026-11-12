@@ -405,9 +405,12 @@ CompositeVideoClip([video, quran_captions(words, video.size)]).write_videofile("
 ```
 
 - The text comes from you and is drawn exactly as given: a `{"1:1": text}` mapping,
-  word lists, or Quran.com's `verses` response with `words`. Use the edition the
-  timings were made for, so word positions match; a pause sign standing alone, such
-  as `ۛ`, stays with the word before it.
+  word lists, or Quran.com's `verses` response with `words`. Words are counted as
+  Quran.com counts them: a pause sign standing alone, such as `ۛ`, stays with the word
+  before it, and a basmala that starts a surah's first verse (as in Tanzil's text) is
+  shown before the verse. Editions still differ in a few places, so with Quran.com
+  timings its own `verses` response is the surest text; you get a warning when a verse
+  has more words than its timings cover.
 - khatt shapes every one of the 6,236 verses of the Uthmani text exactly as HarfBuzz
   does, in Amiri (the default) and Noto Naskh Arabic, and in Amiri Quran and
   Scheherazade New from `pip install khatt-fonts`.
