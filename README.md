@@ -381,6 +381,40 @@ CompositeVideoClip([video, captions]).write_videofile("talk-captioned.mp4")
 - Without moviepy, `khatt.caption_steps(words)` gives each step's start, end, text and
   highlighted `spans`, ready for `khatt.caption_image(step.text, spans=...)`.
 
+### Quran recitations
+
+`quran_captions` lights up each word of a recitation, one verse at a time, from the free
+word timings of Quran.com or Tarteel QUL. Each verse ends with its number in the verse
+medallion, every mark stays, and the lines are spaced for the marks above and below
+them.
+
+```python
+import json
+from moviepy import VideoFileClip, CompositeVideoClip
+import khatt
+from khatt.video import quran_captions
+
+# Word timings: Quran.com (chapter_recitations/{reciter}/{chapter}?segments=true)
+# or a Tarteel QUL download. Text: the verses, in the edition the timings were made for.
+timings = json.load(open("fatiha-timings.json", encoding="utf-8"))
+verses = json.load(open("fatiha-verses.json", encoding="utf-8"))  # {"1:1": "بِسْمِ ...", ...}
+
+video = VideoFileClip("fatiha.mp4")
+words = khatt.words_from_quran(timings, verses)
+CompositeVideoClip([video, quran_captions(words, video.size)]).write_videofile("out.mp4")
+```
+
+- The text comes from you and is drawn exactly as given: a `{"1:1": text}` mapping,
+  word lists, or Quran.com's `verses` response with `words`. Use the edition the
+  timings were made for, so word positions match; a pause sign standing alone, such
+  as `ۛ`, stays with the word before it.
+- khatt shapes every one of the 6,236 verses of the Uthmani text exactly as HarfBuzz
+  does, in Amiri (the default) and Noto Naskh Arabic, and in Amiri Quran and
+  Scheherazade New from `pip install khatt-fonts`.
+- `verse_numbers=False` leaves out the verse medallions. The other options are
+  `word_captions`'s: `highlight="spoken"`, colours, `font_size`, `max_chars` (60, for
+  long verses) and `hold` (1.5 seconds).
+
 ## Terminal art
 
 khatt started as **the Arabic FIGlet that FIGlet can't be**: Arabic as Unicode art in the terminal.
