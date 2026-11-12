@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one, so letters keep their joins where the colour changes, and the layout is the same
   as without spans. `caption_image` takes `spans` too, and `khatt.Span` is the same as a
   `(start, end, fill)` tuple.
+- Word-timed captions: `khatt.video.word_captions(words, video.size)` makes a moviepy
+  clip where each word lights up as it's said. `khatt.words_from_whisper` reads the
+  word timings of openai-whisper, faster-whisper, whisperX and stable-ts, and
+  `khatt.caption_steps` gives the same steps without moviepy, for any video tool.
 
 ## [0.7.1] - 2026-11-11
 
