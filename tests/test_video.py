@@ -92,3 +92,56 @@ def test_composites_into_a_video() -> None:
     frame = moviepy.CompositeVideoClip([background, caption]).get_frame(0.5)
     assert frame.shape == (360, 640, 3)
     assert (frame == 255).all(axis=2).any()  # white text was composited
+
+
+class TestWordCaptions:
+    GOLD = (255, 200, 0)
+    WORDS = tuple(
+        khatt.Word(text, n * 0.5, n * 0.5 + 0.4) for n, text in enumerate(["كل", "كلمة", "تضيء"])
+    )
+
+    def _lit(self, frame) -> tuple[float, float] | None:
+        """Mean x and y of the highlighted pixels in a frame."""
+        ys, xs = np.nonzero(np.all(frame == self.GOLD, axis=-1))
+        return None if len(xs) == 0 else (xs.mean(), ys.mean())
+
+    def test_each_word_lights_up_in_turn(self) -> None:
+        from khatt.video import word_captions
+
+        clip = word_captions(self.WORDS, (640, 360), highlight_color=self.GOLD)
+        assert tuple(clip.size) == (640, 360)
+        assert clip.duration == pytest.approx(self.WORDS[-1].end + 0.5)
+        lit = [self._lit(clip.get_frame(word.start + 0.2)) for word in self.WORDS]
+        assert all(spot is not None for spot in lit)
+        xs = [spot[0] for spot in lit]
+        assert xs[0] > xs[1] > xs[2]  # right to left
+        assert all(spot[1] > 360 * 0.6 for spot in lit)  # near the bottom
+        assert clip.mask.get_frame(0.2).max() > 0.99
+
+    def test_spoken_keeps_earlier_words(self) -> None:
+        from khatt.video import word_captions
+
+        clip = word_captions(self.WORDS, (640, 360), highlight_color=self.GOLD, highlight="spoken")
+        first = np.all(clip.get_frame(0.2) == self.GOLD, axis=-1).sum()
+        last = np.all(clip.get_frame(1.2) == self.GOLD, axis=-1).sum()
+        assert last > first * 2
+
+    def test_options(self) -> None:
+        from khatt.video import word_captions
+
+        clip = word_captions(
+            self.WORDS,
+            (320, 180),
+            font="cairo",
+            font_size=20,
+            stroke_color=None,
+            bg_color="black",
+            bottom=0.0,
+        )
+        assert clip.get_frame(0.2).any()
+
+    def test_no_words(self) -> None:
+        from khatt.video import word_captions
+
+        with pytest.raises(ValueError, match="no words"):
+            word_captions([], (640, 360))

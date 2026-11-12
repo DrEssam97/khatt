@@ -47,7 +47,9 @@ Or [install it](#install) with `pip install khatt`.
   single join.
 - **SVG.** `khatt.render_svg` gives the same text as vector outlines, for the web, design
   tools and cutting machines.
-- **Video captions.** `khatt.video.TextClip` is a drop-in for moviepy's `TextClip`.
+- **Video captions.** `khatt.video.TextClip` is a drop-in for moviepy's `TextClip`, and
+  `khatt.video.word_captions` lights up each word as it's said, from Whisper's word
+  timings.
 - **Terminal art.** Render Arabic as `blocks`, `ascii` or `braille` art, the Arabic
   FIGlet, from Python or the `khatt` command.
 - **Any font.** Eight bundled OFL fonts in Naskh, Kufi, Ruqaa and display styles, 22 more
@@ -344,6 +346,40 @@ video.write_videofile("caption.mp4", fps=24)
   width, the edges are cut and you get a `khatt.TextOverflowWarning`.
 - Without moviepy, `khatt.caption_image(text, ...)` takes the same arguments
   and returns the frame as a Pillow image, e.g. for ffmpeg overlays.
+
+### Word-timed captions
+
+`word_captions` turns word timings into captions where each word lights up as it's
+said. The highlighted word is drawn with `spans`, so its letters stay joined to the
+rest of the line.
+
+```python
+import whisper  # or faster-whisper, whisperX, stable-ts
+from moviepy import CompositeVideoClip, VideoFileClip
+import khatt
+from khatt.video import word_captions
+
+video = VideoFileClip("talk.mp4")
+result = whisper.load_model("small").transcribe("talk.mp4", word_timestamps=True)
+words = khatt.words_from_whisper(result)
+
+captions = word_captions(words, video.size, highlight_color="gold")
+CompositeVideoClip([video, captions]).write_videofile("talk-captioned.mp4")
+```
+
+![Captions where each word turns gold as it is said](docs/assets/khatt-word-captions.gif)
+
+- `khatt.words_from_whisper` reads the results of openai-whisper, faster-whisper,
+  whisperX and stable-ts, with word timestamps on. Or build the list yourself:
+  `khatt.Word("مرحبا", start=0.0, end=0.4)`, in seconds.
+- Lines break at `max_chars` (42), after a pause longer than `max_gap` seconds (1.0) or
+  at the end of a sentence. A line stays up `hold` seconds (0.5) after its last word.
+- `highlight="spoken"` keeps the words already said lit, instead of only the current
+  one. Also `font`, `font_size`, `color`, `highlight_color`, `stroke_color`,
+  `stroke_width`, `bg_color` and `bottom` (the space below, as a fraction of the
+  height).
+- Without moviepy, `khatt.caption_steps(words)` gives each step's start, end, text and
+  highlighted `spans`, ready for `khatt.caption_image(step.text, spans=...)`.
 
 ## Terminal art
 

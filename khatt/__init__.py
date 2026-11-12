@@ -34,6 +34,7 @@ from khatt.mapper import get_style, map_image
 from khatt.shaping import UnsupportedCharacterWarning, base_direction, strip_tashkeel
 from khatt.shaping import missing_characters as _missing_in_line
 from khatt.svg import render_svg
+from khatt.words import CaptionStep, Word, caption_steps, group_words, words_from_whisper
 from khatt.zakhrafa import available_zakhrafa as list_zakhrafa
 from khatt.zakhrafa import zakhrafa
 
@@ -42,6 +43,7 @@ __version__ = "0.7.1"
 __all__ = [
     "DEFAULT_SIZE",
     "Arc",
+    "CaptionStep",
     "Effect",
     "Extrude",
     "Glow",
@@ -51,13 +53,16 @@ __all__ = [
     "TextOverflowWarning",
     "UnsupportedCharacterWarning",
     "Wave",
+    "Word",
     "__version__",
     "art_to_image",
     "calligram",
     "caption_image",
+    "caption_steps",
     "doctor",
     "draw_text",
     "get_effect",
+    "group_words",
     "list_curves",
     "list_effects",
     "list_fonts",
@@ -71,6 +76,7 @@ __all__ = [
     "render_svg",
     "text_bbox",
     "word_art",
+    "words_from_whisper",
     "zakhrafa",
 ]
 

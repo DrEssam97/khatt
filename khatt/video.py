@@ -2,6 +2,9 @@
 
     from khatt.video import TextClip  # instead of: from moviepy import TextClip
 
+:func:`word_captions` makes word-timed captions, each word lighting up as it
+is said, from a speech recogniser's word timings.
+
 moviepy's ``TextClip`` draws with Pillow, which shapes Arabic only when it
 has Raqm (most Windows installs don't), and with Pillow 11 or later it cuts
 off the bottom of label clips. :class:`TextClip` takes the same arguments
@@ -18,15 +21,16 @@ from pathlib import Path
 
 try:
     import numpy as np
-    from moviepy import ImageClip
+    from moviepy import CompositeVideoClip, ImageClip
 except ImportError as error:
     raise ImportError('khatt.video needs moviepy: pip install "khatt[video]"') from error
 
 from khatt.caption import caption_image
 from khatt.color import Fill
 from khatt.fonts import Font
+from khatt.words import Word, caption_steps
 
-__all__ = ["TextClip"]
+__all__ = ["TextClip", "word_captions"]
 
 
 class TextClip(ImageClip):
@@ -98,3 +102,99 @@ class TextClip(ImageClip):
         self.text = text
         self.color = color
         self.stroke_color = stroke_color
+
+
+def word_captions(
+    words: Sequence[Word],
+    size: tuple[int, int],
+    *,
+    font: Font = "amiri",
+    font_size: int | None = None,
+    color: Fill = "white",
+    highlight_color: Fill = "gold",
+    stroke_color: Fill | None = "black",
+    stroke_width: float | None = None,
+    bg_color: Fill | None = None,
+    highlight: str = "word",
+    max_chars: int = 42,
+    max_gap: float = 1.0,
+    hold: float = 0.5,
+    bottom: float = 0.08,
+    keep_tashkeel: bool = True,
+    fallback_fonts: Font | Sequence[Font] = (),
+) -> CompositeVideoClip:
+    """Word-timed captions for a video of ``size``: each word lights up as it is said.
+
+    Lay the result over the video::
+
+        words = khatt.words_from_whisper(result)
+        captions = word_captions(words, video.size)
+        CompositeVideoClip([video, captions]).write_videofile("out.mp4")
+
+    Lines and timing come from :func:`khatt.caption_steps`. Every line is
+    centred near the bottom and wrapped to 90% of the width; its highlighted
+    words are drawn with ``spans``, so their letters stay joined to the
+    rest.
+
+    Args:
+        words: Timed words, for example from :func:`khatt.words_from_whisper`.
+        size: ``(width, height)`` of the video.
+        font: A bundled font name or a font file path.
+        font_size: Pixels per em; default: 6.5% of the height.
+        color: Colour of the words not highlighted.
+        highlight_color: Colour of the highlighted words.
+        stroke_color: Outline colour, or ``None`` for none.
+        stroke_width: Outline width in pixels; default: 1/16 of the font size.
+        bg_color: A box behind each line, or ``None`` for none.
+        highlight: ``"word"`` (only the word being said) or ``"spoken"``
+            (the words of the line said so far).
+        max_chars: Longest line, in characters.
+        max_gap: A pause longer than this many seconds starts a new line.
+        hold: Seconds a line stays up after its last word.
+        bottom: Space below the captions, as a fraction of the height.
+        keep_tashkeel: Keep Arabic diacritics (``False`` strips them).
+        fallback_fonts: Fonts for characters ``font`` has no glyph for.
+
+    Returns:
+        A transparent clip of ``size``, as long as the captions.
+
+    Raises:
+        ValueError: if there are no words.
+    """
+    steps = caption_steps(
+        words, max_chars=max_chars, max_gap=max_gap, hold=hold, highlight=highlight
+    )
+    if not steps:
+        raise ValueError("no words to caption")
+    width, height = size
+    if font_size is None:
+        font_size = max(8, round(height * 0.065))
+    if stroke_color is None:
+        stroke_width = 0
+    elif stroke_width is None:
+        stroke_width = max(1.0, font_size / 16)
+    clips = []
+    for step in steps:
+        image = caption_image(
+            step.text,
+            font=font,
+            font_size=font_size,
+            size=(max(1, round(width * 0.9)), None),
+            margin=(round(font_size * 0.3), round(font_size * 0.15)),
+            color=color,
+            bg_color=bg_color,
+            stroke_color=stroke_color,
+            stroke_width=stroke_width,
+            method="caption",
+            text_align="center",
+            keep_tashkeel=keep_tashkeel,
+            fallback_fonts=fallback_fonts,
+            spans=[(start, end, highlight_color) for start, end in step.spans],
+        )
+        x = (width - image.width) // 2
+        y = height - image.height - round(height * bottom)
+        clip = ImageClip(np.array(image), transparent=True)
+        clips.append(
+            clip.with_start(step.start).with_duration(step.end - step.start).with_position((x, y))
+        )
+    return CompositeVideoClip(clips, size=size).with_duration(steps[-1].end)
