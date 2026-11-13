@@ -169,7 +169,7 @@ has and warns about that double-shaping trap:
 
 ```text
 $ khatt --doctor
-khatt 0.9.0 (Python 3.13.15)
+khatt 0.10.0 (Python 3.13.15)
 Pillow 12.3.0: no Raqm, so ImageDraw.text cannot shape Arabic
 matplotlib: not installed
 arabic_reshaper: not installed
