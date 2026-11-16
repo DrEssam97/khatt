@@ -14,6 +14,7 @@ aspect khatt renders for), so the art keeps its proportions.
 
 from __future__ import annotations
 
+import unicodedata
 from functools import lru_cache
 from html import escape
 
@@ -34,6 +35,9 @@ _GLYPH_FONT = "rubik"
 
 _GLYPH_WEIGHT = 700
 """Bold: thin ramp characters read too faint once drawn into cells."""
+
+_ARABIC_GLYPH_FONT = "cairo"
+"""Bundled font that draws the Arabic letters of the ``letters`` style."""
 
 _DOT_RADIUS = 0.36
 """Braille dot radius as a fraction of the dot spacing (dots never touch)."""
@@ -262,7 +266,8 @@ def art_to_svg(
                 )
     background = "" if bg is None else f'<rect width="100%" height="100%" fill="{_hex(_rgb(bg))}"/>'
     font = (
-        f"<style>text{{font-family:Rubik,Arial,sans-serif;font-weight:{_GLYPH_WEIGHT};"
+        "<style>text{font-family:Rubik,Cairo,'Noto Naskh Arabic',Arial,sans-serif;"
+        f"font-weight:{_GLYPH_WEIGHT};"
         f"font-size:{cell_height * 0.95:g}px;text-anchor:middle}}</style>"
     )
     return (
@@ -300,7 +305,9 @@ def art_to_html(
             run.append(char)
         parts.append(_html_run(run, current))
         out.append("".join(parts))
-    style = "line-height:1;font-family:monospace"
+    # bidi-override keeps every character in its cell: Arabic letters in the
+    # ``letters`` style would otherwise be reordered by the browser.
+    style = "line-height:1;font-family:monospace;direction:ltr;unicode-bidi:bidi-override"
     if bg is not None:
         style += f";background:{_hex(_rgb(bg))};padding:1em"
     return f'<pre style="{style}">' + "\n".join(out) + "</pre>\n"
@@ -335,10 +342,22 @@ def _draw_braille(
 
 @lru_cache(maxsize=256)
 def _glyph_tile(char: str, width: int, height: int) -> Image.Image:
-    """Coverage of ``char`` in a ``width`` x ``height`` cell, condensed to fit."""
-    font = ImageFont.truetype(str(font_path(_GLYPH_FONT)), size=round(height * 0.95))
-    font.set_variation_by_axes([_GLYPH_WEIGHT])  # Rubik is a variable font (weight axis)
-    baseline = round(height * 0.8)
+    """Coverage of ``char`` in a ``width`` x ``height`` cell, condensed to fit.
+
+    Arabic letters (the ``letters`` style writes them in isolated presentation
+    forms) are drawn in an Arabic font from their plain letter, which alone is
+    drawn isolated.
+    """
+    arabic = unicodedata.bidirectional(char) in ("R", "AL")
+    if arabic:
+        char = unicodedata.normalize("NFKC", char)
+        font = ImageFont.truetype(str(font_path(_ARABIC_GLYPH_FONT)), size=round(height * 0.7))
+        font.set_variation_by_axes([_GLYPH_WEIGHT, 0])  # Cairo: weight and slant axes
+        baseline = round(height * 0.72)
+    else:
+        font = ImageFont.truetype(str(font_path(_GLYPH_FONT)), size=round(height * 0.95))
+        font.set_variation_by_axes([_GLYPH_WEIGHT])  # Rubik is a variable font (weight axis)
+        baseline = round(height * 0.8)
     left, _, right, _ = font.getbbox(char, anchor="ls")
     ink_width = max(1, round(right - left))
     canvas = Image.new("L", (ink_width, height), 0)

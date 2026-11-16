@@ -7,10 +7,16 @@ Input images use ink-coverage convention: pixel value 0 is empty background,
 remaining range across the ramp; for ``braille`` and the block mosaics
 (``halfblocks``, ``quadrants``, ``sextants``) it is the on/off cutoff of each
 dot or block (default 0.5).
+
+The ``letters`` style inks with the letters of a text instead (see
+:func:`fill_characters`): the word drawn out of its own letters, or out of a
+phrase, read right to left along each row when the phrase is Arabic.
 """
 
 from __future__ import annotations
 
+import unicodedata
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from PIL import Image
@@ -32,6 +38,8 @@ class Style:
     """Block mosaic: the character for each set of inked sub-cells, indexed by a bit
     mask whose bit ``y * cell[0] + x`` is the sub-cell at column ``x``, row ``y``.
     ``None`` with no ramp means braille."""
+    letters: bool = False
+    """Ink with the characters of a text (see :func:`fill_characters`)."""
 
 
 def _sextants() -> tuple[str, ...]:
@@ -76,7 +84,35 @@ STYLES: dict[str, Style] = {
         "sextant blocks, 2x3 per cell (needs a font with Unicode 13 legacy computing symbols)",
         _sextants(),
     ),
+    "letters": Style(
+        "letters", (1, 1), None, "the text's own letters, or a phrase given as the fill", None, True
+    ),
 }
+
+DEFAULT_FILL = "خط"
+"""What the ``letters`` style inks with when no fill is given."""
+
+
+def fill_characters(fill: str) -> tuple[list[str], bool]:
+    """The characters that ink the ``letters`` style, and whether they run right to left.
+
+    Arabic letters take their isolated form, a character of its own that terminals
+    can't join to its neighbours or move. Spaces, tashkeel and other marks are left
+    out; Latin letters and digits stay, so Arabizi works as a fill too.
+    """
+    from khatt.terminal import _tables
+
+    forms = _tables()[0]
+    chars = []
+    rtl = None
+    for char in fill:
+        if char.isspace() or unicodedata.category(char) in ("Mn", "Me", "Cf"):
+            continue
+        if rtl is None and unicodedata.bidirectional(char) in ("R", "AL", "L"):
+            rtl = unicodedata.bidirectional(char) != "L"
+        chars.append(forms.get(char, {}).get("isolated", char))
+    return chars, bool(rtl)
+
 
 # Braille bit assignment per (dot column, dot row) within a 2x4 cell.
 _BRAILLE_BITS = {
@@ -115,11 +151,14 @@ def _ramp_char(ramp: str, coverage: float, threshold: float | None) -> str:
     return ramp[index]
 
 
-def map_image(image: Image.Image, style: str, threshold: float | None = None) -> str:
+def map_image(
+    image: Image.Image, style: str, threshold: float | None = None, fill: str | None = None
+) -> str:
     """Map a grayscale grid image to lines of text-art characters.
 
     The image size must be an exact multiple of the style's cell size; use
     :func:`khatt.raster.to_grid` with the style's ``cell`` to produce it.
+    ``fill`` is what the ``letters`` style inks with (default: ``خط``).
     """
     resolved = get_style(style)
     if threshold is not None and not 0.0 <= threshold <= 1.0:
@@ -140,6 +179,8 @@ def map_image(image: Image.Image, style: str, threshold: float | None = None) ->
         return data[y * width + x] / 255.0
 
     dot_cutoff = 0.5 if threshold is None else threshold
+    if resolved.letters:
+        return _letters(image.size, coverage_at, dot_cutoff, fill or DEFAULT_FILL)
     lines: list[str] = []
     for row in range(height // dy):
         chars: list[str] = []
@@ -160,4 +201,27 @@ def map_image(image: Image.Image, style: str, threshold: float | None = None) ->
                         code |= bit
                 chars.append(chr(code))
         lines.append("".join(chars).rstrip(_BLANKS))
+    return "\n".join(lines)
+
+
+def _letters(
+    size: tuple[int, int],
+    coverage_at: Callable[[int, int], float],
+    cutoff: float,
+    fill: str,
+) -> str:
+    """Ink every covered cell with the next character of ``fill``, in its reading order."""
+    chars, rtl = fill_characters(fill)
+    if not chars:
+        raise ValueError("the fill has no characters to draw with")
+    width, height = size
+    lines = []
+    used = 0
+    for row in range(height):
+        cells = [" "] * width
+        for col in range(width - 1, -1, -1) if rtl else range(width):
+            if coverage_at(col, row) >= cutoff:
+                cells[col] = chars[used % len(chars)]
+                used += 1
+        lines.append("".join(cells).rstrip(_BLANKS))
     return "\n".join(lines)

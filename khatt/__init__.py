@@ -122,6 +122,7 @@ def render(
     size: int | None = DEFAULT_SIZE,
     keep_tashkeel: bool = False,
     fallback_fonts: Font | Sequence[Font] = (),
+    fill: str | None = None,
 ) -> str:
     """Render Arabic (or mixed-direction) text as text art.
 
@@ -145,6 +146,9 @@ def render(
             (they are usually illegible at character-grid resolution).
         fallback_fonts: Fonts tried in order (bundled names or file paths)
             for characters ``font`` has no glyph for.
+        fill: For the ``letters`` style, the text whose letters ink the art
+            (default: ``text`` itself). Read right to left along each row when
+            it is Arabic, so the art spells it out.
 
     Returns:
         The rendered art, ``\\n``-separated, or an empty string when the
@@ -171,7 +175,8 @@ def render(
         fallbacks=font_paths(fallback_fonts),
     )
     # One blank line between text lines keeps them apart in any font.
-    return "\n\n".join(map_image(grid, resolved_style.name, threshold) for grid in grids)
+    ink_with = (fill or text) if resolved_style.letters else None
+    return "\n\n".join(map_image(grid, resolved_style.name, threshold, ink_with) for grid in grids)
 
 
 def render_image(

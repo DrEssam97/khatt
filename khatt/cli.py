@@ -23,7 +23,7 @@ from khatt.draw import WORD_ART_FONT
 from khatt.fetch import fetch, fetch_image
 from khatt.fonts import available_fonts
 from khatt.palette import DIRECTIONS, Palette, palette_colors
-from khatt.terminal import TERMINAL_MODES, terminal_shapes_arabic
+from khatt.terminal import TERMINAL_MODES, keep_in_cells, terminal_shapes_arabic
 
 _COLOURS = {"red": "31", "yellow": "33"}
 
@@ -344,6 +344,7 @@ def _show_animation(
     fg: str,
     bg: str,
     output: Path | None,
+    fill: str | None = None,
 ) -> None:
     """Play the animation in the terminal, or save it as GIF, APNG, WebP or .cast."""
     try:
@@ -359,6 +360,7 @@ def _show_animation(
             fps=fps,
             threshold=threshold,
             keep_tashkeel=keep_tashkeel,
+            fill=fill,
         )
         if output is not None:
             animation.save(output, fg=fg, bg=bg, loops=0)
@@ -520,6 +522,11 @@ def _parser() -> argparse.ArgumentParser:
     )
     for name in ("curves", "effects", "fonts", "palettes", "shapes", "styles"):
         parser.add_argument(f"--list-{name}", action="store_true", help=f"List {name} and exit.")
+    parser.add_argument(
+        "--fill",
+        help="With --style letters: the text whose letters ink the art (default: the text "
+        "itself), such as a phrase or Arabizi. Arabic is read right to left along each row.",
+    )
     parser.add_argument(
         "-a",
         "--animate",
@@ -693,6 +700,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             fg=ink,
             bg="white" if background is None else background,
             output=output,
+            fill=options.fill,
         )
         return
     if options.fetch:
@@ -756,6 +764,7 @@ def main(argv: Sequence[str] | None = None) -> None:
                 threshold=threshold,
                 size=None if fit else size,
                 keep_tashkeel=bool(keep_tashkeel),
+                fill=options.fill,
             )
         except (KeyError, ValueError) as exc:  # unknown font, unusable font file
             raise _fail(str(exc.args[0]), 2) from exc
@@ -767,10 +776,14 @@ def main(argv: Sequence[str] | None = None) -> None:
     suffix = "" if output is None else output.suffix.lower()
     if output is None:
         mode = None if palette is None else _color_mode(options.color, sys.stdout)
+        shaping_terminal = options.rtl_terminal == "yes" or (
+            options.rtl_terminal == "auto" and terminal_shapes_arabic()
+        )
+        shown = keep_in_cells(art) if style == "letters" and shaping_terminal else art
         if palette is None or mode is None:
-            _say(art)
+            _say(shown)
         else:
-            _say(khatt.color_art(art, palette, direction=gradient, bands=bands, mode=mode))
+            _say(khatt.color_art(shown, palette, direction=gradient, bands=bands, mode=mode))
     elif suffix == ".svg" and svg_content == "art":
         art_svg = khatt.art_to_svg(
             art, fg=ink, bg=background, palette=palette, direction=gradient, bands=bands
@@ -826,5 +839,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         )
         _say(f"wrote {output}", err=True)
     else:
-        output.write_text(art + "\n", encoding="utf-8")
+        # Editors lay Arabic out themselves, so letters art keeps its order with marks.
+        saved = keep_in_cells(art) if style == "letters" else art
+        output.write_text(saved + "\n", encoding="utf-8")
         _say(f"wrote {output}", err=True)

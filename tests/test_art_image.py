@@ -195,8 +195,8 @@ class TestHtml:
     def test_runs_of_one_colour_share_a_span(self) -> None:
         html = khatt.art_to_html("██ █", palette="red", bg=None)
         assert html == (
-            '<pre style="line-height:1;font-family:monospace">'
-            '<span style="color:#ff0000">██ █</span></pre>\n'
+            '<pre style="line-height:1;font-family:monospace;direction:ltr;'
+            'unicode-bidi:bidi-override"><span style="color:#ff0000">██ █</span></pre>\n'
         )
 
     def test_escapes_and_background(self) -> None:

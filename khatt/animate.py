@@ -228,6 +228,7 @@ def _grids(
     keep_tashkeel: bool,
     fallbacks: Sequence[Path],
     threshold: float | None,
+    fill: str | None = None,
 ) -> list[str]:
     """Each text as text art on one shared grid, with the line's start fixed in place."""
     direction = base_direction(texts[-1])
@@ -276,7 +277,7 @@ def _grids(
         for item, x, y in frame:
             _blend_max(canvas, item.image, x - left, y - top)
         grid = to_grid(canvas, columns, cell=resolved.cell, rows=rows)
-        art = map_image(grid, resolved.name, threshold)
+        art = map_image(grid, resolved.name, threshold, fill or texts[-1])
         lines = art.split("\n") + [""] * rows
         frames.append("\n".join(line.ljust(columns) for line in lines[:rows]))
     return frames
@@ -330,6 +331,7 @@ def animate(
     threshold: float | None = None,
     keep_tashkeel: bool = False,
     fallback_fonts: Font | Sequence[Font] = (),
+    fill: str | None = None,
 ) -> Animation:
     """Animate one line of text as text art, keeping its letters joined.
 
@@ -340,6 +342,8 @@ def animate(
         font, style, size, threshold, keep_tashkeel, fallback_fonts: As for
             :func:`khatt.render`.
         palette, direction, bands: Colour the frames (see :func:`khatt.color_art`).
+        fill: For the ``letters`` style, the text whose letters ink the art (default:
+            ``text``).
         fps: Frames per second.
         hold: Seconds the finished text stays on screen at the end.
 
@@ -362,7 +366,7 @@ def animate(
     reading = base_direction(line)
 
     def grids(texts: Sequence[str]) -> list[str]:
-        return _grids(texts, path, style, size, keep_tashkeel, fallbacks, threshold)
+        return _grids(texts, path, style, size, keep_tashkeel, fallbacks, threshold, fill)
 
     if effect == "type":
         frames = grids(["", *(line[:end] for end in _clusters(line))])

@@ -76,6 +76,7 @@ def test_list_fonts_and_styles() -> None:
         "blocks",
         "braille",
         "halfblocks",
+        "letters",
         "quadrants",
         "sextants",
     ]
