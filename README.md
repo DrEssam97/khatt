@@ -54,7 +54,7 @@ Or [install it](#install) with `pip install khatt`.
   `khatt.video.word_captions` lights up each word as it's said, from Whisper's word
   timings.
 - **Terminal art.** Render Arabic as `blocks`, `ascii`, `braille`, `halfblocks`,
-  `quadrants` or `sextants` art, the Arabic FIGlet, in colour with palettes and
+  `quadrants`, `sextants` or `letters` art (a word drawn out of its own letters), the Arabic FIGlet, in colour with palettes and
   right-to-left gradients, and save it as PNG, SVG, HTML or ANSI text. `khatt --fetch`
   shows your machine's details in Arabic beside a logo, like neofetch, and `--animate`
   types, wipes or stretches the art without breaking a single join.
@@ -541,6 +541,28 @@ khatt "مرحبا" -p gold -o art.html                 # coloured text in a <pre
 khatt "مرحبا" -p gold -o art.ans                  # with terminal colour codes, for cat
 ```
 
+### Letter art
+
+![سلام drawn out of the letters of السلام عليكم ورحمة الله](docs/assets/khatt-letters.png)
+
+The `letters` style draws a word out of letters: its own, or those of a phrase given
+with `--fill`. An Arabic fill is read right to left along each row, so the art spells the
+phrase out; an Arabizi or Latin fill runs left to right.
+
+```bash
+khatt "سلام" -s letters                                  # سلام made of سلام
+khatt "سلام" -s letters --fill "السلام عليكم" -p andalus
+khatt "حب" -s letters --fill "7abibi"                    # Arabizi works too
+khatt "سلام" -s letters --fill "السلام عليكم" -o salam.png
+```
+
+Each letter takes its isolated form, a character of its own that terminals can't join to
+its neighbours. Terminals and editors that lay Arabic out themselves would still reverse a
+run of them, so khatt wraps those lines in a left-to-right override (it guesses your
+terminal, see `--rtl-terminal`; saved `.txt` files always get it). Images draw the letters
+in Cairo, and HTML keeps every letter in its cell. In Python:
+`khatt.render("سلام", style="letters", fill="السلام عليكم")`.
+
 ### Animation
 
 ![مرحبا بالعالم typed a letter at a time, each letter joining the next as it arrives](docs/assets/khatt-animate.gif)
@@ -689,6 +711,7 @@ Like FIGlet, letters have a fixed size and long text wraps:
 | `halfblocks` | `▀ ▄ █` | 2 blocks per cell, top and bottom; solid and bold |
 | `quadrants` | `▘ ▚ ▟ …` | 2×2 blocks per cell |
 | `sextants` | `🬀 … 🬻` | 2×3 blocks per cell; needs a font with Unicode 13's legacy computing symbols, such as Cascadia Code or Iosevka |
+| `letters` | `ﺱ ﻝ ﺍ ﻡ` | The text's own letters, or a phrase with `--fill` (see Letter art) |
 
 ### Why FIGlet can't do this
 

@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   share one grid with the line's start fixed, and a palette's gradient stays in place.
   Plays in the terminal (`--fps`, `--loop`) or saves as GIF, APNG, WebP or an asciinema
   `.cast`. API: `khatt.animate()` and `khatt.Animation`.
+- The `letters` style draws a word out of letters: its own, or a phrase given with
+  `--fill` (API: `render(..., fill=)`), read right to left along each row when Arabic,
+  left to right for Arabizi. Letters take their isolated forms; lines go out wrapped in
+  a left-to-right override for terminals that lay Arabic out themselves and in saved
+  `.txt` files, so no run gets reversed. Images draw the letters in Cairo, and HTML
+  output now keeps every character in its cell.
 
 ## [0.11.0] - 2026-11-16
 

@@ -93,7 +93,7 @@ class TestGridShape:
 
 class TestStyleRegistry:
     def test_declared_styles(self) -> None:
-        names = ["ascii", "blocks", "braille", "halfblocks", "quadrants", "sextants"]
+        names = ["ascii", "blocks", "braille", "halfblocks", "letters", "quadrants", "sextants"]
         assert available_styles() == names
         assert set(STYLES) == set(names)
 

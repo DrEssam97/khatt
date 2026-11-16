@@ -26,7 +26,7 @@ from khatt.color import rgba
 from khatt.draw import draw_text, text_bbox
 from khatt.fonts import Font
 from khatt.palette import RGB, Palette, _code, color_art, palette_colors
-from khatt.terminal import for_terminal
+from khatt.terminal import for_terminal, keep_in_cells
 
 ARABIC_DIGITS = str.maketrans("0123456789.", "٠١٢٣٤٥٦٧٨٩٫")
 """Western digits to Eastern Arabic ones, with the Arabic decimal point."""
@@ -468,6 +468,9 @@ def fetch(
         logo_shown = coloured.split("\n")
     else:
         logo_shown = logo_lines
+    if shaped_by_terminal:
+        # A logo inked with Arabic letters would be reordered by the terminal.
+        logo_shown = keep_in_cells("\n".join(logo_shown)).split("\n")
     logo_columns = max(len(line) for line in logo_lines)
     height = max(len(info), len(logo_lines))
     info_top = (height - len(info)) // 2

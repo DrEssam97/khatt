@@ -117,6 +117,22 @@ def join_letters(text: str) -> str:
     return "".join(out)
 
 
+def keep_in_cells(art: str) -> str:
+    """Text art whose Arabic letters stay in their cells in any terminal or editor.
+
+    Terminals and editors that lay Arabic out themselves would reverse a run of
+    Arabic letters, such as the ink of the ``letters`` style. Each line holding one
+    is wrapped in a left-to-right override (U+202D ... U+202C), which they honour
+    and which takes no space.
+    """
+    return "\n".join(
+        f"\u202d{line}\u202c"
+        if any(unicodedata.bidirectional(char) in ("R", "AL") for char in line)
+        else line
+        for line in art.split("\n")
+    )
+
+
 def terminal_shapes_arabic(environ: Mapping[str, str] | None = None) -> bool:
     """Guess from the environment whether the terminal joins and orders Arabic itself.
 
