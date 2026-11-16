@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-16
+
 ### Added
 
 - `--animate` (`-a`) animates text art without breaking Arabic apart: every frame is
@@ -374,7 +376,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   83-test suite at ≥85% enforced coverage on a 3.10 to 3.13 × Ubuntu/Windows
   CI matrix.
 
-[Unreleased]: https://github.com/DrEssam97/khatt/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/DrEssam97/khatt/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/DrEssam97/khatt/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/DrEssam97/khatt/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/DrEssam97/khatt/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/DrEssam97/khatt/compare/v0.8.0...v0.9.0
