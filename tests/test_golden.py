@@ -47,3 +47,9 @@ def test_golden_wrapped_paragraphs(golden: GoldenCheck) -> None:
 def test_golden_mixed_direction(golden: GoldenCheck) -> None:
     art = khatt.render("مرحبا Khatt 2026", font="rubik", style="ascii", width=70)
     golden("mixed_ascii_rubik.txt", art + "\n")
+
+
+@pytest.mark.parametrize("style", ["halfblocks", "quadrants", "sextants"])
+def test_golden_block_mosaics(style: str, golden: GoldenCheck) -> None:
+    art = khatt.render(WORDS["marhaba"], style=style)
+    golden(f"sized_marhaba_{style}_amiri.txt", art + "\n")

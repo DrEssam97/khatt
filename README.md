@@ -53,8 +53,9 @@ Or [install it](#install) with `pip install khatt`.
 - **Video captions.** `khatt.video.TextClip` is a drop-in for moviepy's `TextClip`, and
   `khatt.video.word_captions` lights up each word as it's said, from Whisper's word
   timings.
-- **Terminal art.** Render Arabic as `blocks`, `ascii` or `braille` art, the Arabic
-  FIGlet, from Python or the `khatt` command.
+- **Terminal art.** Render Arabic as `blocks`, `ascii`, `braille`, `halfblocks`,
+  `quadrants` or `sextants` art, the Arabic FIGlet, in colour with palettes and
+  right-to-left gradients, and save it as PNG, SVG, HTML or ANSI text.
 - **Any font.** Eight bundled OFL fonts in Naskh, Kufi, Ruqaa and display styles, 22 more
   with `pip install khatt-fonts`, or your own `.ttf`/`.otf`, with fallback fonts for
   characters it has no glyph for.
@@ -510,6 +511,34 @@ khatt started as **the Arabic FIGlet that FIGlet can't be**: Arabic as Unicode a
 
 *(«ايه الأخبار», "What's the news?". Cairo font, `ascii` style.)*
 
+### Colour
+
+![Arabic text art in colour: مرحبا in gold quadrants, القاهرة in Nile-blue half blocks, صباح الخير in dawn-coloured braille and خط in sextants](docs/assets/khatt-colour-art.png)
+
+`--palette` (`-p`) colours the art with a gradient. It starts at the right edge, where an
+Arabic line starts, unless `--gradient` says `ltr`, `down` or `up`. `--bands` gives solid
+stripes instead of a blend, and any colours work in place of a palette name:
+
+```bash
+khatt "مرحبا" -s quadrants -p gold
+khatt "القاهرة" -f cairo -s halfblocks -p nile
+khatt "خط" -s sextants -p andalus --gradient down
+khatt "مصر" -s halfblocks -p "#ce1126,white,black" --gradient down --bands
+khatt --list-palettes          # andalus, damask, desert, fajr, gold, nile
+```
+
+Colour is printed only to a terminal, and never with `NO_COLOR` set; `--color always`
+or `never` overrides that. Terminals that announce 24-bit colour (`COLORTERM=truecolor`,
+Windows Terminal) get exact colours, others the nearest of 256. The same colours go into
+every saved file:
+
+```bash
+khatt "مرحبا" -p gold -o art.png --bg "#1e1e2e"   # image
+khatt "مرحبا" -p gold -o art.svg --svg art        # vector shapes, sharp at any size
+khatt "مرحبا" -p gold -o art.html                 # coloured text in a <pre>
+khatt "مرحبا" -p gold -o art.ans                  # with terminal colour codes, for cat
+```
+
 ### Python API
 
 ```python
@@ -524,11 +553,19 @@ print(khatt.render("مرحبا\nKhatt 2026", font="rubik"))    # one art line pe
 art = khatt.render("مرحبا", style="braille")
 khatt.art_to_image(art, fg="white", bg="#1e1e2e").save("art.png")  # the art as a picture
 
+art = khatt.render("مرحبا", style="quadrants")
+print(khatt.color_art(art, "gold"))                       # colour codes for the terminal
+print(khatt.color_art(art, ["#ce1126", "white", "black"], direction="down", bands=True))
+khatt.art_to_image(art, palette="nile", bg="#1e1e2e").save("art.png")
+open("art.svg", "w").write(khatt.art_to_svg(art, palette="nile"))
+open("art.html", "w").write(khatt.art_to_html(art, palette="nile"))
+
 image = khatt.render_image("مرحبا\nKhatt 2026")  # the plain text: Pillow image, black on white
 image.save("khatt.png")
 
 khatt.list_fonts()   # ['amiri', 'cairo', 'noto-naskh', 'rubik']
-khatt.list_styles()  # ['ascii', 'blocks', 'braille']
+khatt.list_styles()    # ['ascii', 'blocks', 'braille', 'halfblocks', 'quadrants', 'sextants']
+khatt.list_palettes()  # ['andalus', 'damask', 'desert', 'fajr', 'gold', 'nile']
 ```
 
 ### CLI
@@ -545,6 +582,7 @@ khatt "خط" -s braille -o art.png       # save the art as an image
 khatt "خط" -s ascii -o art.png --fg "#e5e5e5" --bg "#1e1e2e"   # terminal colours
 khatt "خط" -o logo.png --bg none       # transparent background
 khatt "خط" -o khatt.png --png text     # the plain high-resolution text instead
+khatt "خط" -s quadrants -p gold        # in colour (see Colour above)
 khatt --list-fonts
 khatt --list-styles
 khatt --doctor                         # which Arabic shapers are installed
@@ -557,8 +595,8 @@ illegible at character-grid resolution. Pass `--keep-tashkeel` (API:
 resolution to show them: pass `--strip-tashkeel` (API:
 `render_image(..., keep_tashkeel=False)`) to remove them.
 
-In art images, braille dots and shade blocks are drawn as shapes, so they stay
-crisp at any size; ascii characters are drawn in a bold sans font. Each
+In art images, braille dots, shade blocks and block mosaics are drawn as shapes, so
+they stay crisp at any size; ascii characters are drawn in a bold sans font. Each
 character gets a cell twice as tall as it is wide (12 × 24 px by default;
 API: `cell_width=`), matching the terminal the art was sized for.
 
@@ -585,6 +623,9 @@ Like FIGlet, letters have a fixed size and long text wraps:
 | `blocks` | `░ ▒ ▓ █` | Default; reads well at any size |
 | `ascii` | `. : - = + * # % @` | Pure ASCII, maximum compatibility |
 | `braille` | `⠁ … ⣿` | 2×4 dots per cell, 8× the effective resolution |
+| `halfblocks` | `▀ ▄ █` | 2 blocks per cell, top and bottom; solid and bold |
+| `quadrants` | `▘ ▚ ▟ …` | 2×2 blocks per cell |
+| `sextants` | `🬀 … 🬻` | 2×3 blocks per cell; needs a font with Unicode 13's legacy computing symbols, such as Cascadia Code or Iosevka |
 
 ### Why FIGlet can't do this
 

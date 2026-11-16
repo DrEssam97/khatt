@@ -17,7 +17,7 @@ from collections.abc import Sequence
 from PIL import Image, ImageOps
 
 from khatt.arrays import put_text
-from khatt.art_image import art_to_image
+from khatt.art_image import art_to_html, art_to_image, art_to_svg
 from khatt.calligram import available_shapes as list_shapes
 from khatt.calligram import calligram
 from khatt.caption import caption_image
@@ -32,6 +32,8 @@ from khatt.fonts import available_fonts as list_fonts
 from khatt.layout import DEFAULT_SIZE, paragraphs, render_grids, render_ink
 from khatt.mapper import available_styles as list_styles
 from khatt.mapper import get_style, map_image
+from khatt.palette import available_palettes as list_palettes
+from khatt.palette import color_art
 from khatt.receipt import PRINTER_WIDTHS, receipt_image
 from khatt.rescue import ReshapedTextWarning, is_reshaped, unreshape
 from khatt.shaping import UnsupportedCharacterWarning, base_direction, strip_tashkeel
@@ -67,10 +69,13 @@ __all__ = [
     "Wave",
     "Word",
     "__version__",
+    "art_to_html",
     "art_to_image",
+    "art_to_svg",
     "calligram",
     "caption_image",
     "caption_steps",
+    "color_art",
     "doctor",
     "draw_text",
     "find_reshaping",
@@ -80,6 +85,7 @@ __all__ = [
     "list_curves",
     "list_effects",
     "list_fonts",
+    "list_palettes",
     "list_shapes",
     "list_styles",
     "list_zakhrafa",

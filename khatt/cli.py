@@ -18,6 +18,7 @@ from khatt.art_image import paint
 from khatt.doctor import format_report
 from khatt.draw import WORD_ART_FONT
 from khatt.fonts import available_fonts
+from khatt.palette import DIRECTIONS, Palette, palette_colors
 
 _COLOURS = {"red": "31", "yellow": "33"}
 
@@ -95,6 +96,23 @@ def _configure_utf8_output() -> None:
             reconfigure(encoding="utf-8")
 
 
+def _color_mode(choice: str, stream: TextIO) -> str | None:
+    """Terminal colour codes to print with: ``"truecolor"``, ``"256"`` or ``None``.
+
+    ``auto`` colours only a terminal, and never with ``NO_COLOR`` set. 24-bit colour is
+    used where the terminal says it has it (``COLORTERM``, Windows Terminal), else the
+    256 colours every colour terminal has.
+    """
+    if choice == "never":
+        return None
+    if choice == "auto" and ("NO_COLOR" in os.environ or not stream.isatty()):
+        return None
+    if not _enable_ansi(stream) and choice == "auto":
+        return None
+    deep = os.environ.get("COLORTERM", "").lower() in ("truecolor", "24bit")
+    return "truecolor" if deep or "WT_SESSION" in os.environ else "256"
+
+
 def _terminal_width() -> int:
     """Columns of the attached terminal (honours ``COLUMNS``), else 80."""
     columns = shutil.get_terminal_size(fallback=(80, 24)).columns
@@ -120,10 +138,15 @@ def _save_png(
     fg: str,
     bg: str | None,
     target: Path,
+    palette: Palette | None = None,
+    direction: str = "rtl",
+    bands: bool = False,
 ) -> None:
     """Save the text art drawn as an image, or the plain high-resolution text."""
     if content == "art":
-        image = khatt.art_to_image(art, fg=fg, bg=bg)
+        image = khatt.art_to_image(
+            art, fg=fg, bg=bg, palette=palette, direction=direction, bands=bands
+        )
     else:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")  # already reported while rendering the art
@@ -270,8 +293,9 @@ def _parser() -> argparse.ArgumentParser:
         "-o",
         "--output",
         type=Path,
-        help="Write to a file: .png saves an image (see --png), .svg the text as vector "
-        "outlines, any other extension saves the text art.",
+        help="Write to a file: .png saves an image (see --png), .svg vector outlines (see "
+        "--svg), .html the art as coloured HTML text, .ans the art with terminal colour "
+        "codes, any other extension the text art.",
     )
     parser.add_argument(
         "--png",
@@ -279,6 +303,39 @@ def _parser() -> argparse.ArgumentParser:
         default="art",
         help="What a .png --output contains: 'art' draws the text art itself "
         "(in the chosen --style), 'text' the plain high-resolution text. Default: art.",
+    )
+    parser.add_argument(
+        "-p",
+        "--palette",
+        help="Colour the art: a palette (see --list-palettes) or colours separated by commas, "
+        "such as '#ce1126,white,black'. Applies to the terminal and to .png, .svg, .html "
+        "and .ans output.",
+    )
+    parser.add_argument(
+        "--gradient",
+        choices=DIRECTIONS,
+        default="rtl",
+        help="Where the palette starts: rtl (the right edge, where Arabic starts), ltr, down "
+        "or up. Default: rtl.",
+    )
+    parser.add_argument(
+        "--bands",
+        action="store_true",
+        help="Solid bands of each palette colour, like a flag, instead of a blend.",
+    )
+    parser.add_argument(
+        "--color",
+        choices=("auto", "always", "never"),
+        default="auto",
+        help="Colour codes in terminal output: auto (only in a terminal, not with NO_COLOR), "
+        "always or never. Default: auto.",
+    )
+    parser.add_argument(
+        "--svg",
+        choices=("text", "art"),
+        default="text",
+        help="What a .svg --output contains: 'text' the text as vector outlines, 'art' the "
+        "text art drawn as vector shapes. Default: text.",
     )
     parser.add_argument(
         "--fg", default="black", help="Ink colour of .png output (name or #rrggbb)."
@@ -321,7 +378,7 @@ def _parser() -> argparse.ArgumentParser:
         help="Print the text decorated in this zakhrafa style, to copy and paste, or 'all' "
         "for every style.",
     )
-    for name in ("curves", "effects", "fonts", "shapes", "styles"):
+    for name in ("curves", "effects", "fonts", "palettes", "shapes", "styles"):
         parser.add_argument(f"--list-{name}", action="store_true", help=f"List {name} and exit.")
     parser.add_argument(
         "--doctor",
@@ -355,6 +412,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     repeat: bool = options.repeat
     size_px: int | None = options.size_px
     zakhrafa: str | None = options.zakhrafa
+    palette: str | None = options.palette
+    gradient: str = options.gradient
+    bands: bool = options.bands
+    svg_content: str = options.svg
     _configure_utf8_output()
 
     if options.doctor:
@@ -381,6 +442,10 @@ def main(argv: Sequence[str] | None = None) -> None:
             _say(name)
         return
 
+    if options.list_palettes:
+        for name in khatt.list_palettes():
+            _say(name)
+        return
     if options.list_effects:
         for name in khatt.list_effects():
             _say(name)
@@ -419,6 +484,11 @@ def main(argv: Sequence[str] | None = None) -> None:
         if backdrop.strip().lower() in ("none", "transparent")
         else _color(parser, "--bg", backdrop)
     )
+    if palette is not None:
+        try:
+            palette_colors(palette)
+        except (KeyError, ValueError) as exc:
+            raise _fail(str(exc.args[0]), 2) from exc
     if text is None or text == "-":
         text = sys.stdin.read()
     text = text.rstrip("\n")
@@ -470,9 +540,38 @@ def main(argv: Sequence[str] | None = None) -> None:
     if not art and text.strip():
         raise _fail("no renderable characters in input", 1)
 
+    suffix = "" if output is None else output.suffix.lower()
     if output is None:
-        _say(art)
-    elif output.suffix.lower() == ".svg":
+        mode = None if palette is None else _color_mode(options.color, sys.stdout)
+        if palette is None or mode is None:
+            _say(art)
+        else:
+            _say(khatt.color_art(art, palette, direction=gradient, bands=bands, mode=mode))
+    elif suffix == ".svg" and svg_content == "art":
+        art_svg = khatt.art_to_svg(
+            art, fg=ink, bg=background, palette=palette, direction=gradient, bands=bands
+        )
+        if art_svg is None:  # unreachable normally: empty art exits earlier
+            raise SystemExit(1)
+        output.write_text(art_svg, encoding="utf-8")
+        _say(f"wrote {output}", err=True)
+    elif suffix == ".html":
+        output.write_text(
+            khatt.art_to_html(
+                art, fg=ink, bg=background, palette=palette, direction=gradient, bands=bands
+            ),
+            encoding="utf-8",
+        )
+        _say(f"wrote {output}", err=True)
+    elif suffix == ".ans":
+        coloured = (
+            art
+            if palette is None
+            else khatt.color_art(art, palette, direction=gradient, bands=bands)
+        )
+        output.write_text(coloured + "\n", encoding="utf-8")
+        _say(f"wrote {output}", err=True)
+    elif suffix == ".svg":
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")  # already reported while rendering the art
             svg = khatt.render_svg(
@@ -497,6 +596,9 @@ def main(argv: Sequence[str] | None = None) -> None:
             fg=ink,
             bg=background,
             target=output,
+            palette=palette,
+            direction=gradient,
+            bands=bands,
         )
         _say(f"wrote {output}", err=True)
     else:

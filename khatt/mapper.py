@@ -4,8 +4,9 @@ Input images use ink-coverage convention: pixel value 0 is empty background,
 255 is fully inked. Higher coverage maps to a denser character, monotonically.
 
 ``threshold`` (in [0, 1]) forces coverage below it to blank and rescales the
-remaining range across the ramp; for ``braille`` it is the per-dot on/off
-cutoff (default 0.5).
+remaining range across the ramp; for ``braille`` and the block mosaics
+(``halfblocks``, ``quadrants``, ``sextants``) it is the on/off cutoff of each
+dot or block (default 0.5).
 """
 
 from __future__ import annotations
@@ -25,14 +26,56 @@ class Style:
     cell: tuple[int, int]
     """Pixels consumed per output character, (x, y)."""
     ramp: str | None
-    """Blank-to-dense character ramp; ``None`` means braille dot mapping."""
+    """Blank-to-dense character ramp; ``None`` means a dot or block mosaic."""
     description: str
+    mosaic: tuple[str, ...] | None = None
+    """Block mosaic: the character for each set of inked sub-cells, indexed by a bit
+    mask whose bit ``y * cell[0] + x`` is the sub-cell at column ``x``, row ``y``.
+    ``None`` with no ramp means braille."""
+
+
+def _sextants() -> tuple[str, ...]:
+    """The 64 sextant characters (2x3 blocks), from Unicode's Legacy Computing block.
+
+    It leaves out the four patterns other blocks already draw: blank, full, and the
+    left and right halves.
+    """
+    chars = []
+    for mask in range(64):
+        if mask == 0:
+            chars.append(" ")
+        elif mask == 63:
+            chars.append("█")
+        elif mask == 21:
+            chars.append("▌")
+        elif mask == 42:
+            chars.append("▐")
+        else:
+            chars.append(chr(0x1FB00 + mask - 1 - (mask > 21) - (mask > 42)))
+    return tuple(chars)
 
 
 STYLES: dict[str, Style] = {
     "blocks": Style("blocks", (1, 1), " ░▒▓█", "Unicode shade blocks"),
     "ascii": Style("ascii", (1, 1), " .:-=+*#%@", "classic ASCII density ramp"),
     "braille": Style("braille", (2, 4), None, "braille patterns, 2x4 dots per cell"),
+    "halfblocks": Style(
+        "halfblocks", (1, 2), None, "half blocks, 2 per cell, top and bottom", (" ", "▀", "▄", "█")
+    ),
+    "quadrants": Style(
+        "quadrants",
+        (2, 2),
+        None,
+        "quadrant blocks, 2x2 per cell",
+        tuple(" ▘▝▀▖▌▞▛▗▚▐▜▄▙▟█"),
+    ),
+    "sextants": Style(
+        "sextants",
+        (2, 3),
+        None,
+        "sextant blocks, 2x3 per cell (needs a font with Unicode 13 legacy computing symbols)",
+        _sextants(),
+    ),
 }
 
 # Braille bit assignment per (dot column, dot row) within a 2x4 cell.
@@ -103,6 +146,13 @@ def map_image(image: Image.Image, style: str, threshold: float | None = None) ->
         for col in range(width // dx):
             if resolved.ramp is not None:
                 chars.append(_ramp_char(resolved.ramp, coverage_at(col, row), threshold))
+            elif resolved.mosaic is not None:
+                mask = 0
+                for sub_y in range(dy):
+                    for sub_x in range(dx):
+                        if coverage_at(col * dx + sub_x, row * dy + sub_y) >= dot_cutoff:
+                            mask |= 1 << (sub_y * dx + sub_x)
+                chars.append(resolved.mosaic[mask])
             else:
                 code = 0x2800
                 for (dot_x, dot_y), bit in _BRAILLE_BITS.items():

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Colour for text art. `--palette` (`-p`) colours the art with a gradient that starts at
+  the right edge, where an Arabic line starts, or runs `--gradient ltr`, `down` or `up`;
+  `--bands` gives solid stripes. Six palettes (andalus, damask, desert, fajr, gold, nile,
+  see `--list-palettes`) or any colours separated by commas. Colour is printed only to
+  a terminal and never with `NO_COLOR`; `--color always|never` overrides that.
+  API: `khatt.color_art(art, palette)` and `khatt.list_palettes()`.
+- Three new styles: `halfblocks` (2 blocks per cell), `quadrants` (2×2) and `sextants`
+  (2×3, Unicode 13).
+- Text art saved as SVG (`--svg art`, `khatt.art_to_svg`), as coloured HTML
+  (`.html`, `khatt.art_to_html`) and with terminal colour codes (`.ans`).
+  `khatt.art_to_image` and `.png` output take the palette too.
+
 ## [0.10.0] - 2026-11-13
 
 ### Added
