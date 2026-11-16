@@ -146,12 +146,22 @@ def _save_png(
     palette: Palette | None = None,
     direction: str = "rtl",
     bands: bool = False,
+    canvas: str | None = None,
 ) -> None:
     """Save the text art drawn as an image, or the plain high-resolution text."""
     if content == "art":
-        image = khatt.art_to_image(
-            art, fg=fg, bg=bg, palette=palette, direction=direction, bands=bands
-        )
+        try:
+            image = khatt.art_to_image(
+                art,
+                fg=fg,
+                bg=bg,
+                palette=palette,
+                direction=direction,
+                bands=bands,
+                canvas=canvas,
+            )
+        except (KeyError, ValueError) as exc:  # an unknown or too small canvas
+            raise _fail(str(exc.args[0]), 2) from exc
     else:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")  # already reported while rendering the art
@@ -345,6 +355,7 @@ def _show_animation(
     bg: str,
     output: Path | None,
     fill: str | None = None,
+    frame: str | None = None,
 ) -> None:
     """Play the animation in the terminal, or save it as GIF, APNG, WebP or .cast."""
     try:
@@ -361,6 +372,7 @@ def _show_animation(
             threshold=threshold,
             keep_tashkeel=keep_tashkeel,
             fill=fill,
+            frame=frame,
         )
         if output is not None:
             animation.save(output, fg=fg, bg=bg, loops=0)
@@ -520,8 +532,28 @@ def _parser() -> argparse.ArgumentParser:
         help="Print the text decorated in this zakhrafa style, to copy and paste, or 'all' "
         "for every style.",
     )
-    for name in ("curves", "effects", "fonts", "palettes", "shapes", "styles"):
+    for name in (
+        "canvases",
+        "curves",
+        "effects",
+        "fonts",
+        "frames",
+        "palettes",
+        "shapes",
+        "styles",
+    ):
         parser.add_argument(f"--list-{name}", action="store_true", help=f"List {name} and exit.")
+    parser.add_argument(
+        "--frame",
+        help="Put the art inside a frame: single, round, double, heavy, or lawha (double "
+        "lines with ۞ ornaments). See --list-frames.",
+    )
+    parser.add_argument(
+        "--canvas",
+        help="With a .png --output of the art: an image of this size with the art as large "
+        "as fits, centred. A name (social 1280x640, square, story, header, wallpaper; see "
+        "--list-canvases) or WIDTHxHEIGHT.",
+    )
     parser.add_argument(
         "--fill",
         help="With --style letters: the text whose letters ink the art (default: the text "
@@ -633,6 +665,14 @@ def main(argv: Sequence[str] | None = None) -> None:
             _say(name)
         return
 
+    if options.list_frames:
+        for name in khatt.list_frames():
+            _say(name)
+        return
+    if options.list_canvases:
+        for name, (wide, high) in sorted(khatt.CANVASES.items()):
+            _say(f"{name} {wide}x{high}")
+        return
     if options.list_palettes:
         for name in khatt.list_palettes():
             _say(name)
@@ -701,6 +741,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             bg="white" if background is None else background,
             output=output,
             fill=options.fill,
+            frame=options.frame,
         )
         return
     if options.fetch:
@@ -772,6 +813,13 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     if not art and text.strip():
         raise _fail("no renderable characters in input", 1)
+    if options.frame is not None and art:
+        try:
+            art = khatt.frame_art(art, options.frame)
+        except KeyError as exc:
+            raise _fail(str(exc.args[0]), 2) from exc
+    if options.canvas is not None and (output is None or png != "art"):
+        raise _fail("--canvas sizes an image of the art: pass --output with a .png name", 2)
 
     suffix = "" if output is None else output.suffix.lower()
     if output is None:
@@ -836,6 +884,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             palette=palette,
             direction=gradient,
             bands=bands,
+            canvas=options.canvas,
         )
         _say(f"wrote {output}", err=True)
     else:

@@ -18,7 +18,7 @@ from PIL import Image, ImageOps
 
 from khatt.animate import Animation, animate
 from khatt.arrays import put_text
-from khatt.art_image import art_to_html, art_to_image, art_to_svg
+from khatt.art_image import CANVASES, art_to_html, art_to_image, art_to_svg
 from khatt.calligram import available_shapes as list_shapes
 from khatt.calligram import calligram
 from khatt.caption import caption_image
@@ -31,6 +31,8 @@ from khatt.effects import available_effects as list_effects
 from khatt.fetch import Fact, fetch, fetch_image
 from khatt.fonts import Font, font_path, font_paths
 from khatt.fonts import available_fonts as list_fonts
+from khatt.frames import available_frames as list_frames
+from khatt.frames import frame_art
 from khatt.layout import DEFAULT_SIZE, paragraphs, render_grids, render_ink
 from khatt.mapper import available_styles as list_styles
 from khatt.mapper import get_style, map_image
@@ -55,6 +57,7 @@ from khatt.zakhrafa import zakhrafa
 __version__ = "0.11.0"
 
 __all__ = [
+    "CANVASES",
     "DEFAULT_SIZE",
     "PRINTER_WIDTHS",
     "Animation",
@@ -86,12 +89,14 @@ __all__ = [
     "fetch",
     "fetch_image",
     "find_reshaping",
+    "frame_art",
     "get_effect",
     "group_words",
     "is_reshaped",
     "list_curves",
     "list_effects",
     "list_fonts",
+    "list_frames",
     "list_palettes",
     "list_shapes",
     "list_styles",

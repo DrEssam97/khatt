@@ -22,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a left-to-right override for terminals that lay Arabic out themselves and in saved
   `.txt` files, so no run gets reversed. Images draw the letters in Cairo, and HTML
   output now keeps every character in its cell.
+- `--frame` puts text art inside a frame: `single`, `round`, `double`, `heavy` or
+  `lawha` (double lines with ۞ ornaments). Images draw frame lines as crisp shapes, and
+  frames work in animations. API: `khatt.frame_art()` and `khatt.list_frames()`.
+- `--canvas` sizes a `.png` of the art for a post: `social` (1280×640), `square`,
+  `story`, `header`, `wallpaper` or `WIDTHxHEIGHT`, with the art as large as fits and
+  centred. API: `art_to_image(..., canvas=)` and `khatt.CANVASES`.
 
 ## [0.11.0] - 2026-11-16
 
