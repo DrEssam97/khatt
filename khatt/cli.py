@@ -17,8 +17,10 @@ import khatt
 from khatt.art_image import paint
 from khatt.doctor import format_report
 from khatt.draw import WORD_ART_FONT
+from khatt.fetch import fetch, fetch_image
 from khatt.fonts import available_fonts
 from khatt.palette import DIRECTIONS, Palette, palette_colors
+from khatt.terminal import TERMINAL_MODES, terminal_shapes_arabic
 
 _COLOURS = {"red": "31", "yellow": "33"}
 
@@ -238,6 +240,67 @@ def _save_word_art(
     _say(f"wrote {target}", err=True)
 
 
+def _show_fetch(
+    text: str | None,
+    *,
+    font: str | None,
+    style: str | None,
+    palette: str | None,
+    gradient: str,
+    bands: bool,
+    width: int | None,
+    color: str,
+    rtl_terminal: str,
+    arabic_digits: bool,
+    private: bool,
+    bg: str | None,
+    output: Path | None,
+) -> None:
+    """Print the system-information card, or save it: as an image, ``.txt`` or ``.ans``."""
+    options = {
+        "font": "lalezar" if font is None else font,
+        "style": "quadrants" if style is None else style,
+        "palette": "gold" if palette is None else palette,
+        "direction": gradient,
+        "bands": bands,
+        "arabic_digits": arabic_digits,
+        "private": private,
+    }
+    shaped = rtl_terminal == "yes" or (rtl_terminal == "auto" and terminal_shapes_arabic())
+    suffix = "" if output is None else output.suffix.lower()
+    try:
+        if output is None:
+            mode = _color_mode(color, sys.stdout)
+            columns = _terminal_width() if width is None else width
+            card = fetch(
+                text,
+                color_mode=mode,
+                shaped_by_terminal=shaped,
+                width=columns,
+                **options,  # type: ignore[arg-type]
+            )
+            _say(card)
+        elif suffix in (".txt", ".ans"):
+            # A .txt file is read in an editor, which lays Arabic out itself; an .ans file
+            # is printed to a terminal with cat.
+            card = fetch(
+                text,
+                color_mode="truecolor" if suffix == ".ans" else None,
+                shaped_by_terminal=shaped if suffix == ".ans" else True,
+                **options,  # type: ignore[arg-type]
+            )
+            output.write_text(card + "\n", encoding="utf-8")
+            _say(f"wrote {output}", err=True)
+        else:
+            backdrop = "#1e1e2e" if bg is None else bg
+            background = None if backdrop.strip().lower() in ("none", "transparent") else backdrop
+            image = fetch_image(text, bg=background, **options)  # type: ignore[arg-type]
+            image.save(output)
+            _say(f"wrote {output}", err=True)
+    except (KeyError, ValueError) as exc:  # unknown font, style, colour or image type
+        raise _fail(str(exc.args[0]), 2) from exc
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="khatt", description="Render Arabic text as ASCII/Unicode-block art."
@@ -251,7 +314,9 @@ def _parser() -> argparse.ArgumentParser:
         help="Font name (see --list-fonts), style name, or the path to a .ttf/.otf file. "
         f"Default: amiri, or {WORD_ART_FONT} with --effect.",
     )
-    parser.add_argument("-s", "--style", default="blocks", help="Output style.")
+    parser.add_argument(
+        "-s", "--style", help="Output style. Default: blocks, or quadrants with --fetch."
+    )
     parser.add_argument(
         "-w",
         "--width",
@@ -381,6 +446,31 @@ def _parser() -> argparse.ArgumentParser:
     for name in ("curves", "effects", "fonts", "palettes", "shapes", "styles"):
         parser.add_argument(f"--list-{name}", action="store_true", help=f"List {name} and exit.")
     parser.add_argument(
+        "--fetch",
+        action="store_true",
+        help="Show this machine's details in Arabic beside a logo, like neofetch. The text, if "
+        "any, is the logo (default: the system's name, such as ويندوز). Save it with "
+        "--output as an image (.png, .webp, .jpg), .txt or .ans.",
+    )
+    parser.add_argument(
+        "--rtl-terminal",
+        choices=TERMINAL_MODES,
+        default="auto",
+        help="With --fetch: whether the terminal joins and orders Arabic itself (Konsole, "
+        "GNOME Terminal, mlterm, macOS Terminal do). If not, khatt gives it the letters "
+        "already joined. Default: auto, which guesses.",
+    )
+    parser.add_argument(
+        "--arabic-digits",
+        action="store_true",
+        help="With --fetch: write counts and dates in Eastern Arabic digits (٠١٢٣).",
+    )
+    parser.add_argument(
+        "--private",
+        action="store_true",
+        help="With --fetch: leave out the user@host line, for screenshots.",
+    )
+    parser.add_argument(
         "--doctor",
         action="store_true",
         help="Check which Arabic shaping engines are installed (and double-shaping risks), "
@@ -396,7 +486,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     options = parser.parse_args(argv)
     text: str | None = options.text
     font: str | None = options.font
-    style: str = options.style
+    style: str | None = options.style
     width: int | None = options.width
     size: int = options.size
     fit: bool = options.fit
@@ -489,6 +579,23 @@ def main(argv: Sequence[str] | None = None) -> None:
             palette_colors(palette)
         except (KeyError, ValueError) as exc:
             raise _fail(str(exc.args[0]), 2) from exc
+    if options.fetch:
+        _show_fetch(
+            None if text in (None, "-") else text,
+            font=font,
+            style=style,
+            palette=palette,
+            gradient=gradient,
+            bands=bands,
+            width=width,
+            color=options.color,
+            rtl_terminal=options.rtl_terminal,
+            arabic_digits=options.arabic_digits,
+            private=options.private,
+            bg=bg,
+            output=output,
+        )
+        return
     if text is None or text == "-":
         text = sys.stdin.read()
     text = text.rstrip("\n")
@@ -520,6 +627,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         )
         return
     font = "amiri" if font is None else font
+    style = "blocks" if style is None else style
 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")

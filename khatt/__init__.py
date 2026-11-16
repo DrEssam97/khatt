@@ -27,6 +27,7 @@ from khatt.doctor import doctor, find_reshaping
 from khatt.draw import Span, TextOverflowWarning, draw_text, overlay, text_bbox, word_art
 from khatt.effects import Effect, Extrude, Glow, Gradient, Shadow, get_effect
 from khatt.effects import available_effects as list_effects
+from khatt.fetch import Fact, fetch, fetch_image
 from khatt.fonts import Font, font_path, font_paths
 from khatt.fonts import available_fonts as list_fonts
 from khatt.layout import DEFAULT_SIZE, paragraphs, render_grids, render_ink
@@ -59,6 +60,7 @@ __all__ = [
     "CaptionStep",
     "Effect",
     "Extrude",
+    "Fact",
     "Glow",
     "Gradient",
     "ReshapedTextWarning",
@@ -78,6 +80,8 @@ __all__ = [
     "color_art",
     "doctor",
     "draw_text",
+    "fetch",
+    "fetch_image",
     "find_reshaping",
     "get_effect",
     "group_words",
