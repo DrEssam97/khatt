@@ -16,6 +16,7 @@ from collections.abc import Sequence
 
 from PIL import Image, ImageOps
 
+from khatt.animate import Animation, animate
 from khatt.arrays import put_text
 from khatt.art_image import art_to_html, art_to_image, art_to_svg
 from khatt.calligram import available_shapes as list_shapes
@@ -56,6 +57,7 @@ __version__ = "0.11.0"
 __all__ = [
     "DEFAULT_SIZE",
     "PRINTER_WIDTHS",
+    "Animation",
     "Arc",
     "CaptionStep",
     "Effect",
@@ -71,6 +73,7 @@ __all__ = [
     "Wave",
     "Word",
     "__version__",
+    "animate",
     "art_to_html",
     "art_to_image",
     "art_to_svg",

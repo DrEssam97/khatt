@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import os
 import shutil
 import sys
@@ -14,6 +15,8 @@ from typing import TextIO
 from PIL import Image, ImageColor, ImageOps
 
 import khatt
+from khatt.animate import EFFECTS as ANIMATIONS
+from khatt.animate import animate
 from khatt.art_image import paint
 from khatt.doctor import format_report
 from khatt.draw import WORD_ART_FONT
@@ -301,6 +304,78 @@ def _show_fetch(
         raise _fail(str(exc.args[0]), 2) from exc
 
 
+def _positive(value: str) -> float:
+    """A number above 0, for ``--fps``."""
+    try:
+        number = float(value)
+    except ValueError:
+        number = 0.0
+    if number <= 0:
+        raise argparse.ArgumentTypeError(f"{value!r} is not a number above 0")
+    return number
+
+
+def _count(value: str) -> int:
+    """A whole number of 0 or more, for ``--loop``."""
+    try:
+        number = int(value)
+    except ValueError:
+        number = -1
+    if number < 0:
+        raise argparse.ArgumentTypeError(f"{value!r} is not a whole number of 0 or more")
+    return number
+
+
+def _show_animation(
+    text: str,
+    effect: str,
+    *,
+    font: str | None,
+    style: str | None,
+    size: int,
+    threshold: float | None,
+    keep_tashkeel: bool,
+    palette: str | None,
+    gradient: str,
+    bands: bool,
+    fps: float,
+    loops: int,
+    color: str,
+    fg: str,
+    bg: str,
+    output: Path | None,
+) -> None:
+    """Play the animation in the terminal, or save it as GIF, APNG, WebP or .cast."""
+    try:
+        animation = animate(
+            text,
+            effect,
+            font="amiri" if font is None else font,
+            style="blocks" if style is None else style,
+            size=size,
+            palette=palette,
+            direction=gradient,
+            bands=bands,
+            fps=fps,
+            threshold=threshold,
+            keep_tashkeel=keep_tashkeel,
+        )
+        if output is not None:
+            animation.save(output, fg=fg, bg=bg, loops=0)
+            _say(f"wrote {output}", err=True)
+            return
+    except (KeyError, ValueError) as exc:  # unknown font, style or format; nothing to draw
+        raise _fail(str(exc.args[0]), 2) from exc
+    mode = _color_mode(color, sys.stdout)
+    if not sys.stdout.isatty():
+        # Not a terminal: no redrawing, just the finished text.
+        last = len(animation.frames) - 1
+        _say(animation.frames[last] if mode is None else animation.ansi(last, mode))
+        return
+    with contextlib.suppress(KeyboardInterrupt):  # Ctrl+C ends a looping animation
+        animation.play(loops=loops, mode=mode)
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="khatt", description="Render Arabic text as ASCII/Unicode-block art."
@@ -446,6 +521,25 @@ def _parser() -> argparse.ArgumentParser:
     for name in ("curves", "effects", "fonts", "palettes", "shapes", "styles"):
         parser.add_argument(f"--list-{name}", action="store_true", help=f"List {name} and exit.")
     parser.add_argument(
+        "-a",
+        "--animate",
+        choices=ANIMATIONS,
+        help="Animate the art, keeping Arabic letters joined: type (a letter at a time), "
+        "wipe (uncovered from the right), kashida (the words stretch and settle) or shimmer "
+        "(the palette flows through, needs --palette). Plays in the terminal, or saves "
+        "with --output as .gif, .png (APNG), .webp or .cast (asciinema).",
+    )
+    parser.add_argument(
+        "--fps", type=_positive, default=12.0, help="Frames per second of --animate. Default: 12."
+    )
+    parser.add_argument(
+        "--loop",
+        type=_count,
+        default=1,
+        help="How many times --animate plays in the terminal; 0 repeats until Ctrl+C. "
+        "Saved animations always loop. Default: 1.",
+    )
+    parser.add_argument(
         "--fetch",
         action="store_true",
         help="Show this machine's details in Arabic beside a logo, like neofetch. The text, if "
@@ -579,6 +673,28 @@ def main(argv: Sequence[str] | None = None) -> None:
             palette_colors(palette)
         except (KeyError, ValueError) as exc:
             raise _fail(str(exc.args[0]), 2) from exc
+    if options.animate is not None:
+        if text is None or text == "-":
+            text = sys.stdin.read()
+        _show_animation(
+            text.rstrip("\n"),
+            options.animate,
+            font=font,
+            style=style,
+            size=size,
+            threshold=threshold,
+            keep_tashkeel=bool(keep_tashkeel),
+            palette=palette,
+            gradient=gradient,
+            bands=bands,
+            fps=options.fps,
+            loops=options.loop,
+            color=options.color,
+            fg=ink,
+            bg="white" if background is None else background,
+            output=output,
+        )
+        return
     if options.fetch:
         _show_fetch(
             None if text in (None, "-") else text,
