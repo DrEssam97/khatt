@@ -20,6 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Text art saved as SVG (`--svg art`, `khatt.art_to_svg`), as coloured HTML
   (`.html`, `khatt.art_to_html`) and with terminal colour codes (`.ans`).
   `khatt.art_to_image` and `.png` output take the palette too.
+- `khatt --fetch`: your machine's details under Arabic labels beside an Arabic logo, like
+  neofetch. The logo defaults to the system's name in Arabic letters; uptime is written
+  in Arabic grammar; `--arabic-digits` writes counts and dates in Eastern Arabic digits;
+  `--private` leaves out user@host; the Hijri date appears when `hijridate` is
+  installed. Terminals that can't lay Arabic out get the labels already joined and in
+  display order, and `--rtl-terminal yes|no` overrides the guess. Saved as an image
+  (`.png`, `.webp`, `.jpg`), `.txt` or `.ans`. API: `khatt.fetch()`,
+  `khatt.fetch_image()` and `khatt.Fact`.
 
 ## [0.10.0] - 2026-11-13
 

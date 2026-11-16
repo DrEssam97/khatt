@@ -55,7 +55,8 @@ Or [install it](#install) with `pip install khatt`.
   timings.
 - **Terminal art.** Render Arabic as `blocks`, `ascii`, `braille`, `halfblocks`,
   `quadrants` or `sextants` art, the Arabic FIGlet, in colour with palettes and
-  right-to-left gradients, and save it as PNG, SVG, HTML or ANSI text.
+  right-to-left gradients, and save it as PNG, SVG, HTML or ANSI text. `khatt --fetch`
+  shows your machine's details in Arabic beside a logo, like neofetch.
 - **Any font.** Eight bundled OFL fonts in Naskh, Kufi, Ruqaa and display styles, 22 more
   with `pip install khatt-fonts`, or your own `.ttf`/`.otf`, with fallback fonts for
   characters it has no glyph for.
@@ -538,6 +539,36 @@ khatt "مرحبا" -p gold -o art.svg --svg art        # vector shapes, sharp at
 khatt "مرحبا" -p gold -o art.html                 # coloured text in a <pre>
 khatt "مرحبا" -p gold -o art.ans                  # with terminal colour codes, for cat
 ```
+
+### khatt --fetch
+
+![khatt --fetch: Ubuntu's details under Arabic labels, beside أوبونتو drawn in desert-coloured blocks](docs/assets/khatt-fetch.png)
+
+Your machine's details under Arabic labels, beside a logo, like neofetch. The logo is
+the system's name in Arabic letters (ويندوز, ماك, أوبونتو, فيدورا, آرتش...) unless you
+give your own text:
+
+```bash
+khatt --fetch
+khatt --fetch "مرحبا" -p nile                 # your own logo and palette
+khatt --fetch -s braille --arabic-digits       # Eastern Arabic digits: ٣٫٥ / ١٦٫٠
+khatt --fetch --private -o card.png            # without user@host, as an image
+```
+
+It shows the system, kernel, processor, memory, uptime (in Arabic grammar: ساعتان,
+3 أيام, 11 يومًا), shell, terminal, Python, khatt and the date. With
+`pip install hijridate` it adds the Hijri date of the Umm al-Qura calendar.
+
+Most terminals (Windows Terminal, iTerm2, Alacritty, kitty, WezTerm) draw Arabic
+letters apart and backwards, so khatt gives them the labels with the letters already
+joined and in display order. Terminals that lay Arabic out themselves (Konsole, GNOME
+Terminal and other VTE terminals, mlterm, macOS Terminal) get the text as typed. khatt
+guesses which kind yours is; `--rtl-terminal yes` or `no` settles it. Images
+(`.png`, `.webp`, `.jpg`) are shaped by HarfBuzz like everything else khatt draws, and
+`.txt` and `.ans` save the card as text.
+
+In Python, `khatt.fetch()` returns the card and `khatt.fetch_image()` draws it;
+both take `facts=` to show your own lines instead of the machine's.
 
 ### Python API
 
