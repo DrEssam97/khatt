@@ -17,6 +17,7 @@ from collections.abc import Sequence
 from PIL import Image, ImageOps
 
 from khatt.animate import Animation, animate
+from khatt.arabizi import from_arabizi, is_arabizi
 from khatt.arrays import put_text
 from khatt.art_image import CANVASES, art_to_html, art_to_image, art_to_svg
 from khatt.calligram import available_shapes as list_shapes
@@ -90,8 +91,10 @@ __all__ = [
     "fetch_image",
     "find_reshaping",
     "frame_art",
+    "from_arabizi",
     "get_effect",
     "group_words",
+    "is_arabizi",
     "is_reshaped",
     "list_curves",
     "list_effects",

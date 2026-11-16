@@ -58,7 +58,8 @@ Or [install it](#install) with `pip install khatt`.
   right-to-left gradients, and save it as PNG, SVG, HTML or ANSI text. `khatt --fetch`
   shows your machine's details in Arabic beside a logo, like neofetch, and `--animate`
   types, wipes or stretches the art without breaking a single join. `--frame` puts it in
-  a lawha frame and `--canvas social` sizes it for a post.
+  a lawha frame and `--canvas social` sizes it for a post. `--arabizi` takes Arabizi
+  (`7abibi`) and writes it in Arabic letters first.
 - **Any font.** Eight bundled OFL fonts in Naskh, Kufi, Ruqaa and display styles, 22 more
   with `pip install khatt-fonts`, or your own `.ttf`/`.otf`, with fallback fonts for
   characters it has no glyph for.
@@ -563,6 +564,30 @@ run of them, so khatt wraps those lines in a left-to-right override (it guesses 
 terminal, see `--rtl-terminal`; saved `.txt` files always get it). Images draw the letters
 in Cairo, and HTML keeps every letter in its cell. In Python:
 `khatt.render("سلام", style="letters", fill="السلام عليكم")`.
+
+### Arabizi
+
+![yalla ya 7abibi written as يلا يا حبيبي above the Arabizi](docs/assets/khatt-arabizi.png)
+
+Arabizi (Franco-Arabic) writes Arabic in Latin letters, with digits for the sounds Latin
+lacks: 2 ء, 3 ع, 5 خ, 6 ط, 7 ح, 8 ق, 9 ص. `--arabizi` writes it in Arabic letters before
+drawing it, and `--arabizi both` keeps the Arabizi as a line under the Arabic:
+
+```bash
+khatt "yalla ya 7abibi" --arabizi both -s quadrants -p nile
+khatt "salam 3alaykom" --arabizi -a type          # works with every option
+khatt "ana fahem" --arabizi --arabizi-words my-words.txt
+```
+
+Arabizi has no fixed spelling, so khatt uses a short list of common words and simple
+rules: the digit letters, letter pairs (`sh`, `kh`, `gh`, `th`, `dh`), an alef for a
+vowel that starts a word, long vowels where they are doubled, in a diphthong or in the
+last syllable, `ة` for the feminine `-a`, and `el-`/`al-` as `ال`. It can't know what
+Arabizi leaves out: whether `t` is `ت` or `ط`, or which syllable is long (`fahem` comes
+out `فهيم`). Your own spellings, one `arabizi = عربي` per line in a file given to
+`--arabizi-words`, always win. khatt never converts Latin text by itself; it only
+suggests `--arabizi` when the input looks like Arabizi. In Python:
+`khatt.from_arabizi("7abibi")` and `khatt.from_arabizi(text, {"fahem": "فاهم"})`.
 
 ### Frames and canvases
 
