@@ -93,9 +93,50 @@ class TestGridShape:
 
 class TestStyleRegistry:
     def test_declared_styles(self) -> None:
-        assert available_styles() == ["ascii", "blocks", "braille"]
-        assert set(STYLES) == {"ascii", "blocks", "braille"}
+        names = ["ascii", "blocks", "braille", "halfblocks", "quadrants", "sextants"]
+        assert available_styles() == names
+        assert set(STYLES) == set(names)
 
     def test_unknown_style_raises_with_names(self) -> None:
         with pytest.raises(KeyError, match="blocks"):
             map_image(gradient(), "neon")
+
+
+class TestBlockMosaics:
+    def test_halfblocks_top_and_bottom(self) -> None:
+        assert map_image(img([[255], [0]]), "halfblocks") == "▀"
+        assert map_image(img([[0], [255]]), "halfblocks") == "▄"
+        assert map_image(img([[255], [255]]), "halfblocks") == "█"
+        assert map_image(img([[0], [0]]), "halfblocks") == ""
+
+    @pytest.mark.parametrize(
+        ("rows", "char"),
+        [
+            ([[255, 0], [0, 0]], "▘"),
+            ([[0, 255], [0, 0]], "▝"),
+            ([[0, 0], [255, 0]], "▖"),
+            ([[0, 0], [0, 255]], "▗"),
+            ([[255, 0], [0, 255]], "▚"),
+            ([[0, 255], [255, 255]], "▟"),
+        ],
+    )
+    def test_quadrants_follow_their_corners(self, rows: list[list[int]], char: str) -> None:
+        assert map_image(img(rows), "quadrants") == char
+
+    def test_sextants_cover_every_pattern_once(self) -> None:
+        mosaic = STYLES["sextants"].mosaic
+        assert mosaic is not None
+        assert len(mosaic) == 64
+        assert len(set(mosaic)) == 64
+        assert mosaic[1] == "\U0001fb00"  # top left only
+        assert mosaic[62] == "\U0001fb3b"  # all but top left
+        assert (mosaic[0], mosaic[21], mosaic[42], mosaic[63]) == (" ", "▌", "▐", "█")
+
+    def test_sextant_rows_run_top_down(self) -> None:
+        middle_right = img([[0, 0], [0, 255], [0, 0]])
+        assert map_image(middle_right, "sextants") == chr(0x1FB00 + 8 - 1)
+
+    def test_threshold_is_the_block_cutoff(self) -> None:
+        faint = img([[100], [100]])
+        assert map_image(faint, "halfblocks") == ""
+        assert map_image(faint, "halfblocks", threshold=0.3) == "█"

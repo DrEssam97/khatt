@@ -5,6 +5,7 @@ from __future__ import annotations
 from itertools import pairwise
 from pathlib import Path
 
+import pytest
 from cli_runner import invoke
 from PIL import Image
 
@@ -367,3 +368,66 @@ class TestSvg:
         assert result.exit_code == 0
         svg = target.read_text(encoding="utf-8")
         assert 'fill="#ff0000"' in svg and "<rect" in svg
+
+
+def test_palette_colours_the_terminal_when_asked() -> None:
+    result = invoke(main, ["خط", "-s", "quadrants", "-p", "gold", "--color", "always"])
+    assert result.exit_code == 0
+    assert "\033[38;" in result.output
+
+
+def test_palette_stays_plain_when_not_a_terminal_or_never() -> None:
+    for extra in ([], ["--color", "never"]):
+        result = invoke(main, ["خط", "-p", "gold", *extra])
+        assert result.exit_code == 0
+        assert "\033[" not in result.output
+
+
+def test_no_color_turns_colour_off() -> None:
+    result = invoke(main, ["خط", "-p", "gold"], env={"NO_COLOR": "1"})
+    assert "\033[" not in result.output
+
+
+def test_256_colours_unless_the_terminal_has_truecolor(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("COLORTERM", raising=False)
+    monkeypatch.delenv("WT_SESSION", raising=False)
+    result = invoke(main, ["خط", "-p", "red", "--color", "always"])
+    assert "\033[38;5;196m" in result.output
+    result = invoke(main, ["خط", "-p", "red", "--color", "always"], env={"COLORTERM": "truecolor"})
+    assert "\033[38;2;255;0;0m" in result.output
+
+
+def test_unknown_palette_fails_with_the_list() -> None:
+    result = invoke(main, ["خط", "-p", "nope"])
+    assert result.exit_code == 2
+    assert "andalus" in result.output
+
+
+def test_list_palettes() -> None:
+    result = invoke(main, ["--list-palettes"])
+    assert result.exit_code == 0
+    assert result.output.split() == khatt.list_palettes()
+
+
+def test_coloured_outputs(tmp_path: Path) -> None:
+    png, svg, html, ans = (tmp_path / f"art.{ext}" for ext in ("png", "svg", "html", "ans"))
+    base = ["خط", "-s", "halfblocks", "-p", "#ff0000,#0000ff", "--gradient", "down", "--bands"]
+    for target, extra in ((png, []), (svg, ["--svg", "art"]), (html, []), (ans, [])):
+        result = invoke(main, [*base, "-o", str(target), *extra])
+        assert result.exit_code == 0, result.output
+    with Image.open(png) as image:
+        colours = {colour for _, colour in image.convert("RGB").getcolors(1 << 16) or []}
+    assert (255, 0, 0) in colours
+    assert (0, 0, 255) in colours
+    art_svg = svg.read_text(encoding="utf-8")
+    assert "<rect" in art_svg
+    assert "<path" not in art_svg
+    assert "color:#ff0000" in html.read_text(encoding="utf-8")
+    assert "\033[38;2;255;0;0m" in ans.read_text(encoding="utf-8")
+
+
+def test_svg_defaults_to_the_text_outlines(tmp_path: Path) -> None:
+    target = tmp_path / "text.svg"
+    result = invoke(main, ["خط", "-o", str(target)])
+    assert result.exit_code == 0
+    assert "<path" in target.read_text(encoding="utf-8")

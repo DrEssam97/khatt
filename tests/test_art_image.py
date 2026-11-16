@@ -112,6 +112,103 @@ class TestColours:
             khatt.art_to_image("█", fg="not-a-colour")
 
 
+class TestMosaics:
+    @pytest.mark.parametrize(
+        ("char", "inked"),
+        [
+            ("▀", [(0, 0), (1, 0)]),
+            ("▄", [(0, 1), (1, 1)]),
+            ("▘", [(0, 0)]),
+            ("▞", [(1, 0), (0, 1)]),
+        ],
+    )
+    def test_blocks_fill_their_quarters(self, char: str, inked: list[tuple[int, int]]) -> None:
+        image = draw(char)
+        for x in range(2):
+            for y in range(2):
+                centre = (x * CELL // 2 + CELL // 4, y * CELL + CELL // 2)
+                assert image.getpixel(centre) == (BLACK if (x, y) in inked else WHITE)
+
+    def test_sextant_fills_a_third_of_the_height(self) -> None:
+        image = draw(chr(0x1FB00 + 8 - 1))  # middle right sextant
+        third = 2 * CELL // 3
+        assert image.getpixel((3 * CELL // 4, third + third // 2)) == BLACK
+        assert image.getpixel((3 * CELL // 4, third // 2)) == WHITE
+        assert image.getpixel((CELL // 4, third + third // 2)) == WHITE
+
+
+class TestPalette:
+    def test_each_cell_takes_its_colour(self) -> None:
+        image = khatt.art_to_image("██", palette="red,blue", cell_width=CELL, padding=0)
+        assert image is not None
+        assert image.getpixel((CELL // 2, CELL)) == (0, 0, 255)  # rtl: red at the right
+        assert image.getpixel((CELL + CELL // 2, CELL)) == (255, 0, 0)
+
+    def test_direction_and_bands(self) -> None:
+        image = khatt.art_to_image(
+            "████", palette="red,blue", direction="ltr", bands=True, cell_width=CELL, padding=0
+        )
+        assert image is not None
+        colours = [image.getpixel((col * CELL + CELL // 2, CELL)) for col in range(4)]
+        assert colours == [(255, 0, 0), (255, 0, 0), (0, 0, 255), (0, 0, 255)]
+
+    def test_transparent_background(self) -> None:
+        image = khatt.art_to_image("█ ", palette="gold", bg=None, cell_width=CELL, padding=0)
+        assert image is not None
+        assert image.mode == "RGBA"
+        assert image.getpixel((CELL // 2, CELL))[3] == 255
+        assert image.getpixel((CELL + CELL // 2, CELL))[3] == 0
+
+
+class TestSvg:
+    def test_blank_art_returns_none(self) -> None:
+        assert khatt.art_to_svg(" ⠀\n") is None
+
+    def test_size_and_background(self) -> None:
+        svg = khatt.art_to_svg("██", cell_width=10, padding=0, bg="#102030")
+        assert svg is not None
+        assert 'width="20" height="20"' in svg
+        assert 'fill="#102030"' in svg
+
+    def test_shapes_for_each_kind_of_cell(self) -> None:
+        svg = khatt.art_to_svg("⣿▘▒@", fg="red", bg=None)
+        assert svg is not None
+        assert svg.count("<circle") == 8
+        assert svg.count("<rect") == 2  # the quadrant and the shade, no background
+        assert 'fill-opacity="0.5"' in svg
+        assert ">@</text>" in svg
+        assert "#ff0000" in svg
+
+    def test_palette_colours(self) -> None:
+        svg = khatt.art_to_svg("██", palette="red,blue", bg=None)
+        assert svg is not None
+        assert svg.index("#0000ff") < svg.index("#ff0000")  # rtl: red on the right
+
+    def test_rejects_tiny_cells_and_negative_padding(self) -> None:
+        with pytest.raises(ValueError, match="cell_width"):
+            khatt.art_to_svg("█", cell_width=1)
+        with pytest.raises(ValueError, match="padding"):
+            khatt.art_to_svg("█", padding=-1)
+
+
+class TestHtml:
+    def test_runs_of_one_colour_share_a_span(self) -> None:
+        html = khatt.art_to_html("██ █", palette="red", bg=None)
+        assert html == (
+            '<pre style="line-height:1;font-family:monospace">'
+            '<span style="color:#ff0000">██ █</span></pre>\n'
+        )
+
+    def test_escapes_and_background(self) -> None:
+        html = khatt.art_to_html("<&>", fg="black", bg="white")
+        assert "&lt;&amp;&gt;" in html
+        assert "background:#ffffff" in html
+
+    def test_blank_lines_stay_empty(self) -> None:
+        html = khatt.art_to_html("█\n\n█", palette="red,blue", bg=None)
+        assert html.split("\n")[1] == ""
+
+
 @pytest.mark.parametrize("style", khatt.list_styles())
 @pytest.mark.parametrize("font", khatt.list_fonts())
 def test_every_font_and_style_draws(font: str, style: str) -> None:

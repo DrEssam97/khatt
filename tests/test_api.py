@@ -71,4 +71,11 @@ def test_list_fonts_and_styles() -> None:
         "reem-kufi",
         "rubik",
     ]
-    assert khatt.list_styles() == ["ascii", "blocks", "braille"]
+    assert khatt.list_styles() == [
+        "ascii",
+        "blocks",
+        "braille",
+        "halfblocks",
+        "quadrants",
+        "sextants",
+    ]
