@@ -56,7 +56,8 @@ Or [install it](#install) with `pip install khatt`.
 - **Terminal art.** Render Arabic as `blocks`, `ascii`, `braille`, `halfblocks`,
   `quadrants` or `sextants` art, the Arabic FIGlet, in colour with palettes and
   right-to-left gradients, and save it as PNG, SVG, HTML or ANSI text. `khatt --fetch`
-  shows your machine's details in Arabic beside a logo, like neofetch.
+  shows your machine's details in Arabic beside a logo, like neofetch, and `--animate`
+  types, wipes or stretches the art without breaking a single join.
 - **Any font.** Eight bundled OFL fonts in Naskh, Kufi, Ruqaa and display styles, 22 more
   with `pip install khatt-fonts`, or your own `.ttf`/`.otf`, with fallback fonts for
   characters it has no glyph for.
@@ -538,6 +539,37 @@ khatt "مرحبا" -p gold -o art.png --bg "#1e1e2e"   # image
 khatt "مرحبا" -p gold -o art.svg --svg art        # vector shapes, sharp at any size
 khatt "مرحبا" -p gold -o art.html                 # coloured text in a <pre>
 khatt "مرحبا" -p gold -o art.ans                  # with terminal colour codes, for cat
+```
+
+### Animation
+
+![مرحبا بالعالم typed a letter at a time, each letter joining the next as it arrives](docs/assets/khatt-animate.gif)
+
+Typing effects usually add one letter at a time, which tears Arabic apart. khatt shapes
+every frame as a whole, so each new letter takes its end-of-word form and then joins the
+next one as it arrives, the way the word is written by hand:
+
+```bash
+khatt "مرحبا بالعالم" -a type -s quadrants -p gold     # plays in the terminal
+khatt "القاهرة" -a wipe -p nile                         # uncovered from the right
+khatt "محمد" -a kashida -s braille                      # stretches with tatweel and settles
+khatt "خط" -a shimmer -s sextants -p damask --loop 0    # colours flow until Ctrl+C
+khatt "مرحبا بالعالم" -a type -p gold -o hello.gif --bg "#1e1e2e"
+```
+
+![محمد stretching with kashida and settling back](docs/assets/khatt-kashida.gif)
+
+Every frame shares one grid with the line's start fixed (the right edge for Arabic), so
+nothing jumps, and a palette's gradient stays in place while the text changes. `--fps`
+sets the speed and `--loop` how many times it plays in the terminal. Save it as `.gif`,
+`.png` (APNG), `.webp` or `.cast`, an [asciinema](https://asciinema.org) recording. In
+Python:
+
+```python
+animation = khatt.animate("مرحبا بالعالم", "type", style="quadrants", palette="gold")
+animation.play()                                  # in the terminal
+animation.save("hello.gif", bg="#1e1e2e")
+animation.frames                                  # the text art of every frame
 ```
 
 ### khatt --fetch

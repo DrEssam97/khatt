@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `--animate` (`-a`) animates text art without breaking Arabic apart: every frame is
+  shaped as a whole, so typed letters take their end-of-word form and then join the
+  next one. Effects: `type`, `wipe` (from the right for Arabic), `kashida` (the words
+  stretch with tatweel and settle) and `shimmer` (the palette flows through). Frames
+  share one grid with the line's start fixed, and a palette's gradient stays in place.
+  Plays in the terminal (`--fps`, `--loop`) or saves as GIF, APNG, WebP or an asciinema
+  `.cast`. API: `khatt.animate()` and `khatt.Animation`.
+
 ## [0.11.0] - 2026-11-16
 
 ### Added
