@@ -31,6 +31,7 @@ from PIL import Image
 
 from khatt.art_image import _paint_ink, _rgb, art_to_image
 from khatt.fonts import Font, font_path, font_paths
+from khatt.frames import frame_art
 from khatt.kashida import MOST_KASHIDA, kashida_points, stretch
 from khatt.layout import DEFAULT_SIZE
 from khatt.mapper import get_style, map_image
@@ -332,6 +333,7 @@ def animate(
     keep_tashkeel: bool = False,
     fallback_fonts: Font | Sequence[Font] = (),
     fill: str | None = None,
+    frame: str | None = None,
 ) -> Animation:
     """Animate one line of text as text art, keeping its letters joined.
 
@@ -344,6 +346,7 @@ def animate(
         palette, direction, bands: Colour the frames (see :func:`khatt.color_art`).
         fill: For the ``letters`` style, the text whose letters ink the art (default:
             ``text``).
+        frame: Put every frame inside this frame style (see :func:`khatt.frame_art`).
         fps: Frames per second.
         hold: Seconds the finished text stays on screen at the end.
 
@@ -381,6 +384,8 @@ def animate(
         frames = _wipe(final, max(8, round(fps)), reading) if effect == "wipe" else [final]
         if effect == "shimmer":
             frames = frames * max(8, round(fps * 2))
+    if frame is not None:
+        frames = [frame_art(art, frame) for art in frames]
     step = 1 / fps
     durations = [step] * len(frames)
     if effect != "shimmer":

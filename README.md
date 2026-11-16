@@ -57,7 +57,8 @@ Or [install it](#install) with `pip install khatt`.
   `quadrants`, `sextants` or `letters` art (a word drawn out of its own letters), the Arabic FIGlet, in colour with palettes and
   right-to-left gradients, and save it as PNG, SVG, HTML or ANSI text. `khatt --fetch`
   shows your machine's details in Arabic beside a logo, like neofetch, and `--animate`
-  types, wipes or stretches the art without breaking a single join.
+  types, wipes or stretches the art without breaking a single join. `--frame` puts it in
+  a lawha frame and `--canvas social` sizes it for a post.
 - **Any font.** Eight bundled OFL fonts in Naskh, Kufi, Ruqaa and display styles, 22 more
   with `pip install khatt-fonts`, or your own `.ttf`/`.otf`, with fallback fonts for
   characters it has no glyph for.
@@ -562,6 +563,30 @@ run of them, so khatt wraps those lines in a left-to-right override (it guesses 
 terminal, see `--rtl-terminal`; saved `.txt` files always get it). Images draw the letters
 in Cairo, and HTML keeps every letter in its cell. In Python:
 `khatt.render("سلام", style="letters", fill="السلام عليكم")`.
+
+### Frames and canvases
+
+![خط عربي in gold, inside a lawha frame with ۞ ornaments, on a 1280x640 social preview](docs/assets/khatt-frame.png)
+
+`--frame` puts the art inside a frame of box-drawing lines: `single`, `round`, `double`,
+`heavy`, or `lawha`, after the framed panels of Arabic calligraphy, with ۞ at its corners
+and in the middle of its top and bottom. It stays text in the terminal, and images draw
+its lines as crisp shapes.
+
+`--canvas` makes an image of a set size with the art as large as fits, centred: `social`
+(1280×640, the size of a GitHub repository's social preview and of link previews),
+`square` (1080×1080), `story` (1080×1920), `header` (1500×500) and `wallpaper`
+(1920×1080), or any `WIDTHxHEIGHT`.
+
+```bash
+khatt "خط" -s quadrants --frame round
+khatt "خط عربي" -f lalezar -s quadrants -p gold --frame lawha --canvas social --bg "#1e1e2e" -o card.png
+khatt "مرحبا" -a type --frame double -o hello.gif   # frames work in animations too
+khatt --list-frames
+khatt --list-canvases
+```
+
+In Python: `khatt.frame_art(art, "lawha")` and `khatt.art_to_image(art, canvas="social")`.
 
 ### Animation
 

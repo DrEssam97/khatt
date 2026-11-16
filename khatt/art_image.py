@@ -21,6 +21,7 @@ from html import escape
 from PIL import Image, ImageColor, ImageDraw, ImageFont
 
 from khatt.fonts import font_path
+from khatt.frames import BOX_CHARACTERS, box_rects
 from khatt.mapper import _BRAILLE_BITS, STYLES
 from khatt.palette import RGB, Palette, cell_colors
 from khatt.raster import CELL_ASPECT
@@ -38,6 +39,20 @@ _GLYPH_WEIGHT = 700
 
 _ARABIC_GLYPH_FONT = "cairo"
 """Bundled font that draws the Arabic letters of the ``letters`` style."""
+
+_ORNAMENT_FONT = "amiri"
+"""Bundled font for Arabic signs Rubik and Cairo don't have, such as ۞ (lawha frames)."""
+_ORNAMENTS = frozenset("۞۩")
+
+CANVASES: dict[str, tuple[int, int]] = {
+    "header": (1500, 500),
+    "social": (1280, 640),
+    "square": (1080, 1080),
+    "story": (1080, 1920),
+    "wallpaper": (1920, 1080),
+}
+"""Image sizes by name: a profile header, a link preview (GitHub's social preview size),
+a square post, a story, and a desktop wallpaper."""
 
 _DOT_RADIUS = 0.36
 """Braille dot radius as a fraction of the dot spacing (dots never touch)."""
@@ -72,6 +87,7 @@ def art_to_image(
     palette: Palette | None = None,
     direction: str = "rtl",
     bands: bool = False,
+    canvas: str | tuple[int, int] | None = None,
 ) -> Image.Image | None:
     """Draw text art as an image, one cell per character.
 
@@ -88,6 +104,10 @@ def art_to_image(
         direction: Where the palette's gradient starts: ``"rtl"`` (the right
             edge, the default), ``"ltr"``, ``"down"`` or ``"up"``.
         bands: Solid bands of each palette colour instead of a blend.
+        canvas: Make an image of this size, ``(width, height)`` or a name from
+            :data:`CANVASES` (``"social"``, ``"square"``...), with the art as
+            large as fits and centred; ``cell_width`` and ``padding`` are then
+            worked out to suit.
 
     Returns:
         An RGB image (RGBA when ``bg`` is ``None``), or ``None`` when the
@@ -100,6 +120,8 @@ def art_to_image(
     lines = art.split("\n")
     if all(char in _BLANKS for line in lines for char in line):
         return None
+    if canvas is not None:
+        return _on_canvas(art, canvas, fg, bg, palette, direction, bands)
 
     cell_height = round(cell_width / CELL_ASPECT)
     columns, rows = max(len(line) for line in lines), len(lines)
@@ -123,6 +145,17 @@ def art_to_image(
                             y0 + round(top * big_h),
                             x0 + round(right * big_w) - 1,
                             y0 + round(bottom * big_h) - 1,
+                        ),
+                        fill=255,
+                    )
+            elif char in BOX_CHARACTERS:
+                for left, top, right, bottom in box_rects(char, big_w, big_h):
+                    draw.rectangle(
+                        (
+                            x0 + round(left),
+                            y0 + round(top),
+                            x0 + round(right) - 1,
+                            y0 + round(bottom) - 1,
                         ),
                         fill=255,
                     )
@@ -165,6 +198,55 @@ def paint(
     image = Image.new("RGB", mask.size, _rgb(bg))
     image.paste(ink, (0, 0), mask)
     return image
+
+
+def canvas_size(canvas: str | tuple[int, int]) -> tuple[int, int]:
+    """``canvas`` as ``(width, height)``: a name from :data:`CANVASES`, ``"WxH"`` or a pair."""
+    if isinstance(canvas, str):
+        name = canvas.strip().lower()
+        if name in CANVASES:
+            return CANVASES[name]
+        width, _, height = name.partition("x")
+        if not (width.isdigit() and height.isdigit()):
+            names = ", ".join(sorted(CANVASES))
+            raise KeyError(f"unknown canvas {canvas!r}; use one of {names}, or WIDTHxHEIGHT")
+        size = int(width), int(height)
+    else:
+        size = canvas[0], canvas[1]
+    if min(size) < 16:
+        raise ValueError(f"a canvas must be at least 16 pixels each way, got {size}")
+    return size
+
+
+def _on_canvas(
+    art: str,
+    canvas: str | tuple[int, int],
+    fg: str | tuple[int, int, int],
+    bg: str | tuple[int, int, int] | None,
+    palette: Palette | None,
+    direction: str,
+    bands: bool,
+) -> Image.Image:
+    """The art as large as fits a canvas with a margin, centred on it."""
+    width, height = canvas_size(canvas)
+    lines = art.split("\n")
+    columns, rows = max(len(line) for line in lines), len(lines)
+    margin = round(min(width, height) * 0.08)
+    cell = min((width - 2 * margin) / columns, (height - 2 * margin) * CELL_ASPECT / rows)
+    image = art_to_image(
+        art,
+        fg=fg,
+        bg=bg,
+        cell_width=max(2, int(cell)),
+        padding=0,
+        palette=palette,
+        direction=direction,
+        bands=bands,
+    )
+    assert image is not None  # the art has ink: checked by the caller
+    backdrop = Image.new(image.mode, (width, height), (0, 0, 0, 0) if bg is None else _rgb(bg))
+    backdrop.paste(image, ((width - image.width) // 2, (height - image.height) // 2))
+    return backdrop
 
 
 def _paint_ink(
@@ -253,6 +335,12 @@ def art_to_svg(
                         f'<rect x="{x0 + left * cell_width:g}" y="{y0 + top * cell_height:g}" '
                         f'width="{(right - left) * cell_width:g}" '
                         f'height="{(bottom - top) * cell_height:g}" fill="{fill}"/>'
+                    )
+            elif char in BOX_CHARACTERS:
+                for left, top, right, bottom in box_rects(char, cell_width, cell_height):
+                    shapes.append(
+                        f'<rect x="{x0 + left:g}" y="{y0 + top:g}" width="{right - left:g}" '
+                        f'height="{bottom - top:g}" fill="{fill}"/>'
                     )
             elif char in _SHADES:
                 shapes.append(
@@ -349,7 +437,10 @@ def _glyph_tile(char: str, width: int, height: int) -> Image.Image:
     drawn isolated.
     """
     arabic = unicodedata.bidirectional(char) in ("R", "AL")
-    if arabic:
+    if char in _ORNAMENTS:
+        font = ImageFont.truetype(str(font_path(_ORNAMENT_FONT)), size=round(height * 0.75))
+        baseline = round(height * 0.72)
+    elif arabic:
         char = unicodedata.normalize("NFKC", char)
         font = ImageFont.truetype(str(font_path(_ARABIC_GLYPH_FONT)), size=round(height * 0.7))
         font.set_variation_by_axes([_GLYPH_WEIGHT, 0])  # Cairo: weight and slant axes
