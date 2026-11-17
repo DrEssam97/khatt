@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `--arabizi` writes Arabizi (Franco-Arabic, such as `7abibi`) in Arabic letters before
+  drawing it, with every option; `--arabizi both` keeps the Arabizi as a line under the
+  Arabic, and `--arabizi-words FILE` adds your own spellings. A short list of common
+  words in several dialects plus simple rules for the digit letters, letter pairs,
+  vowels, the feminine `-a` and the article; no new dependency. khatt suggests the
+  option when input looks like Arabizi but never converts on its own. API:
+  `khatt.from_arabizi()` and `khatt.is_arabizi()`.
+
 ## [0.12.0] - 2026-11-16
 
 ### Added

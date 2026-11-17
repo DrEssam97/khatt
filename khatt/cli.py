@@ -17,6 +17,7 @@ from PIL import Image, ImageColor, ImageOps
 import khatt
 from khatt.animate import EFFECTS as ANIMATIONS
 from khatt.animate import animate
+from khatt.arabizi import from_arabizi, is_arabizi
 from khatt.art_image import paint
 from khatt.doctor import format_report
 from khatt.draw import WORD_ART_FONT
@@ -390,6 +391,32 @@ def _show_animation(
         animation.play(loops=loops, mode=mode)
 
 
+def _read_words(path: Path) -> dict[str, str]:
+    """A word list for ``--arabizi-words``: one ``arabizi = عربي`` per line, ``#`` comments."""
+    words = {}
+    for number, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        line = raw.split("#", 1)[0].strip()
+        if not line:
+            continue
+        latin, _, arabic = line.partition("=") if "=" in line else line.partition(" ")
+        if not latin.strip() or not arabic.strip():
+            raise ValueError(f"{path}:{number}: expected 'arabizi = عربي', got {raw!r}")
+        words[latin.strip()] = arabic.strip()
+    return words
+
+
+def _arabizi(text: str, mode: str, words_file: Path | None) -> str:
+    """``text`` in Arabic letters; with ``both``, the Arabizi stays as a second line."""
+    try:
+        words = None if words_file is None else _read_words(words_file)
+    except OSError as exc:
+        raise _fail(f"cannot read the word list {words_file}", 2) from exc
+    except ValueError as exc:
+        raise _fail(str(exc), 2) from exc
+    arabic = from_arabizi(text, words)
+    return f"{arabic}\n{text}" if mode == "both" else arabic
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="khatt", description="Render Arabic text as ASCII/Unicode-block art."
@@ -553,6 +580,21 @@ def _parser() -> argparse.ArgumentParser:
         help="With a .png --output of the art: an image of this size with the art as large "
         "as fits, centred. A name (social 1280x640, square, story, header, wallpaper; see "
         "--list-canvases) or WIDTHxHEIGHT.",
+    )
+    parser.add_argument(
+        "--arabizi",
+        nargs="?",
+        const="convert",
+        choices=("convert", "both"),
+        help="Write Arabizi (Franco-Arabic, such as 7abibi) in Arabic letters before "
+        "drawing it. 'both' keeps the Arabizi as a line under the Arabic.",
+    )
+    parser.add_argument(
+        "--arabizi-words",
+        type=Path,
+        metavar="FILE",
+        help="With --arabizi: your own spellings, one 'arabizi = عربي' per line; they win "
+        "over khatt's rules.",
     )
     parser.add_argument(
         "--fill",
@@ -720,6 +762,11 @@ def main(argv: Sequence[str] | None = None) -> None:
             palette_colors(palette)
         except (KeyError, ValueError) as exc:
             raise _fail(str(exc.args[0]), 2) from exc
+    if options.arabizi is not None:
+        if (text is None or text == "-") and not options.fetch:
+            text = sys.stdin.read()
+        if text is not None and text != "-":
+            text = _arabizi(text.rstrip("\n"), options.arabizi, options.arabizi_words)
     if options.animate is not None:
         if text is None or text == "-":
             text = sys.stdin.read()
@@ -793,6 +840,12 @@ def main(argv: Sequence[str] | None = None) -> None:
         return
     font = "amiri" if font is None else font
     style = "blocks" if style is None else style
+    if options.arabizi is None and is_arabizi(text):
+        _say(
+            "hint: this looks like Arabizi; add --arabizi to write it in Arabic letters",
+            err=True,
+            colour="yellow",
+        )
 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
