@@ -421,6 +421,7 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="khatt", description="Render Arabic text as ASCII/Unicode-block art."
     )
+    parser.add_argument("-V", "--version", action="version", version=f"khatt {khatt.__version__}")
     parser.add_argument(
         "text", nargs="?", help="Text to render. Omit (or pass '-') to read from stdin."
     )

@@ -1,6 +1,8 @@
 # PyPI release via trusted publishing (OIDC, no API tokens).
 #
 # Fires when a v* tag is pushed, or on a manual dispatch from the Actions tab.
+# Nothing is published unless the whole CI suite (ci.yml) passes on the tagged
+# commit and the built wheel installs and runs in a clean environment.
 # Requires a trusted publisher to be configured for the khatt project on PyPI
 # (Account → Publishing): owner DrEssam97, repo khatt, workflow release.yml,
 # environment pypi.
@@ -13,7 +15,11 @@ on:
   workflow_dispatch:
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   publish:
+    needs: ci
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
@@ -29,6 +35,13 @@ jobs:
 
       - name: Check distribution metadata
         run: uvx twine check dist/*
+
+      - name: Install the wheel in a clean environment and run it
+        run: |
+          uv venv --python 3.12 /tmp/smoke
+          uv pip install --python /tmp/smoke/bin/python dist/*.whl
+          /tmp/smoke/bin/khatt --version
+          /tmp/smoke/bin/python -m khatt "خط" --size 4
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

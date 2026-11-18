@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `khatt --version` (`-V`) and `python -m khatt`, the same as the `khatt` command.
+
+### Changed
+
+- Releases are published only after the whole CI suite passes on the tagged commit and
+  the built wheel installs and runs in a clean environment.
+
 ## [0.13.0] - 2026-11-17
 
 ### Added
