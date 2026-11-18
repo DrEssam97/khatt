@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import runpy
+import sys
 from itertools import pairwise
 from pathlib import Path
 
@@ -431,3 +433,17 @@ def test_svg_defaults_to_the_text_outlines(tmp_path: Path) -> None:
     result = invoke(main, ["خط", "-o", str(target)])
     assert result.exit_code == 0
     assert "<path" in target.read_text(encoding="utf-8")
+
+
+def test_version_flag() -> None:
+    result = invoke(main, ["--version"])
+    assert result.exit_code == 0
+    assert result.output.strip() == f"khatt {khatt.__version__}"
+
+
+def test_python_dash_m(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    monkeypatch.setattr(sys, "argv", ["khatt", "--version"])
+    with pytest.raises(SystemExit) as done:
+        runpy.run_module("khatt", run_name="__main__")
+    assert done.value.code == 0
+    assert capsys.readouterr().out.strip() == f"khatt {khatt.__version__}"

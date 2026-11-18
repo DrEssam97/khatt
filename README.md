@@ -718,6 +718,7 @@ khatt "خط" -s ascii -o art.png --fg "#e5e5e5" --bg "#1e1e2e"   # terminal colo
 khatt "خط" -o logo.png --bg none       # transparent background
 khatt "خط" -o khatt.png --png text     # the plain high-resolution text instead
 khatt "خط" -s quadrants -p gold        # in colour (see Colour above)
+khatt --version                        # or python -m khatt --version
 khatt --list-fonts
 khatt --list-styles
 khatt --doctor                         # which Arabic shapers are installed
