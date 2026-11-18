@@ -55,7 +55,7 @@ from khatt.words import (
 from khatt.zakhrafa import available_zakhrafa as list_zakhrafa
 from khatt.zakhrafa import zakhrafa
 
-__version__ = "0.13.0"
+__version__ = "0.14.0"
 
 __all__ = [
     "CANVASES",
