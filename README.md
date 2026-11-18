@@ -41,6 +41,7 @@ Or [install it](#install) with `pip install khatt`.
 - **Coloured words.** `spans` colours part of the text, such as the word being spoken in a
   caption, without breaking a single join.
 - **OpenCV and receipts.** `khatt.put_text` draws onto NumPy frames like `cv2.putText`,
+  the same on every OpenCV version,
   and `khatt.receipt_image` lays out receipts for thermal printers.
 - **Word art.** Gold, neon, fire, 3D and more in one line with `khatt.word_art`, or build
   your own from gradients, glows, shadows, depth and bevels.
@@ -189,8 +190,12 @@ reshaped can be turned back with `khatt.unreshape(text)`. See
 
 ### OpenCV and NumPy arrays
 
-`cv2.putText` has no Arabic letters. `khatt.put_text` takes the same order of arguments
-and BGR colours, and draws into the frame in place:
+`cv2.putText` draws Arabic as `???` before OpenCV 5.0 and as separate letters in
+reverse order in 5.0. OpenCV 5.1 joins Arabic letters, but still reverses Arabic-Indic
+digits (١٥٠ comes out ٠٥١), misplaces a bracket or quote that starts a line, and draws
+text pre-shaped with arabic_reshaper as `?`. `khatt.put_text` draws the same correct
+text on every OpenCV version. It takes the same order of arguments and BGR colours, and
+draws into the frame in place:
 
 ```python
 import cv2

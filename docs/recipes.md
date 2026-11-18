@@ -8,9 +8,12 @@ Raqm), you don't need them.
 
 ## OpenCV
 
-`cv2.putText` has no Arabic letters at all. `khatt.put_text` takes the same order of
-arguments, BGR colours, and the baseline origin OpenCV uses, and draws into the
-frame in place (NumPy needed):
+`cv2.putText` draws Arabic as `???` before OpenCV 5.0 and as separate letters in
+reverse order in 5.0. OpenCV 5.1 joins Arabic letters, but still reverses Arabic-Indic
+digits (١٥٠ comes out ٠٥١), misplaces a bracket or quote that starts a line, and draws
+text pre-shaped with arabic_reshaper as `?`. `khatt.put_text` draws the same correct
+text on every OpenCV version. It takes the same order of arguments, BGR colours, and the
+baseline origin OpenCV uses, and draws into the frame in place (NumPy needed):
 
 ```python
 import cv2

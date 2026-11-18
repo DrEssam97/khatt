@@ -141,7 +141,7 @@ class TestFindReshaping:
 
     def test_cli(self, tmp_path: Path) -> None:
         result = invoke(main, ["--doctor", str(self._project(tmp_path))])
-        assert result.exit_code == 0
+        assert result.exit_code == 1  # pre-shaping found: fails, for CI and pre-commit
         assert "pre-shaping Arabic:" in result.output
         assert "app/render.py:5:" in result.output
         missing = invoke(main, ["--doctor", str(tmp_path / "nope")])

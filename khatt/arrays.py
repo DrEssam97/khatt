@@ -1,8 +1,10 @@
 """Draw shaped Arabic onto NumPy image arrays, such as OpenCV frames.
 
-OpenCV's ``cv2.putText`` draws with Hershey stroke fonts that have no Arabic
-letters at all. :func:`put_text` takes the same order of arguments (array,
-text, origin) and BGR colours by default, and draws through khatt::
+OpenCV's ``cv2.putText`` draws Arabic as ``???`` before OpenCV 5.0 and
+unjoined in 5.0. OpenCV 5.1 shapes it, but reverses Arabic-Indic digits and
+misplaces a bracket that starts a line. :func:`put_text` draws the same correct
+text on every version. It takes the same order of arguments (array, text,
+origin) and BGR colours by default, and draws through khatt::
 
     import cv2
     import khatt
