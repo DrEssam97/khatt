@@ -1,0 +1,11 @@
+- id: khatt-doctor
+  name: khatt doctor (Arabic pre-shaping)
+  description: >-
+    Fails when Python code pre-shapes Arabic with arabic_reshaper or python-bidi's
+    get_display, which Pillow with Raqm, matplotlib 3.11+ and OpenCV 5.1+ draw shaped
+    twice. Pass a folder in args to scan only part of the project.
+  entry: khatt --doctor
+  args: ["."]
+  language: python
+  pass_filenames: false
+  types: [python]

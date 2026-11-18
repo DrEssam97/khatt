@@ -651,7 +651,7 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Check which Arabic shaping engines are installed (and double-shaping risks), "
         "then exit. With a folder or .py file as the text, also list where it pre-shapes "
-        "Arabic with arabic_reshaper or get_display.",
+        "Arabic with arabic_reshaper or get_display, and exit with status 1 if it does.",
     )
     return parser
 
@@ -698,6 +698,9 @@ def main(argv: Sequence[str] | None = None) -> None:
             raise _fail(str(exc), 2) from exc
         for line in format_report(report):
             _say(line, colour="yellow" if line.startswith("warning:") else None)
+        if report["reshaping"]:
+            # A failing exit lets CI and the pre-commit hook catch new pre-shaping.
+            raise SystemExit(1)
         return
     if options.list_fonts:
         for name in available_fonts():

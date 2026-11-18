@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 from importlib import metadata
+from pathlib import Path
 from typing import Protocol
 
 import pytest
@@ -16,7 +17,14 @@ from khatt.doctor import _at_least, format_report
 
 
 class Environment(Protocol):
-    def __call__(self, *, raqm: bool, matplotlib: str | None, reshaper: bool) -> None: ...
+    def __call__(
+        self,
+        *,
+        raqm: bool,
+        matplotlib: str | None,
+        reshaper: bool,
+        opencv: str | None = None,
+    ) -> None: ...
 
 
 @pytest.fixture
@@ -26,11 +34,17 @@ def environment(monkeypatch: pytest.MonkeyPatch) -> Environment:
     real_version = metadata.version
     real_find_spec = importlib.util.find_spec
 
-    def configure(*, raqm: bool, matplotlib: str | None, reshaper: bool) -> None:
+    def configure(
+        *, raqm: bool, matplotlib: str | None, reshaper: bool, opencv: str | None = None
+    ) -> None:
         def check(name: str) -> bool | None:
             return raqm if name == "raqm" else real_check(name)
 
         def version(distribution: str) -> str:
+            if distribution.startswith("opencv-"):
+                if opencv is None or distribution != "opencv-python":
+                    raise metadata.PackageNotFoundError(distribution)
+                return opencv
             if distribution != "matplotlib":
                 return real_version(distribution)
             if matplotlib is None:
@@ -154,3 +168,49 @@ def test_cli_doctor_flag_wins_over_text() -> None:
     result = invoke(main, ["مرحبا", "--doctor"])
     assert result.exit_code == 0
     assert result.output.startswith("khatt ")
+
+
+@pytest.mark.parametrize(
+    ("version", "shapes", "says"),
+    [
+        (None, False, "OpenCV: not installed"),
+        ("4.12.0", False, "draws Arabic as ???"),
+        ("5.0.0", False, "unjoined and reversed"),
+        ("5.1.0", True, "reverses Arabic-Indic digits"),
+    ],
+)
+def test_opencv(environment: Environment, version: str | None, shapes: bool, says: str) -> None:
+    environment(raqm=False, matplotlib=None, reshaper=False, opencv=version)
+    report = khatt.doctor()
+    assert report["opencv"] == version
+    assert report["opencv_shapes_arabic"] is shapes
+    assert any(says in line for line in format_report(report))
+
+
+def test_opencv_51_counts_as_native_shaping(environment: Environment) -> None:
+    environment(raqm=False, matplotlib=None, reshaper=True, opencv="5.1.0")
+    (warning,) = khatt.doctor()["warnings"]
+    assert "OpenCV 5.1.0 already shape Arabic" in warning
+
+
+def test_cli_doctor_exit_status(tmp_path: Path) -> None:
+    clean = tmp_path / "clean"
+    clean.mkdir()
+    (clean / "app.py").write_text("print('hello')\n", encoding="utf-8")
+    dirty = tmp_path / "dirty"
+    dirty.mkdir()
+    (dirty / "app.py").write_text(
+        "import arabic_reshaper\ntext = arabic_reshaper.reshape('سلام')\n", encoding="utf-8"
+    )
+    assert invoke(main, ["--doctor", str(clean)]).exit_code == 0
+    result = invoke(main, ["--doctor", str(dirty)])
+    assert result.exit_code == 1
+    assert "app.py:2" in result.output
+
+
+def test_pre_commit_hook_definition() -> None:
+    hooks = (Path(__file__).parent.parent / ".pre-commit-hooks.yaml").read_text(encoding="utf-8")
+    assert "- id: khatt-doctor" in hooks
+    assert "entry: khatt --doctor" in hooks
+    assert "pass_filenames: false" in hooks
+    assert "language: python" in hooks

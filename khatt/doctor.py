@@ -3,8 +3,8 @@
 The popular recipe for Arabic in Pillow and matplotlib, ``arabic_reshaper``
 plus python-bidi's ``get_display``, shapes and reorders text up front because
 those libraries used not to. Where they now shape Arabic themselves (Pillow
-built with Raqm, matplotlib 3.11+), pre-shaped text is shaped a second time
-and comes out corrupted. khatt shapes text itself and never hands it to
+built with Raqm, matplotlib 3.11+, OpenCV 5.1+), pre-shaped text is shaped a
+second time and comes out corrupted. khatt shapes text itself and never hands it to
 another shaper, so its output is the same either way.
 """
 
@@ -20,6 +20,16 @@ from typing import TypedDict
 
 MATPLOTLIB_NATIVE_SHAPING = (3, 11)
 """The first matplotlib version that shapes Arabic natively."""
+
+OPENCV_NATIVE_SHAPING = (5, 1)
+"""The first OpenCV version whose ``cv2.putText`` shapes Arabic (with HarfBuzz)."""
+
+_OPENCV_DISTRIBUTIONS = (
+    "opencv-python",
+    "opencv-python-headless",
+    "opencv-contrib-python",
+    "opencv-contrib-python-headless",
+)
 
 _SKIPPED_FOLDERS = frozenset(
     {
@@ -58,6 +68,10 @@ class DoctorReport(TypedDict):
     matplotlib: str | None
     """The installed matplotlib version, or ``None``."""
     matplotlib_shapes_arabic: bool
+    opencv: str | None
+    """The installed OpenCV version (any of its PyPI packages), or ``None``."""
+    opencv_shapes_arabic: bool
+    """``cv2.putText`` joins Arabic letters (OpenCV 5.1+)."""
     arabic_reshaper: bool
     """``arabic_reshaper`` is importable."""
     reshaping: list[str]
@@ -150,6 +164,10 @@ def doctor(path: str | os.PathLike[str] | None = None) -> DoctorReport:
     raqm = bool(features.check("raqm"))
     matplotlib = _version("matplotlib")
     matplotlib_shapes = matplotlib is not None and _at_least(matplotlib, MATPLOTLIB_NATIVE_SHAPING)
+    opencv = next(
+        (found for name in _OPENCV_DISTRIBUTIONS if (found := _version(name)) is not None), None
+    )
+    opencv_shapes = opencv is not None and _at_least(opencv, OPENCV_NATIVE_SHAPING)
     reshaper = importlib.util.find_spec("arabic_reshaper") is not None
 
     native = []
@@ -157,6 +175,8 @@ def doctor(path: str | os.PathLike[str] | None = None) -> DoctorReport:
         native.append("Pillow (Raqm)")
     if matplotlib_shapes:
         native.append(f"matplotlib {matplotlib}")
+    if opencv_shapes:
+        native.append(f"OpenCV {opencv}")
     problems = []
     if reshaper and native:
         problems.append(
@@ -176,7 +196,8 @@ def doctor(path: str | os.PathLike[str] | None = None) -> DoctorReport:
     if reshaping:
         problems.append(
             f"{len(reshaping)} place(s) in {path} pre-shape Arabic (listed above). Pass the "
-            "text as typed to Pillow with Raqm, matplotlib 3.11+ or khatt.draw_text; for "
+            "text as typed to Pillow with Raqm, matplotlib 3.11+, OpenCV 5.1+ or "
+            "khatt.draw_text; for "
             "strings that were already reshaped, khatt.unreshape(text) turns them back."
         )
     return DoctorReport(
@@ -186,6 +207,8 @@ def doctor(path: str | os.PathLike[str] | None = None) -> DoctorReport:
         pillow_raqm=raqm,
         matplotlib=matplotlib,
         matplotlib_shapes_arabic=matplotlib_shapes,
+        opencv=opencv,
+        opencv_shapes_arabic=opencv_shapes,
         arabic_reshaper=reshaper,
         reshaping=reshaping,
         warnings=problems,
@@ -205,10 +228,23 @@ def format_report(report: DoctorReport) -> list[str]:
         matplotlib = f"{report['matplotlib']} (shapes Arabic natively)"
     else:
         matplotlib = f"{report['matplotlib']} (does not shape Arabic; 3.11+ does)"
+    opencv_version = report.get("opencv")
+    if opencv_version is None:
+        opencv = "not installed"
+    elif report.get("opencv_shapes_arabic"):
+        opencv = (
+            f"{opencv_version} (cv2.putText joins Arabic, but reverses Arabic-Indic digits "
+            "and misplaces a bracket that starts a line)"
+        )
+    elif _at_least(opencv_version, (5, 0)):
+        opencv = f"{opencv_version} (cv2.putText draws Arabic unjoined and reversed)"
+    else:
+        opencv = f"{opencv_version} (cv2.putText draws Arabic as ???)"
     lines = [
         f"khatt {report['khatt']} (Python {report['python']})",
         f"Pillow {report['pillow']}: {pillow}",
         f"matplotlib: {matplotlib}",
+        f"OpenCV: {opencv}",
         f"arabic_reshaper: {'installed' if report['arabic_reshaper'] else 'not installed'}",
         "khatt shapes text itself: its output is the same in every case above.",
     ]

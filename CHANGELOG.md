@@ -10,6 +10,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `khatt --version` (`-V`) and `python -m khatt`, the same as the `khatt` command.
+- A [pre-commit](https://pre-commit.com) hook, `khatt-doctor`, that fails when code
+  pre-shapes Arabic with arabic_reshaper or `get_display`. `khatt --doctor PATH` now exits
+  with status 1 when it finds any, so CI can use it too.
+- `khatt --doctor` reports OpenCV: 5.1 and later shape Arabic in `cv2.putText`, so
+  arabic_reshaper code is now shaped twice there too; earlier versions draw it as `???`
+  or unjoined.
+- [Moving off arabic_reshaper](docs/arabic-reshaper.md) gains a checklist for the day
+  Pillow shapes Arabic in all its wheels.
+
+### Changed
+
+- The docs no longer say `cv2.putText` has no Arabic letters: OpenCV 5.1 joins them, but
+  still reverses Arabic-Indic digits and misplaces a bracket that starts a line, which
+  `khatt.put_text` gets right on every version.
 
 ### Changed
 
