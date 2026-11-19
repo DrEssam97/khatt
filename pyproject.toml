@@ -50,6 +50,7 @@ Homepage = "https://github.com/DrEssam97/khatt"
 Repository = "https://github.com/DrEssam97/khatt"
 Issues = "https://github.com/DrEssam97/khatt/issues"
 Changelog = "https://github.com/DrEssam97/khatt/blob/main/CHANGELOG.md"
+Documentation = "https://dressam97.github.io/khatt/"
 
 [project.optional-dependencies]
 video = [
@@ -82,6 +83,13 @@ dev = [
     "pytest-cov>=7.1.0",
     "ruff>=0.15.21",
     "twine>=7.0.0",
+]
+# The documentation site: `uv run --group docs sphinx-build docs docs/_build/html`.
+docs = [
+    "furo>=2025.9.25",
+    "myst-parser>=4.0.0",
+    "sphinx>=8.1.0",
+    "sphinx-copybutton>=0.5.2",
 ]
 
 [tool.uv]
