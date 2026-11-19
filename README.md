@@ -3,7 +3,7 @@
 [![PyPI](https://img.shields.io/pypi/v/khatt.svg)](https://pypi.org/project/khatt/)
 [![CI](https://github.com/DrEssam97/khatt/actions/workflows/ci.yml/badge.svg)](https://github.com/DrEssam97/khatt/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue.svg)](pyproject.toml)
+[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue.svg)](pyproject.toml)
 [![Fonts: OFL](https://img.shields.io/badge/fonts-SIL%20OFL%201.1-lightgrey.svg)](khatt/fonts/LICENSES/)
 [![Total downloads](https://api.pepy.tech/badge/khatt)](https://pepy.tech/projects/khatt)
 
@@ -82,7 +82,7 @@ pip install khatt            # or: uv add khatt
 pip install "khatt[video]"   # adds moviepy, for khatt.video captions
 ```
 
-khatt supports Python 3.10 to 3.13 on Windows, macOS and Linux.
+khatt supports Python 3.11 to 3.14 on Windows, macOS and Linux.
 
 From source:
 

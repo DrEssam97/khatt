@@ -15,7 +15,7 @@ The `video` extra (moviepy) needs an older Pillow, so it has its own
 environment: `uv sync --extra video --no-group latest-pillow`, then
 `uv run --no-sync pytest` (plain `uv run` would sync back).
 
-Python 3.10 to 3.13 are supported; local development is pinned to 3.13 via
+Python 3.11 to 3.14 are supported; local development is pinned to 3.13 via
 `.python-version`. Everything runs through [uv](https://docs.astral.sh/uv/): there is
 no `requirements-dev.txt` and no manual venv management.
 

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Python 3.10, which reached its end of life in October 2026. On Python 3.10, pip
+  keeps installing khatt 0.17.
+
 ## [0.17.0] - 2026-11-19
 
 ### Added
