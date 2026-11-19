@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `khatt.pillow`: Pillow's `text`, `textbbox` and `textlength` with the `ImageDraw`
+  first and the same arguments, drawing text with Arabic letters through khatt (and
+  turning strings already shaped with arabic_reshaper back first), and everything else
+  through Pillow untouched. `khatt.pillow.routing()` does the same for code you can't
+  change, such as a library, while a `with` block lasts.
+
 ## [0.14.0] - 2026-11-18
 
 ### Added

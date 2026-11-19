@@ -16,6 +16,7 @@ from collections.abc import Sequence
 
 from PIL import Image, ImageOps
 
+from khatt import pillow
 from khatt.animate import Animation, animate
 from khatt.arabizi import from_arabizi, is_arabizi
 from khatt.arrays import put_text
@@ -106,6 +107,7 @@ __all__ = [
     "list_zakhrafa",
     "missing_characters",
     "overlay",
+    "pillow",
     "put_text",
     "receipt_image",
     "render",
