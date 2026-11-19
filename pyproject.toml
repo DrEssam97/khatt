@@ -5,7 +5,7 @@ description = "Correct Arabic text for Python: on images, in video subtitles and
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "Mohammed Essam", email = "mohammedessam613@gmail.com" }]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 keywords = [
     "arabic",
     "rtl",
@@ -26,7 +26,6 @@ classifiers = [
     "Natural Language :: Arabic",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -104,7 +103,7 @@ conflicts = [[{ extra = "video" }, { group = "latest-pillow" }]]
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = [
