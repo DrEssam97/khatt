@@ -40,6 +40,7 @@ from khatt.geometry import WordBox, word_boxes
 from khatt.layout import DEFAULT_SIZE, paragraphs, render_grids, render_ink
 from khatt.mapper import available_styles as list_styles
 from khatt.mapper import get_style, map_image
+from khatt.ocr import OcrLine, OcrWord, ocr_lines, write_ocr_dataset
 from khatt.palette import available_palettes as list_palettes
 from khatt.palette import color_art
 from khatt.poem import poem
@@ -74,6 +75,8 @@ __all__ = [
     "Fact",
     "Glow",
     "Gradient",
+    "OcrLine",
+    "OcrWord",
     "ReshapedTextWarning",
     "Shadow",
     "Span",
@@ -112,6 +115,7 @@ __all__ = [
     "list_styles",
     "list_zakhrafa",
     "missing_characters",
+    "ocr_lines",
     "overlay",
     "pillow",
     "poem",
@@ -127,6 +131,7 @@ __all__ = [
     "word_boxes",
     "words_from_quran",
     "words_from_whisper",
+    "write_ocr_dataset",
     "zakhrafa",
 ]
 
