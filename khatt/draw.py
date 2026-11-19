@@ -20,6 +20,7 @@ from PIL import Image, ImageChops
 
 from khatt.color import Fill, rgba
 from khatt.curves import Curve, bend, get_curve
+from khatt.digits import with_digits
 from khatt.effects import Effect, compose, get_effect
 from khatt.fonts import Font, font_path, font_paths
 from khatt.layout import largest_size, layout_block, measure_block, smallest_spaced_size
@@ -347,6 +348,7 @@ def draw_text(
     line_spacing: float | None = None,
     spacing: float | None = None,
     keep_tashkeel: bool = True,
+    digits: str | None = None,
     stroke_width: float = 0,
     stroke_fill: Fill | None = None,
     fallback_fonts: Font | Sequence[Font] = (),
@@ -388,6 +390,8 @@ def draw_text(
             twice ``stroke_width``, so outlines don't eat into it). Negative
             values pull lines closer.
         keep_tashkeel: Keep Arabic diacritics (``False`` strips them).
+        digits: ``"arabic-indic"`` writes the digits 0 to 9 as ٠ to ٩ (see
+            :func:`khatt.arabic_digits`); default: as typed.
         stroke_width: Width in pixels of an outline drawn around the text,
             as in Pillow: the text grown outward by this much, with round
             corners, painted under it. It doesn't move the text: anchors and
@@ -415,6 +419,7 @@ def draw_text(
         with a :class:`khatt.UnsupportedCharacterWarning` (see
         :func:`khatt.missing_characters`).
     """
+    text = with_digits(text, digits)
     _check_image(image)
     color = rgba(fill)
     stroke_color = color if stroke_fill is None else rgba(stroke_fill)
@@ -456,6 +461,7 @@ def word_art(
     line_spacing: float | None = None,
     spacing: float | None = None,
     keep_tashkeel: bool = True,
+    digits: str | None = None,
     padding: int = 0,
     background: Fill | None = None,
     fallback_fonts: Font | Sequence[Font] = (),
@@ -480,6 +486,8 @@ def word_art(
         line_spacing: Distance between baselines, in multiples of ``size_px``.
         spacing: Pixels between lines, as Pillow's ``spacing``.
         keep_tashkeel: Keep Arabic diacritics (``False`` strips them).
+        digits: ``"arabic-indic"`` writes the digits 0 to 9 as ٠ to ٩ (see
+            :func:`khatt.arabic_digits`); default: as typed.
         padding: Empty pixels around the art.
         background: A colour behind the art; default: transparent.
         fallback_fonts: Fonts for characters ``font`` has no glyph for.
@@ -493,6 +501,7 @@ def word_art(
     Raises:
         ValueError: the text is too short for ``curve``.
     """
+    text = with_digits(text, digits)
     style = get_effect(effect)
     shape = None if curve is None else get_curve(curve)
     if padding < 0:
@@ -539,6 +548,7 @@ def text_bbox(
     line_spacing: float | None = None,
     spacing: float | None = None,
     keep_tashkeel: bool = True,
+    digits: str | None = None,
     stroke_width: float = 0,
     fallback_fonts: Font | Sequence[Font] = (),
 ) -> Box:
@@ -554,6 +564,7 @@ def text_bbox(
         exclusive (so ``right - left`` is the width). Text with nothing to
         draw (empty, or only spaces) gives an empty box at ``xy``.
     """
+    text = with_digits(text, digits)
     placed = _place_text(
         xy,
         text,
@@ -633,6 +644,7 @@ def overlay(
     line_spacing: float | None = None,
     spacing: float | None = None,
     keep_tashkeel: bool = True,
+    digits: str | None = None,
     stroke_width: float = 0,
     stroke_fill: Fill | None = None,
     fallback_fonts: Font | Sequence[Font] = (),
@@ -666,6 +678,8 @@ def overlay(
         spacing: Pixels between lines instead of ``line_spacing``, as in
             :func:`draw_text`.
         keep_tashkeel: Keep Arabic diacritics (``False`` strips them).
+        digits: ``"arabic-indic"`` writes the digits 0 to 9 as ٠ to ٩ (see
+            :func:`khatt.arabic_digits`); default: as typed.
         stroke_width: Width in pixels of an outline around the text, as in
             :func:`draw_text`. The outline counts as part of the text: it is
             fitted inside the padding too.
@@ -688,6 +702,7 @@ def overlay(
         ``"shrink"``, not even at ``min_size_px``) raises a
         :class:`TextOverflowWarning` and is clipped to the box.
     """
+    text = with_digits(text, digits)
     _check_image(image)
     color = rgba(fill)
     stroke_color = color if stroke_fill is None else rgba(stroke_fill)

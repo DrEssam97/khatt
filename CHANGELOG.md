@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `digits="arabic-indic"` on `draw_text`, `text_bbox`, `overlay`, `word_art`, `put_text`,
+  `render_svg`, `word_boxes`, `caption_image` and `video.TextClip` draws the numbers in
+  the text as ٠١٢٣٤٥٦٧٨٩, with `٫`, `٬` and `٪` inside numbers. `khatt.arabic_digits(text)`
+  returns the converted string, one character for one, so `spans` stay valid.
+- `khatt.tk_image(text, ...)`: the text drawn by khatt as a Tkinter `PhotoImage`, for
+  labels, buttons and canvases, in any font file and with a line's height so a row of
+  buttons lines up.
+
+### Changed
+
+- `khatt --arabic-digits` now applies to any text, not only to `--fetch` (where it still
+  changes only counts and dates).
+
+### Fixed
+
+- `khatt.pillow.textbbox` and `textlength` now count spaces at either end of Arabic text,
+  as Pillow does, and `khatt.pillow.text` places the text so the anchor includes them.
+  Code that draws a line piece by piece no longer runs the pieces together.
+
 ## [0.15.0] - 2026-11-19
 
 ### Added

@@ -46,6 +46,8 @@ class TextClip(ImageClip):
       right and left-to-right ones left;
     * ``filename`` is read as UTF-8 whatever the system locale;
     * ``keep_tashkeel`` (keyword only) can strip Arabic diacritics;
+    * ``digits`` (keyword only): ``"arabic-indic"`` draws the digits 0 to 9
+      as ٠ to ٩ (see :func:`khatt.arabic_digits`);
     * ``fallback_fonts`` (keyword only) are fonts for characters ``font``
       has no glyph for (see :func:`khatt.caption.caption_image`).
 
@@ -73,6 +75,7 @@ class TextClip(ImageClip):
         duration: float | None = None,
         *,
         keep_tashkeel: bool = True,
+        digits: str | None = None,
         fallback_fonts: Font | Sequence[Font] = (),
     ) -> None:
         if filename is not None:
@@ -96,6 +99,7 @@ class TextClip(ImageClip):
             interline=interline,
             transparent=transparent,
             keep_tashkeel=keep_tashkeel,
+            digits=digits,
             fallback_fonts=fallback_fonts,
         )
         # A writeable copy, as moviepy's: effects may edit frames in place.

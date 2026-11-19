@@ -15,6 +15,7 @@ from collections.abc import Sequence
 from xml.sax.saxutils import escape
 
 from khatt.color import Fill, rgba
+from khatt.digits import with_digits
 from khatt.draw import _check_layout, _check_stroke, _is_number, _pixels
 from khatt.fonts import Font, font_path, font_paths
 from khatt.layout import _checked_pitch, _shape_lines, line_pitch
@@ -102,6 +103,7 @@ def render_svg(
     line_spacing: float | None = None,
     spacing: float | None = None,
     keep_tashkeel: bool = True,
+    digits: str | None = None,
     stroke_width: float = 0,
     stroke_fill: Fill | None = None,
     padding: int = 0,
@@ -127,6 +129,8 @@ def render_svg(
         line_spacing: Distance between baselines, in multiples of ``size_px``.
         spacing: Pixels between lines, as Pillow's ``spacing``.
         keep_tashkeel: Keep Arabic diacritics (``False`` strips them).
+        digits: ``"arabic-indic"`` writes the digits 0 to 9 as ٠ to ٩ (see
+            :func:`khatt.arabic_digits`); default: as typed.
         stroke_width: Width of an outline around the letters, in pixels.
         stroke_fill: Its colour; default: ``fill``.
         padding: Empty pixels around the text.
@@ -136,6 +140,7 @@ def render_svg(
     Returns:
         The SVG document, or ``None`` when ``text`` has nothing to draw.
     """
+    text = with_digits(text, digits)
     _check_stroke(stroke_width)
     spacing_multiple = _check_layout(size_px, line_spacing, spacing, align)
     size = _pixels("size_px", size_px)

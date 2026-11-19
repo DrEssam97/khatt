@@ -19,6 +19,7 @@ from khatt.animate import EFFECTS as ANIMATIONS
 from khatt.animate import animate
 from khatt.arabizi import from_arabizi, is_arabizi
 from khatt.art_image import paint
+from khatt.digits import arabic_digits
 from khatt.doctor import format_report
 from khatt.draw import WORD_ART_FONT
 from khatt.fetch import fetch, fetch_image
@@ -639,7 +640,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--arabic-digits",
         action="store_true",
-        help="With --fetch: write counts and dates in Eastern Arabic digits (٠١٢٣).",
+        help="Write the digits as Arabic-Indic ones (٠١٢٣). With --fetch: only counts and dates.",
     )
     parser.add_argument(
         "--private",
@@ -771,6 +772,10 @@ def main(argv: Sequence[str] | None = None) -> None:
             text = sys.stdin.read()
         if text is not None and text != "-":
             text = _arabizi(text.rstrip("\n"), options.arabizi, options.arabizi_words)
+    if options.arabic_digits and not options.fetch:
+        if text is None or text == "-":
+            text = sys.stdin.read()
+        text = arabic_digits(text)
     if options.animate is not None:
         if text is None or text == "-":
             text = sys.stdin.read()

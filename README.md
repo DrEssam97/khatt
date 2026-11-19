@@ -39,10 +39,12 @@ Or [install it](#install) with `pip install khatt`.
   wrapping, alignment, outlines and translucent fills. `khatt.overlay` fits text into a
   box and `khatt.text_bbox` measures it.
 - **Coloured words.** `spans` colours part of the text, such as the word being spoken in a
-  caption, without breaking a single join.
-- **OpenCV and receipts.** `khatt.put_text` draws onto NumPy frames like `cv2.putText`,
-  the same on every OpenCV version,
-  and `khatt.receipt_image` lays out receipts for thermal printers.
+  caption, without breaking a single join. `digits="arabic-indic"` writes the numbers
+  as ١٢٣.
+- **OpenCV, Tkinter and receipts.** `khatt.put_text` draws onto NumPy frames like
+  `cv2.putText`, the same on every OpenCV version, `khatt.tk_image` puts Arabic in
+  Tkinter labels and buttons, and `khatt.receipt_image` lays out receipts for thermal
+  printers.
 - **Word art.** Gold, neon, fire, 3D and more in one line with `khatt.word_art`, or build
   your own from gradients, glows, shadows, depth and bevels.
 - **Calligrams.** `khatt.calligram` flows text inside a heart, a circle or any image of
@@ -163,6 +165,23 @@ khatt.draw_text(frame, (640, 650), text, size_px=64, anchor="md", fill="white",
   Where spans overlap, the later one wins.
 - `khatt.caption_image` takes `spans` too.
 
+### Arabic-Indic digits
+
+`digits="arabic-indic"` draws the numbers in the text with Arabic-Indic digits, so
+prices, dates and verse numbers don't need converting first. Inside a number the
+decimal point, the thousands comma and a `%` become `٫`, `٬` and `٪`:
+
+```python
+khatt.draw_text(image, (20, 20), "السعر 1,250.5 ريال وخصم 15%", digits="arabic-indic")
+# draws: السعر ١٬٢٥٠٫٥ ريال وخصم ١٥٪
+```
+
+`draw_text`, `text_bbox`, `overlay`, `word_art`, `put_text`, `render_svg`,
+`word_boxes`, `caption_image`, `video.TextClip` and `tk_image` all take it, and
+`khatt.arabic_digits(text)` returns the converted string. It replaces one character
+with one, so `spans` positions stay the same. On the command line it is
+`khatt "صفحة 15" --arabic-digits`.
+
 **Why not just `ImageDraw.text`?** Pillow shapes Arabic only when it's built with
 Raqm, which most Windows installs aren't. The usual workaround,
 `arabic_reshaper` plus `get_display`, pre-shapes the text, so wherever native
@@ -261,6 +280,31 @@ khatt.put_text(frame, "مرحبا بالعالم", (40, 80), size_px=48, color=(
 too, `channels="rgb"` takes RGB arrays, and only the part under the text is touched.
 NumPy is only needed when you call it. [More recipes](docs/recipes.md): pygame,
 Dear PyGui, Tkinter and Streamlit.
+
+### Tkinter labels and buttons
+
+![Tk on Linux draws Arabic as separate letters left to right; khatt.tk_image draws it joined](docs/assets/khatt-tk.png)
+
+Tk on Linux draws Arabic as separate letters, left to right. `khatt.tk_image` draws the
+text with khatt and gives Tk a picture of it, for a `Label`, a `Button` or a `Canvas`.
+It looks the same on every system, needs no arabic_reshaper, and works with any font
+file, which Tk can't load itself:
+
+```python
+import tkinter as tk
+import khatt
+
+root = tk.Tk()
+save = khatt.tk_image("حفظ الملف", font="cairo", size_px=24)
+tk.Button(root, image=save).pack()
+root.mainloop()
+```
+
+Every image is a line high, so buttons in a row line up, and it takes `draw_text`'s
+options (`fill`, `background`, `max_width`, `align`, `padding`, `digits`). Keep a
+reference to the image, as for any `PhotoImage`. For CustomTkinter, give
+`khatt.caption_image(...)` to `customtkinter.CTkImage`. Text typed into an `Entry` or
+`Text` widget is still drawn by Tk.
 
 ### Receipts for thermal printers
 

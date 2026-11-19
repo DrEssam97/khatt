@@ -24,6 +24,7 @@ from pathlib import Path
 from PIL import Image
 
 from khatt.color import Fill, rgba
+from khatt.digits import with_digits
 from khatt.draw import (
     SpanLike,
     TextOverflowWarning,
@@ -188,6 +189,7 @@ def caption_image(
     interline: float = 4,
     transparent: bool = True,
     keep_tashkeel: bool = True,
+    digits: str | None = None,
     fallback_fonts: Font | Sequence[Font] = (),
     spans: Sequence[SpanLike] = (),
 ) -> Image.Image:
@@ -227,6 +229,8 @@ def caption_image(
             :func:`khatt.draw_text`).
         transparent: RGBA image (``True``) or RGB.
         keep_tashkeel: Keep Arabic diacritics (``False`` strips them).
+        digits: ``"arabic-indic"`` writes the digits 0 to 9 as ٠ to ٩ (see
+            :func:`khatt.arabic_digits`); default: as typed.
         fallback_fonts: Fonts tried in order (bundled names or file paths)
             for characters ``font`` has no glyph for, such as a CJK font
             for Chinese inside Arabic text. Line spacing and anchors still
@@ -240,6 +244,7 @@ def caption_image(
         the font does not cover are skipped with a
         :class:`khatt.UnsupportedCharacterWarning`.
     """
+    text = with_digits(text, digits)
     _check_choice("method", method, _METHODS, none=False)
     _check_choice("text_align", text_align, _TEXT_ALIGNS, none=True)
     _check_choice("horizontal_align", horizontal_align, _HORIZONTAL_ALIGNS, none=False)

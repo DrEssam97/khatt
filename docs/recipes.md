@@ -60,15 +60,17 @@ dpg.add_image("arabic", parent=window)
 
 ## Tkinter
 
-Tk shapes Arabic on some systems and not others. An image looks the same everywhere:
+Tk on Linux draws Arabic as separate letters, left to right. `khatt.tk_image` gives Tk
+a picture of the text instead, which looks the same on every system:
 
 ```python
-from PIL import ImageTk
 import khatt
 
-photo = ImageTk.PhotoImage(khatt.caption_image("مرحبا بالعالم", font_size=32))
+photo = khatt.tk_image("مرحبا بالعالم", size_px=32)
 tk.Label(root, image=photo).pack()
 ```
+
+For CustomTkinter, use `customtkinter.CTkImage(light_image=khatt.caption_image(...))`.
 
 ## Streamlit and other web apps
 
