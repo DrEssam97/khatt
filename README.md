@@ -189,6 +189,28 @@ pre-shapes Arabic with arabic_reshaper or `get_display`. Strings that were alrea
 reshaped can be turned back with `khatt.unreshape(text)`. See
 [Moving off arabic_reshaper](docs/arabic-reshaper.md).
 
+### Where each word lands
+
+![The basmala with a box around each word, and the third word painted gold through its own mask](docs/assets/khatt-word-boxes.png)
+
+`khatt.word_boxes` lays the text out exactly as `draw_text` does and returns each word's
+box and its own coverage mask, in reading order. The text is still shaped as a whole,
+so the boxes follow joined letters, and each word's tashkeel stays inside its box.
+Use it to highlight the word being recited, to label OCR training data word by word,
+or to find which word a tap landed on:
+
+```python
+words = khatt.word_boxes(text, xy=(20, 20), size_px=64)  # draw_text's arguments
+for word in words:
+    print(word.text, word.start, word.end, word.box)      # box: left, top, right, bottom
+
+gold = Image.new("RGB", words[2].mask.size, "gold")
+image.paste(gold, words[2].box[:2], words[2].mask)          # paint just the third word
+```
+
+The masks together are exactly the pixels `draw_text` paints. `ranges=[(start, end),
+...]` measures any parts of the text instead of its words, such as a verse number.
+
 ### Pillow code you already have
 
 `khatt.pillow` has Pillow's own text calls, with the `ImageDraw` first: `text`,

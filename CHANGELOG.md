@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   turning strings already shaped with arabic_reshaper back first), and everything else
   through Pillow untouched. `khatt.pillow.routing()` does the same for code you can't
   change, such as a library, while a `with` block lasts.
+- `khatt.word_boxes(text, ...)` lays the text out as `draw_text` does and returns each
+  word's box and coverage mask (`khatt.WordBox`), in reading order, for highlighting a
+  recited word, word-level OCR labels or hit-testing. `ranges=` measures any parts of
+  the text instead of its words.
 
 ## [0.14.0] - 2026-11-18
 
