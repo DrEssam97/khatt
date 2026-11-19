@@ -45,6 +45,8 @@ Or [install it](#install) with `pip install khatt`.
   `cv2.putText`, the same on every OpenCV version, `khatt.tk_image` puts Arabic in
   Tkinter labels and buttons, and `khatt.receipt_image` lays out receipts for thermal
   printers.
+- **OCR training data.** `khatt.ocr_lines` makes Arabic line images whose labels and
+  word boxes are exact, and `khatt --ocr-data` saves them as a dataset.
 - **Word art.** Gold, neon, fire, 3D and more in one line with `khatt.word_art`, or build
   your own from gradients, glows, shadows, depth and bevels.
 - **Calligrams.** `khatt.calligram` flows text inside a heart, a circle or any image of
@@ -265,6 +267,34 @@ image.paste(gold, words[2].box[:2], words[2].mask)          # paint just the thi
 
 The masks together are exactly the pixels `draw_text` paints. `ranges=[(start, end),
 ...]` measures any parts of the text instead of its words, such as a verse number.
+
+### OCR training data
+
+![Six generated Arabic line images in different fonts, colours and slight tilts, each word in a red box](docs/assets/khatt-ocr.png)
+
+`khatt.ocr_lines` turns lines of text into training images for Arabic OCR. khatt draws
+each label itself, so the label is exactly the text in the image, in typed order, with a
+box for every word. Generators that pre-shape with arabic_reshaper store one string and
+draw another, and on a Pillow with Raqm their images come out backwards.
+
+```python
+for line in khatt.ocr_lines(texts, fonts=["amiri", "cairo", "noto-naskh"], size_px=(28, 44),
+                            rotate=2, blur=0.8, noise=12, seed=1):
+    line.image      # an RGB image
+    line.text       # its label
+    line.words      # each word's text and box, after any tilt
+```
+
+Fonts, sizes, colours and backgrounds are picked at random from what you give, and
+`seed` repeats the same data. `keep_tashkeel=False` and `digits="arabic-indic"` change
+the label along with the image. `khatt.write_ocr_dataset(texts, "data/")` saves
+`images/`, a `metadata.jsonl` that `datasets.load_dataset("imagefolder",
+data_dir="data/")` loads, and a `labels.txt` (path, tab, label) for PaddleOCR. From the
+command line:
+
+```bash
+khatt lines.txt --ocr-data data/ --font amiri,cairo --augment --seed 1
+```
 
 ### Pillow code you already have
 

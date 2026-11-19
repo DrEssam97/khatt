@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   or the name of God), then the spaces widen.
 - `khatt.poem(verses, ...)`: verses of Arabic poetry in two columns, the first half of
   each verse on the right, every half stretched with kashida to the same width.
+- `khatt.ocr_lines(texts, ...)`: line images for training Arabic OCR, each with its
+  exact label in typed order and every word's box (`khatt.OcrLine`, `khatt.OcrWord`).
+  Fonts, sizes and colours are picked at random from lists, with optional tilt, blur
+  and noise, and `seed` repeats them. `khatt.write_ocr_dataset` and
+  `khatt FILE --ocr-data FOLDER` (with `--augment` and `--seed`) save the images with a
+  Hugging Face `imagefolder` `metadata.jsonl` and a PaddleOCR-style `labels.txt`.
 
 ## [0.16.0] - 2026-11-19
 
