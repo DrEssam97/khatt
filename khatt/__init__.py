@@ -42,6 +42,7 @@ from khatt.mapper import available_styles as list_styles
 from khatt.mapper import get_style, map_image
 from khatt.palette import available_palettes as list_palettes
 from khatt.palette import color_art
+from khatt.poem import poem
 from khatt.receipt import PRINTER_WIDTHS, receipt_image
 from khatt.rescue import ReshapedTextWarning, is_reshaped, unreshape
 from khatt.shaping import UnsupportedCharacterWarning, base_direction, strip_tashkeel
@@ -113,6 +114,7 @@ __all__ = [
     "missing_characters",
     "overlay",
     "pillow",
+    "poem",
     "put_text",
     "receipt_image",
     "render",
