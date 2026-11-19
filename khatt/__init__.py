@@ -35,6 +35,7 @@ from khatt.fonts import Font, font_path, font_paths
 from khatt.fonts import available_fonts as list_fonts
 from khatt.frames import available_frames as list_frames
 from khatt.frames import frame_art
+from khatt.geometry import WordBox, word_boxes
 from khatt.layout import DEFAULT_SIZE, paragraphs, render_grids, render_ink
 from khatt.mapper import available_styles as list_styles
 from khatt.mapper import get_style, map_image
@@ -77,6 +78,7 @@ __all__ = [
     "UnsupportedCharacterWarning",
     "Wave",
     "Word",
+    "WordBox",
     "__version__",
     "animate",
     "art_to_html",
@@ -116,6 +118,7 @@ __all__ = [
     "text_bbox",
     "unreshape",
     "word_art",
+    "word_boxes",
     "words_from_quran",
     "words_from_whisper",
     "zakhrafa",
