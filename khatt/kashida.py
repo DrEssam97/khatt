@@ -44,6 +44,55 @@ def kashida_points(word: str) -> list[int]:
     return points
 
 
+_SEEN_LIKE = frozenset("سشصض")
+"""Letters whose long joining stroke takes a kashida best of all."""
+
+
+def justify_point(word: str) -> int | None:
+    """The one place a justified line stretches ``word``, or ``None`` to leave it be.
+
+    After a seen, sheen, sad or dad if the word has one, else before its last joined
+    letter, as in printed Naskh. Short words (one or two letters) and the name of God,
+    whose ligature a tatweel would break, are left alone.
+    """
+    letters = [ch for ch in word if _is_letter(ch)]
+    if len(letters) < 3 or "لله" in "".join(letters):
+        return None
+    points = kashida_points(word)
+    if not points:
+        return None
+    for point in points:
+        before = point - 1
+        while before > 0 and unicodedata.combining(word[before]):
+            before -= 1
+        if word[before] in _SEEN_LIKE:
+            return point
+    return points[-1]
+
+
+def justify(line: str, count: int) -> str:
+    """``line`` with up to ``count`` tatweels, at one :func:`justify_point` per word.
+
+    The tatweels are shared out evenly; no word gets more than :data:`MOST_KASHIDA`,
+    so fewer are added when the line has too few words to take them.
+    """
+    words = line.split(" ")
+    spots = [
+        (n, point) for n, word in enumerate(words) if (point := justify_point(word)) is not None
+    ]
+    if not spots or count <= 0:
+        return line
+    count = min(count, len(spots) * MOST_KASHIDA)
+    extra = [count // len(spots)] * len(spots)
+    # The rest go to every few words across the line, not all at its start.
+    rest = count % len(spots)
+    for n in range(rest):
+        extra[n * len(spots) // rest] += 1
+    for (n, point), add in zip(spots, extra, strict=True):
+        words[n] = words[n][:point] + TATWEEL * add + words[n][point:]
+    return " ".join(words)
+
+
 def stretch(line: str, count: int) -> str:
     """``line`` with ``count`` tatweels spread evenly over its words.
 

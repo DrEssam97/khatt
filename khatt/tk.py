@@ -67,7 +67,7 @@ def tk_image(
             this wide.
         align: ``"left"``, ``"right"`` or ``"center"`` alignment of lines;
             ``None`` aligns right-to-left paragraphs right and left-to-right ones
-            left.
+            left. ``"justify"`` with ``max_width`` fills the wrapped lines.
         padding: Empty pixels around the text.
         stroke_width: Width in pixels of an outline around the text.
         stroke_fill: Outline colour; default: ``fill``.

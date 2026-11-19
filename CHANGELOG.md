@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `align="justify"` on `draw_text`, `text_bbox`, `overlay`, `word_art`, `word_boxes`,
+  `render_svg`, `tk_image` and `caption_image` (`text_align`): with `max_width`, every
+  wrapped line but a paragraph's last fills the width. Arabic words stretch with one
+  kashida each first (after س ش ص ض, else before the last letter; never in short words
+  or the name of God), then the spaces widen.
+- `khatt.poem(verses, ...)`: verses of Arabic poetry in two columns, the first half of
+  each verse on the right, every half stretched with kashida to the same width.
+
 ## [0.16.0] - 2026-11-19
 
 ### Added

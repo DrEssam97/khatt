@@ -124,7 +124,8 @@ def render_svg(
         size_px: Font size in pixels per em; the SVG's units are pixels.
         fill: Text colour: a name, ``#rrggbb[aa]``, or an RGB(A) tuple.
         align: ``"left"``, ``"right"`` or ``"center"`` alignment of lines;
-            ``None`` aligns right-to-left paragraphs right.
+            ``None`` aligns right-to-left paragraphs right. ``"justify"`` with
+            ``max_width`` fills the wrapped lines, as in :func:`khatt.draw_text`.
         max_width: Wrap at spaces to this width in pixels.
         line_spacing: Distance between baselines, in multiples of ``size_px``.
         spacing: Pixels between lines, as Pillow's ``spacing``.
@@ -160,8 +161,9 @@ def render_svg(
         ppem=size,
         warn=True,
         fallbacks=font_paths(fallback_fonts),
+        justify=max_width if align == "justify" else None,
     )
-    alignments = lines.align if align is None else [align] * len(lines.align)
+    alignments = lines.align if align in (None, "justify") else [align] * len(lines.align)
     pitch = line_pitch(
         path,
         size_px=size,

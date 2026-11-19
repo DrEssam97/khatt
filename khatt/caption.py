@@ -49,7 +49,7 @@ from khatt.layout import (
 from khatt.raster import Box
 
 _METHODS = ("label", "caption")
-_TEXT_ALIGNS = ("left", "right", "center")
+_TEXT_ALIGNS = ("left", "right", "center", "justify")
 _HORIZONTAL_ALIGNS = ("left", "center", "right")
 _VERTICAL_ALIGNS = ("top", "center", "bottom")
 
@@ -220,7 +220,8 @@ def caption_image(
         text_align: ``"left"``, ``"right"`` or ``"center"`` alignment of
             lines within the text. ``None`` (default; moviepy's is
             ``"left"``) aligns right-to-left paragraphs right and
-            left-to-right ones left.
+            left-to-right ones left. ``"justify"`` fills the wrapped lines
+            of ``"caption"`` to the width, as in :func:`khatt.draw_text`.
         horizontal_align: ``"left"``, ``"center"`` or ``"right"``: where the
             text sits in a wider area.
         vertical_align: ``"top"``, ``"center"`` or ``"bottom"``: where the

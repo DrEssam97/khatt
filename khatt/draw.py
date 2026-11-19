@@ -27,7 +27,7 @@ from khatt.layout import largest_size, layout_block, measure_block, smallest_spa
 from khatt.raster import Block, Box
 
 _MODES = ("RGB", "RGBA")
-_ALIGNS = ("left", "right", "center")
+_ALIGNS = ("left", "right", "center", "justify")
 _VALIGNS = ("top", "middle", "bottom")
 _FITS = ("shrink", "wrap", "none")
 
@@ -374,7 +374,10 @@ def draw_text(
             alpha makes the text translucent.
         align: ``"left"``, ``"right"`` or ``"center"`` alignment of lines
             within the block; ``None`` aligns right-to-left paragraphs right
-            and left-to-right ones left.
+            and left-to-right ones left. ``"justify"`` (with ``max_width``)
+            fills every wrapped line but a paragraph's last to ``max_width``:
+            Arabic words get a kashida, as in printed Naskh, then the spaces
+            widen. The last line aligns by its direction.
         anchor: Two letters, as in Pillow. Horizontal: ``l`` / ``m`` / ``r``
             for the left, middle or right of the ink. Vertical: ``a``
             (first line's ascender), ``t`` (top of the ink), ``m`` (middle,
@@ -480,8 +483,8 @@ def word_art(
             to a .ttf/.otf font file. The default is the heavy ``"lalezar"``,
             because effects show best on wide strokes.
         size_px: Font size in pixels per em.
-        align: ``"left"``, ``"right"`` or ``"center"`` alignment of lines,
-            as in :func:`draw_text`.
+        align: ``"left"``, ``"right"``, ``"center"`` or ``"justify"``
+            alignment of lines, as in :func:`draw_text`.
         max_width: Wrap at spaces to this width in pixels.
         line_spacing: Distance between baselines, in multiples of ``size_px``.
         spacing: Pixels between lines, as Pillow's ``spacing``.
@@ -669,7 +672,8 @@ def overlay(
         fill: Text colour, as in :func:`draw_text`.
         align: ``"left"``, ``"right"`` or ``"center"`` within the box;
             ``None`` aligns right-to-left paragraphs right and left-to-right
-            ones left.
+            ones left. ``"justify"`` fills the wrapped lines to the box's
+            width, as in :func:`draw_text`.
         valign: ``"top"``, ``"middle"`` or ``"bottom"``: where the ink sits
             in the box.
         padding: Pixels kept clear inside each edge of the box.
