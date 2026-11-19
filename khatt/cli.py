@@ -10,7 +10,7 @@ import sys
 import warnings
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TextIO
+from typing import Any, TextIO
 
 from PIL import Image, ImageColor, ImageOps
 
@@ -648,6 +648,25 @@ def _parser() -> argparse.ArgumentParser:
         help="With --fetch: leave out the user@host line, for screenshots.",
     )
     parser.add_argument(
+        "--ocr-data",
+        metavar="FOLDER",
+        type=Path,
+        help="Make OCR training data in FOLDER from the text: a .txt file with one line "
+        "per image, or - for standard input. Writes images/, metadata.jsonl (Hugging Face "
+        "imagefolder) and labels.txt (path, tab, label). Fonts: --font, comma-separated "
+        "to mix several. Size: --size-px (default 40). Colours: --fg and --bg.",
+    )
+    parser.add_argument(
+        "--augment",
+        action="store_true",
+        help="With --ocr-data: turn, blur and add noise to each image a little.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        help="With --ocr-data: seed for the random picks, for the same data every run.",
+    )
+    parser.add_argument(
         "--doctor",
         action="store_true",
         help="Check which Arabic shaping engines are installed (and double-shaping risks), "
@@ -655,6 +674,33 @@ def _parser() -> argparse.ArgumentParser:
         "Arabic with arabic_reshaper or get_display, and exit with status 1 if it does.",
     )
     return parser
+
+
+def _make_ocr_data(
+    source: str | None,
+    folder: Path,
+    *,
+    augment: bool,
+    **options: Any,
+) -> None:
+    """``khatt FILE --ocr-data FOLDER``: one OCR line image per line of ``FILE``."""
+    if source is None or source == "-":
+        lines = sys.stdin.read().splitlines()
+    elif Path(source).is_file():
+        lines = Path(source).read_text(encoding="utf-8").splitlines()
+    else:
+        raise _fail(
+            f"--ocr-data reads a text file (one line per image) or - for standard input, "
+            f"and {source!r} is not a file",
+            2,
+        )
+    if augment:
+        options.update(rotate=2, blur=0.6, noise=10)
+    try:
+        count = khatt.write_ocr_dataset(lines, folder, **options)
+    except (KeyError, ValueError, FileNotFoundError) as exc:
+        raise _fail(str(exc.args[0]), 2) from exc
+    _say(f"wrote {count} images with metadata.jsonl and labels.txt to {folder}")
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -762,6 +808,20 @@ def main(argv: Sequence[str] | None = None) -> None:
         if backdrop.strip().lower() in ("none", "transparent")
         else _color(parser, "--bg", backdrop)
     )
+    if options.ocr_data is not None:
+        _make_ocr_data(
+            text,
+            options.ocr_data,
+            fonts=(font or "amiri").split(","),
+            size_px=size_px or 40,
+            fill=ink,
+            background=background or "white",
+            keep_tashkeel=keep_tashkeel is not False,
+            digits="arabic-indic" if options.arabic_digits else None,
+            augment=options.augment,
+            seed=options.seed,
+        )
+        return
     if palette is not None:
         try:
             palette_colors(palette)
