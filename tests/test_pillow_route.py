@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 import khatt
 from khatt.pillow import _ORIGINALS
@@ -101,6 +101,45 @@ class TestMeasuring:
         assert khatt.pillow.textlength(draw, ARABIC, font=FONT) == right - left
         assert khatt.pillow.textlength(draw, "Hello", font=FONT) == draw.textlength(
             "Hello", font=FONT
+        )
+
+    def test_spaces_at_the_ends_count(self) -> None:
+        # As in Pillow, spaces at either end are part of the width and the box.
+        _, draw = canvas()
+        space = FONT.getlength(" ")
+        width = khatt.pillow.textlength(draw, ARABIC, font=FONT)
+        assert khatt.pillow.textlength(draw, f"  {ARABIC} ", font=FONT) == pytest.approx(
+            width + 3 * space, abs=1
+        )
+        left, _, right, _ = khatt.pillow.textbbox(draw, (5, 5), f" {ARABIC} ", font=FONT)
+        assert left == 5
+        assert right - left == pytest.approx(width + 2 * space, abs=1)
+
+    @pytest.mark.parametrize(("anchor", "x", "ink_edge"), [("la", 10, 0), ("ra", 350, 2)])
+    def test_spaces_typed_first_are_on_the_right(self, anchor: str, x: int, ink_edge: int) -> None:
+        # Right to left, the two spaces typed first sit right of the ink and the one
+        # typed last sits left of it.
+        image, draw = canvas()
+        khatt.pillow.text(draw, (x, 10), f"  {ARABIC} ", fill="black", font=FONT, anchor=anchor)
+        ink = ImageOps.invert(image.convert("L")).getbbox()
+        assert ink is not None
+        space = FONT.getlength(" ")
+        if anchor == "la":
+            assert ink[0] == pytest.approx(x + space, abs=2)
+        else:
+            assert ink[2] == pytest.approx(x - ink_edge * space, abs=2)
+
+    def test_lines_keep_their_spaces_out(self) -> None:
+        # Several lines are laid out by khatt as a block, as before.
+        _, draw = canvas()
+        text = f"{ARABIC} \n{ARABIC}"
+        assert khatt.pillow.textbbox(draw, (5, 5), text, font=FONT) == khatt.text_bbox(
+            text,
+            xy=(5, 5),
+            font=str(khatt.font_path("noto-naskh")),
+            size_px=32,
+            spacing=4,
+            fallback_fonts=[khatt.font_path("noto-naskh")],
         )
 
 

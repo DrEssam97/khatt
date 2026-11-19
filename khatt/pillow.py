@@ -20,6 +20,7 @@ For code you can't change, such as a library that draws with ``ImageDraw.text``,
 from __future__ import annotations
 
 import contextlib
+import functools
 import threading
 import unicodedata
 from collections.abc import Callable, Iterator
@@ -30,7 +31,9 @@ from PIL import Image, ImageColor, ImageDraw, ImageFont
 
 from khatt.draw import draw_text, text_bbox
 from khatt.fonts import font_path
+from khatt.layout import paragraphs
 from khatt.rescue import is_reshaped, unreshape
+from khatt.shaping import base_direction
 
 FALLBACK_FONT = "noto-naskh"
 """Bundled font for Arabic letters the given font has no glyphs for."""
@@ -73,6 +76,51 @@ def _font_options(
         return {"font": path, "size_px": round(size), "fallback_fonts": [fallback]}
     # Pillow's built-in bitmap font, or a font from bytes: no file to shape with.
     return {"font": FALLBACK_FONT, "size_px": round(size)}
+
+
+@functools.lru_cache(maxsize=64)
+def _space_width(font: str, size_px: int) -> float:
+    """How far a space moves the pen in ``font`` at ``size_px``."""
+    return float(ImageFont.truetype(str(font_path(font)), size_px).getlength(" "))
+
+
+def _edge_spaces(arabic: str, options: dict[str, Any]) -> tuple[int, int]:
+    """Pixels of the spaces at the left and right end of a one-line ``arabic``.
+
+    Pillow's boxes and lengths count spaces at either end of the text, and khatt's
+    count ink, so these get added back. In a right-to-left line, the spaces typed
+    first end up on the right.
+    """
+    if len(paragraphs(arabic)) != 1:
+        return 0, 0
+    first = len(arabic) - len(arabic.lstrip(" "))
+    last = len(arabic) - len(arabic.rstrip(" "))
+    if not first and not last:
+        return 0, 0
+    if base_direction(arabic) == "rtl":
+        first, last = last, first
+    space = _space_width(options["font"], options["size_px"])
+    return round(first * space), round(last * space)
+
+
+def _with_spaces(
+    xy: tuple[float, float], anchor: str, left: int, right: int
+) -> tuple[float, float]:
+    """Where the ink goes so that ``anchor`` refers to the text and its edge spaces."""
+    shift = {"l": left, "m": (left - right) / 2, "r": -right}.get(anchor[:1], 0)
+    return xy[0] + shift, xy[1]
+
+
+def _arabic_bbox(
+    arabic: str, xy: tuple[float, float], anchor: str | None, options: dict[str, Any], **layout: Any
+) -> tuple[int, int, int, int]:
+    """The box :func:`text` draws ``arabic`` in, its edge spaces included as in Pillow."""
+    anchor = anchor or "la"
+    left, right = _edge_spaces(arabic, options)
+    box = text_bbox(
+        arabic, xy=_with_spaces(xy, anchor, left, right), anchor=anchor, **layout, **options
+    )
+    return box[0] - left, box[1], box[2] + right, box[3]
 
 
 def _ink(draw: ImageDraw.ImageDraw, fill: Any) -> tuple[int, int, int, int]:
@@ -138,6 +186,7 @@ def text(
         )
         return
     options = _font_options(font, font_size)
+    xy = _with_spaces(xy, anchor or "la", *_edge_spaces(arabic, options))
     layout = {
         "anchor": anchor or "la",
         "spacing": spacing,
@@ -202,14 +251,14 @@ def textbbox(
             font_size=font_size,
         )
         return box
-    return text_bbox(
+    return _arabic_bbox(
         arabic,
-        xy=xy,
-        anchor=anchor or "la",
+        xy,
+        anchor,
+        _font_options(font, font_size),
         spacing=spacing,
         align=align,
         stroke_width=stroke_width,
-        **_font_options(font, font_size),
     )
 
 
@@ -231,7 +280,7 @@ def textlength(
             draw, text, font, direction, features, language, embedded_color, font_size=font_size
         )
         return length
-    left, _, right, _ = text_bbox(arabic, anchor="ls", **_font_options(font, font_size))
+    left, _, right, _ = _arabic_bbox(arabic, (0, 0), "ls", _font_options(font, font_size))
     return float(right - left)
 
 
@@ -251,8 +300,8 @@ def _getbbox(
             font, text, mode, direction, features, language, stroke_width, anchor
         )
         return box
-    return text_bbox(
-        arabic, anchor=anchor or "la", stroke_width=stroke_width, **_font_options(font, None)
+    return _arabic_bbox(
+        arabic, (0, 0), anchor, _font_options(font, None), stroke_width=stroke_width
     )
 
 
@@ -268,7 +317,7 @@ def _getlength(
     if arabic is None:
         length: float = _ORIGINALS["getlength"](font, text, mode, direction, features, language)
         return length
-    left, _, right, _ = text_bbox(arabic, anchor="ls", **_font_options(font, None))
+    left, _, right, _ = _arabic_bbox(arabic, (0, 0), "ls", _font_options(font, None))
     return float(right - left)
 
 
