@@ -1,9 +1,9 @@
 """Arabic text for Tkinter labels, buttons and canvases.
 
-Tk draws Arabic as separate letters, left to right, on Windows and Linux, and the
-old fix (arabic_reshaper and ``get_display`` before giving Tk the string) draws it
-backwards on macOS, where Tk shapes Arabic itself. :func:`tk_image` draws the text
-with khatt instead and gives Tk a picture of it, which looks the same everywhere::
+Tk on Linux draws Arabic as separate letters, left to right (on Windows it joins
+them). :func:`tk_image` draws the text with khatt and gives Tk a picture of it, so it
+looks the same on every system, without arabic_reshaper, and in any font file (Tk
+itself can only use fonts installed on the system)::
 
     import tkinter as tk
     import khatt
