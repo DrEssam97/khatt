@@ -26,6 +26,7 @@ from khatt.calligram import calligram
 from khatt.caption import caption_image
 from khatt.curves import Arc, Wave
 from khatt.curves import available_curves as list_curves
+from khatt.digits import arabic_digits
 from khatt.doctor import doctor, find_reshaping
 from khatt.draw import Span, TextOverflowWarning, draw_text, overlay, text_bbox, word_art
 from khatt.effects import Effect, Extrude, Glow, Gradient, Shadow, get_effect
@@ -46,6 +47,7 @@ from khatt.rescue import ReshapedTextWarning, is_reshaped, unreshape
 from khatt.shaping import UnsupportedCharacterWarning, base_direction, strip_tashkeel
 from khatt.shaping import missing_characters as _missing_in_line
 from khatt.svg import render_svg
+from khatt.tk import tk_image
 from khatt.words import (
     CaptionStep,
     Word,
@@ -81,6 +83,7 @@ __all__ = [
     "WordBox",
     "__version__",
     "animate",
+    "arabic_digits",
     "art_to_html",
     "art_to_image",
     "art_to_svg",
@@ -116,6 +119,7 @@ __all__ = [
     "render_image",
     "render_svg",
     "text_bbox",
+    "tk_image",
     "unreshape",
     "word_art",
     "word_boxes",
