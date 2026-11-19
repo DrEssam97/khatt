@@ -22,12 +22,14 @@ per em, wraps to a width in pixels, and keeps its baselines evenly spaced
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 
 from PIL import Image
 
+from khatt.kashida import TATWEEL, justify, justify_point
 from khatt.raster import (
     CELL_ASPECT,
     RENDER_PPEM,
@@ -41,7 +43,7 @@ from khatt.raster import (
     size_metrics,
     to_grid,
 )
-from khatt.shaping import ShapedGlyph, base_direction, shape
+from khatt.shaping import ShapedGlyph, base_direction, shape, units_per_em
 
 DEFAULT_SIZE = 10
 """Default font size, in character rows per em."""
@@ -120,6 +122,83 @@ def _line_starts(text: str) -> list[int]:
     return starts
 
 
+def _justified(
+    piece: str,
+    path: Path,
+    *,
+    direction: str,
+    keep_tashkeel: bool,
+    ppem: int,
+    target: float,
+    warn: bool,
+    fallbacks: Sequence[Path],
+) -> tuple[str, list[ShapedGlyph]]:
+    """``piece`` stretched to ``target`` pixels wide at ``ppem``: kashida first, then spaces.
+
+    Arabic words get tatweels where their letters join (see
+    :func:`khatt.kashida.stretch`); whatever room is left is shared out among the
+    spaces between words. Returns the stretched text and its glyphs, each glyph's
+    ``index`` pointing into that text.
+    """
+
+    def width(text: str) -> int:
+        return _ink_width(text, path, direction, keep_tashkeel, ppem, fallbacks)
+
+    text = piece
+    room = target - width(piece)
+    stretchable = any(justify_point(word) is not None for word in piece.split())
+    tatweel = width(TATWEEL) if room > 0 and stretchable else 0
+    if tatweel > 0:
+        text = justify(piece, int(room // tatweel))
+        over = width(text) - target
+        while over > 0 and TATWEEL in text:
+            # Joined tatweels overlap a little, so a few may be one too many.
+            for _ in range(max(1, math.ceil(over / tatweel))):
+                text = text[::-1].replace(TATWEEL, "", 1)[::-1]
+            over = width(text) - target
+    glyphs = shape(
+        text,
+        path,
+        keep_tashkeel=keep_tashkeel,
+        direction=direction,
+        warn=warn,
+        fallback_fonts=fallbacks,
+        track=True,
+    )
+    box = estimate(glyphs, path, ppem=ppem)
+    spaces = [
+        n
+        for n, glyph in enumerate(glyphs)
+        if glyph.font is None and 0 <= glyph.index < len(text) and text[glyph.index] == " "
+    ]
+    if box is None or not spaces:
+        return text, glyphs
+    room = target - (box[2] - box[0])
+    total = math.floor(room * units_per_em(path) / ppem)
+    if total <= 0:
+        return text, glyphs
+    each, rest = divmod(total, len(spaces))
+    for count, n in enumerate(spaces):
+        extra = each + (1 if count < rest else 0)
+        glyphs[n] = replace(glyphs[n], x_advance=glyphs[n].x_advance + extra)
+    return text, glyphs
+
+
+def _typed_positions(stretched: str, piece: str) -> list[int]:
+    """For each character of ``stretched``, its position in ``piece`` before tatweels went in.
+
+    An added tatweel counts as part of the letter before it.
+    """
+    positions, typed = [], 0
+    for ch in stretched:
+        if ch == TATWEEL and (typed >= len(piece) or piece[typed] != TATWEEL):
+            positions.append(max(typed - 1, 0))
+        else:
+            positions.append(typed)
+            typed += 1
+    return positions
+
+
 class _Lines:
     """Shaped, aligned lines ready for :func:`khatt.raster.compose`."""
 
@@ -162,6 +241,8 @@ def _shape_lines(
     warn: bool = True,
     fallbacks: Sequence[Path] = (),
     track: bool = False,
+    justify: float | None = None,
+    justify_last: bool = False,
 ) -> _Lines:
     """Shape every paragraph, wrapping it to ``max_width`` pixels if given.
 
@@ -169,6 +250,10 @@ def _shape_lines(
     ``warn=False`` skips unsupported characters silently. ``fallbacks`` are
     fonts for characters ``path`` has no glyph for. ``track`` sets each
     glyph's ``index`` to its character's position in ``text``.
+
+    ``justify`` (pixels at ``ppem``, which it needs) stretches every line of a
+    paragraph but its last to that width (see :func:`_justified`);
+    ``justify_last`` stretches the last line too.
     """
     lines = _Lines()
     for paragraph, paragraph_start in zip(paragraphs(text), _line_starts(text), strict=True):
@@ -183,15 +268,33 @@ def _shape_lines(
             pieces = wrap(paragraph, fits)
         positions = _piece_positions(paragraph, pieces) if track else None
         for number, piece in enumerate(pieces):
-            glyphs = shape(
-                piece,
-                path,
-                keep_tashkeel=keep_tashkeel,
-                direction=direction,
-                warn=warn,
-                fallback_fonts=fallbacks,
-                track=track,
-            )
+            last = number == len(pieces) - 1
+            if justify is not None and ppem is not None and (justify_last or not last):
+                stretched, glyphs = _justified(
+                    piece,
+                    path,
+                    direction=direction,
+                    keep_tashkeel=keep_tashkeel,
+                    ppem=ppem,
+                    target=justify,
+                    warn=warn,
+                    fallbacks=fallbacks,
+                )
+                typed = _typed_positions(stretched, piece)
+                glyphs = [
+                    replace(glyph, index=typed[glyph.index] if track and glyph.index >= 0 else -1)
+                    for glyph in glyphs
+                ]
+            else:
+                glyphs = shape(
+                    piece,
+                    path,
+                    keep_tashkeel=keep_tashkeel,
+                    direction=direction,
+                    warn=warn,
+                    fallback_fonts=fallbacks,
+                    track=track,
+                )
             if positions is not None:
                 glyphs = [
                     replace(glyph, index=paragraph_start + positions[number][glyph.index])
@@ -480,6 +583,7 @@ def layout_block(
     spacing: float | None = None,
     fallbacks: Sequence[Path] = (),
     spans: Sequence[tuple[int, int, int]] = (),
+    justify_last: bool = False,
 ) -> TextBlock | None:
     """Lay out and draw ``text`` at ``size_px`` pixels per em for an image.
 
@@ -487,7 +591,11 @@ def layout_block(
     are :func:`line_pitch` pixels apart (``line_spacing * size_px``, or by
     ``spacing``). Lines are aligned by ``align`` (``"left"``, ``"right"`` or
     ``"center"``; ``None``: by each paragraph's direction) within ``width``
-    pixels or the widest line. ``stroke_width`` (pixels) also draws an
+    pixels or the widest line. ``"justify"`` stretches every wrapped line
+    but a paragraph's last (all of them with ``justify_last``) to
+    ``max_width``, or to ``width`` when not wrapping, with kashida in Arabic
+    words and then wider spaces; the last lines align by their direction.
+    ``stroke_width`` (pixels) also draws an
     outline stroke around the text (see :func:`khatt.raster.compose_block`).
     Characters ``path`` has no glyph for are drawn from the first of
     ``fallbacks`` that has one; line spacing still follows ``path``.
@@ -499,6 +607,10 @@ def layout_block(
 
     Returns ``None`` when there is nothing to draw.
     """
+    justify = None
+    if align == "justify":
+        justify = max_width if max_width is not None else width
+        align = None
     lines = _shape_lines(
         text,
         path,
@@ -507,6 +619,8 @@ def layout_block(
         ppem=size_px,
         fallbacks=fallbacks,
         track=bool(spans),
+        justify=justify,
+        justify_last=justify_last,
     )
     groups = None
     if spans:

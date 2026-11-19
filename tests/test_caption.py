@@ -393,7 +393,7 @@ class TestErrors:
             ({"method": "caption", "size": (300, None)}, "height"),
             ({}, "font_size"),
             ({"font_size": 40, "margin": (1, 2, 3)}, "margin"),
-            ({"font_size": 40, "text_align": "justify"}, "text_align"),
+            ({"font_size": 40, "text_align": "justified"}, "text_align"),
             ({"font_size": 40, "horizontal_align": "middle"}, "horizontal_align"),
             ({"font_size": 40, "vertical_align": "middle"}, "vertical_align"),
             ({"font_size": 0}, "font_size"),

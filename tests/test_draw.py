@@ -299,7 +299,7 @@ class TestDrawTextErrors:
         [
             ({"anchor": "xx"}, "anchor"),
             ({"anchor": "l"}, "anchor"),
-            ({"align": "justify"}, "align"),
+            ({"align": "justified"}, "align"),
             ({"size_px": 0}, "size_px"),
             ({"line_spacing": 0}, "line_spacing"),
             ({"max_width": 0}, "max_width"),
@@ -475,7 +475,7 @@ class TestOverlay:
             ({"max_size_px": 0}, "max_size_px"),
             ({"min_size_px": 0}, "min_size_px"),
             ({"max_size_px": 10, "min_size_px": 20}, "min_size_px"),
-            ({"align": "justify"}, "align"),
+            ({"align": "justified"}, "align"),
         ],
     )
     def test_bad_arguments(self, kwargs: dict[str, Any], match: str) -> None:
