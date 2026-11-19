@@ -49,6 +49,8 @@ Or [install it](#install) with `pip install khatt`.
   your own from gradients, glows, shadows, depth and bevels.
 - **Calligrams.** `khatt.calligram` flows text inside a heart, a circle or any image of
   your own, with Arabic lines stretched by kashida.
+- **Justified text and poetry.** `align="justify"` fills paragraphs to the width with
+  kashida, as books are printed, and `khatt.poem` sets verses in two columns.
 - **Zakhrafa.** `khatt.zakhrafa` decorates names to copy and paste, without breaking a
   single join.
 - **SVG.** `khatt.render_svg` gives the same text as vector outlines, for the web, design
@@ -181,6 +183,40 @@ khatt.draw_text(image, (20, 20), "السعر 1,250.5 ريال وخصم 15%", dig
 `khatt.arabic_digits(text)` returns the converted string. It replaces one character
 with one, so `spans` positions stay the same. On the command line it is
 `khatt "صفحة 15" --arabic-digits`.
+
+### Justified paragraphs and poetry
+
+![The same Arabic paragraph aligned right and justified with kashida](docs/assets/khatt-justify.png)
+
+`align="justify"` with `max_width` fills every wrapped line of a paragraph but its last
+to the full width, the way Arabic books are printed: a word stretches with a kashida
+first (after a seen, sheen, sad or dad if it has one, else before its last letter), and
+only then do the spaces widen. Short words and the name of God, whose ligature a kashida
+would break, are left alone. Latin text justifies with its spaces.
+
+```python
+khatt.draw_text(image, (580, 20), text, anchor="ra", size_px=34, max_width=540,
+                align="justify")
+```
+
+`text_bbox`, `overlay`, `word_art`, `word_boxes`, `render_svg`, `caption_image` (as
+`text_align`) and `tk_image` take it too.
+
+![Three verses of a classical Arabic poem in two columns with straight edges](docs/assets/khatt-poem.png)
+
+`khatt.poem` lays out verses the classical way: the first half of each verse on the
+right, the second on the left, every half stretched with kashida to the same width so
+both columns have straight edges:
+
+```python
+art = khatt.poem("""قفا نبك من ذكرى حبيب ومنزل * بسقط اللوى بين الدخول فحومل
+فتوضح فالمقراة لم يعف رسمها * لما نسجتها من جنوب وشمأل""", size_px=44)
+art.save("poem.png")
+```
+
+Halves can also be split by a tab or three spaces, or passed as `(first, second)`
+pairs. It returns an RGBA image, transparent unless you give a `background`, and takes
+`font`, `fill`, `gap`, `line_spacing`, `padding`, an outline and `digits`.
 
 **Why not just `ImageDraw.text`?** Pillow shapes Arabic only when it's built with
 Raqm, which most Windows installs aren't. The usual workaround,
