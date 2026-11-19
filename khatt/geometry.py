@@ -19,6 +19,7 @@ from dataclasses import dataclass
 
 from PIL import Image
 
+from khatt.digits import with_digits
 from khatt.draw import _place_text
 from khatt.fonts import Font
 from khatt.raster import Box
@@ -55,6 +56,7 @@ def word_boxes(
     line_spacing: float | None = None,
     spacing: float | None = None,
     keep_tashkeel: bool = True,
+    digits: str | None = None,
     fallback_fonts: Font | Sequence[Font] = (),
     ranges: Sequence[tuple[int, int]] | None = None,
 ) -> list[WordBox]:
@@ -75,6 +77,7 @@ def word_boxes(
         text: reading order, whatever the direction. Words with nothing to draw, such
         as a lone space range, are left out.
     """
+    text = with_digits(text, digits)
     if ranges is None:
         spans = [(match.start(), match.end()) for match in _WORD.finditer(text)]
     else:

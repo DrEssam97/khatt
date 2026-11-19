@@ -23,6 +23,7 @@ from typing import Any
 
 from PIL import Image
 
+from khatt.digits import with_digits
 from khatt.draw import draw_text, text_bbox
 from khatt.fonts import Font
 
@@ -58,6 +59,7 @@ def put_text(
     stroke_width: float = 0,
     stroke_color: Any = None,
     keep_tashkeel: bool = True,
+    digits: str | None = None,
     fallback_fonts: Font | Sequence[Font] = (),
 ) -> Any:
     """Draw shaped text onto a NumPy image (in place) and return it.
@@ -88,6 +90,8 @@ def put_text(
         stroke_color: Outline colour, in the same order as ``color``;
             default: ``color``.
         keep_tashkeel: Keep Arabic diacritics (``False`` strips them).
+        digits: ``"arabic-indic"`` writes the digits 0 to 9 as ٠ to ٩ (see
+            :func:`khatt.arabic_digits`); default: as typed.
         fallback_fonts: Fonts for characters ``font`` has no glyph for.
 
     Returns:
@@ -96,6 +100,7 @@ def put_text(
     Raises:
         ValueError: if ``image`` is not a ``uint8`` array of a supported shape.
     """
+    text = with_digits(text, digits)
     import numpy as np
 
     if not isinstance(image, np.ndarray) or image.dtype != np.uint8:
