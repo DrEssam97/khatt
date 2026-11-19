@@ -65,6 +65,11 @@ import khatt
 khatt.draw_text(image, (x, y), text, font="amiri", size_px=48)
 ```
 
+Or keep your `ImageDraw` code and change only the call: `khatt.pillow.text(draw, xy,
+text, ...)` takes `draw.text`'s arguments, and turns already-reshaped strings back
+before drawing them. For a library you can't edit, wrap its calls in
+`with khatt.pillow.routing():`.
+
 Or, where you know the library shapes Arabic (Pillow with Raqm, matplotlib 3.11+,
 OpenCV 5.1+), drop both calls and give it `text` itself.
 

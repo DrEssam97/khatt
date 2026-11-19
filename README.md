@@ -179,6 +179,7 @@ $ khatt --doctor
 khatt 0.14.0 (Python 3.13.15)
 Pillow 12.3.0: no Raqm, so ImageDraw.text cannot shape Arabic
 matplotlib: not installed
+OpenCV: not installed
 arabic_reshaper: not installed
 khatt shapes text itself: its output is the same in every case above.
 ```
@@ -187,6 +188,35 @@ Give it your project, `khatt --doctor src/`, and it also lists every place that 
 pre-shapes Arabic with arabic_reshaper or `get_display`. Strings that were already
 reshaped can be turned back with `khatt.unreshape(text)`. See
 [Moving off arabic_reshaper](docs/arabic-reshaper.md).
+
+### Pillow code you already have
+
+`khatt.pillow` has Pillow's own text calls, with the `ImageDraw` first: `text`,
+`textbbox` and `textlength` take the same arguments as `ImageDraw.text`, `textbbox`
+and `textlength`. Text with Arabic letters is drawn by khatt, so it is the same with or
+without Raqm, and strings already shaped with arabic_reshaper and `get_display` are
+turned back first, so they stay right when Pillow starts shaping too. Everything else
+goes to Pillow untouched.
+
+```python
+from PIL import ImageDraw, ImageFont
+import khatt
+
+draw = ImageDraw.Draw(image)
+font = ImageFont.truetype("Amiri-Regular.ttf", 48)
+khatt.pillow.text(draw, (20, 20), "مرحبا", fill="black", font=font)  # was draw.text(...)
+```
+
+For code you can't change, such as a library that draws with `ImageDraw.text`,
+`khatt.pillow.routing()` sends Pillow's text drawing and measuring through khatt
+while a `with` block lasts, and puts it back afterwards:
+
+```python
+with khatt.pillow.routing():
+    card = some_library.render_card(name="محمد")
+```
+
+Arabic letters the font has no glyphs for come from the bundled Noto Naskh Arabic.
 
 ### OpenCV and NumPy arrays
 
