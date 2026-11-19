@@ -22,7 +22,9 @@ Try it without installing anything:
 uvx khatt "مرحبا"
 ```
 
-Or [install it](#install) with `pip install khatt`.
+Or [install it](#install) with `pip install khatt`. The
+[documentation](https://dressam97.github.io/khatt/) has this guide and the full API
+reference.
 
 **Used by**
 
