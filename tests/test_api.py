@@ -11,7 +11,7 @@ ASCII_CHARS = set(" .:-=+*#%@\n")
 
 
 def test_version() -> None:
-    assert khatt.__version__ == "0.16.0"
+    assert khatt.__version__ == "0.17.0"
 
 
 def test_render_returns_art() -> None:
