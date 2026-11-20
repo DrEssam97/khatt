@@ -35,6 +35,7 @@ reference.
 - [manga-image-translator](https://github.com/zyddnys/manga-image-translator) for Arabic in the translations it draws onto manga pages
 - [memegen](https://github.com/jacebrowning/memegen) for Arabic memes with `font=ar`
 - [agnes-video-generator](https://github.com/lcy362/agnes-video-generator) for Arabic subtitles in the videos it puts together
+- [Co-op Translator](https://github.com/Azure/co-op-translator) (Microsoft) for Arabic text in the images it translates
 
 ## Features
 
