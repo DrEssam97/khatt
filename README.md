@@ -23,8 +23,9 @@ uvx khatt "مرحبا"
 ```
 
 Or [install it](#install) with `pip install khatt`. The
-[documentation](https://dressam97.github.io/khatt/) has this guide and the full API
-reference.
+[documentation](https://dressam97.github.io/khatt/) has this guide, a
+[gallery](https://dressam97.github.io/khatt/gallery.html) of every font, effect and style,
+and the full API reference.
 
 **Used by**
 

@@ -3,9 +3,14 @@
 from __future__ import annotations
 
 import re
+import sys
+from pathlib import Path
 from typing import Any
 
 import khatt
+
+sys.path.insert(0, str(Path(__file__).parent))
+import gallery_build
 
 project = "khatt"
 author = "Mohammed Essam"
@@ -20,7 +25,8 @@ extensions = [
     "sphinx_copybutton",
 ]
 source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
-exclude_patterns = ["_build"]
+# _generated holds the gallery's fragments, drawn at build time and included by gallery.md.
+exclude_patterns = ["_build", "_generated"]
 
 # The README is the front page: its in-page links (#install) need heading anchors.
 myst_heading_anchors = 3
@@ -60,8 +66,15 @@ _REPO_FILE = re.compile(r"\]\((?!https?://|#|docs/|mailto:)([^)\s]+)\)")
 def _link_repository_files(
     app: Any, relative_path: Any, parent_docname: str, content: list[str]
 ) -> None:
+    if Path(relative_path).name not in ("README.md", "CHANGELOG.md"):
+        return
     content[0] = _REPO_FILE.sub(lambda match: f"]({REPOSITORY}{match.group(1)})", content[0])
 
 
+def _draw_gallery(app: Any) -> None:
+    gallery_build.build(Path(app.srcdir))
+
+
 def setup(app: Any) -> None:
+    app.connect("builder-inited", _draw_gallery)
     app.connect("include-read", _link_repository_files)
