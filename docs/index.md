@@ -7,6 +7,7 @@
 :hidden:
 :maxdepth: 2
 
+gallery
 recipes
 arabic-reshaper
 api
