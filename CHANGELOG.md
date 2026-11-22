@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-11-22
+
+### Added
+
+- A documentation site with the guide and an API reference for every public function:
+  <https://dressam97.github.io/khatt/>, linked from PyPI as Documentation.
+
 ### Removed
 
 - Python 3.10, which reached its end of life in October 2026. On Python 3.10, pip
@@ -473,7 +480,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   83-test suite at ≥85% enforced coverage on a 3.10 to 3.13 × Ubuntu/Windows
   CI matrix.
 
-[Unreleased]: https://github.com/DrEssam97/khatt/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/DrEssam97/khatt/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/DrEssam97/khatt/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/DrEssam97/khatt/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/DrEssam97/khatt/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/DrEssam97/khatt/compare/v0.14.0...v0.15.0
